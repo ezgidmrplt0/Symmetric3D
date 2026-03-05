@@ -12,6 +12,8 @@ GameObject:
   - component: {fileID: 2233343770207924304}
   - component: {fileID: 909674614683322669}
   - component: {fileID: 6954316644408500180}
+  - component: {fileID: 6898953826347593860}
+  - component: {fileID: 2253886326804591811}
   m_Layer: 0
   m_Name: MainObject
   m_TagString: Untagged
@@ -27,14 +29,14 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2541529924135553766}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0.38268343, w: 0.92387956}
+  m_LocalRotation: {x: -0.07295725, y: -0.010215812, z: -0.085419044, w: 0.9936179}
   m_LocalPosition: {x: 200, y: 0, z: 0}
   m_LocalScale: {x: 0.75, y: 0.75, z: 0.75}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 2916744194921471043}
   m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 45}
+  m_LocalEulerAnglesHint: {x: -8.437, y: -0.454, z: -9.794}
 --- !u!33 &2233343770207924304
 MeshFilter:
   m_ObjectHideFlags: 0
@@ -106,6 +108,33 @@ SphereCollider:
   serializedVersion: 3
   m_Radius: 0.5
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!114 &6898953826347593860
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2541529924135553766}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9f757225ac6565d4c8b91f5ae90971bd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  snapDistance: 1.5
+--- !u!114 &2253886326804591811
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2541529924135553766}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7b3a3f289d5bf774e8edb3a54afebc5c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  rotationAmount: {x: 0, y: 0, z: 90}
+  rotateDuration: 0.3
 --- !u!1 &6547184393761214108
 GameObject:
   m_ObjectHideFlags: 0
@@ -119,6 +148,7 @@ GameObject:
   - component: {fileID: 8319434611356242842}
   - component: {fileID: 1092491460724500447}
   - component: {fileID: 3400592005600612823}
+  - component: {fileID: 4349819098547815733}
   m_Layer: 0
   m_Name: MainObject
   m_TagString: Untagged
@@ -227,3 +257,18 @@ MonoBehaviour:
   liquidMat: {fileID: 2100000, guid: 2e7b1fb41ceb7d5498a28adeb7b4e01e, type: 2}
   tiltAmount: 0.5
   smoothSpeed: 5
+--- !u!114 &4349819098547815733
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6547184393761214108}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7fb63f4c201986f43af3dfc6e58005f2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  liquidMat: {fileID: 2100000, guid: 2e7b1fb41ceb7d5498a28adeb7b4e01e, type: 2}
+  fillAmount: 0.5
+  transferDuration: 0.5

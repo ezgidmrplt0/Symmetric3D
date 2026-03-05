@@ -77,8 +77,8 @@ Material:
     - _SmoothnessTextureChannel: 0
     - _SpecularHighlights: 1
     - _SrcBlend: 1
-    - _TiltX: 1
-    - _TiltZ: 0.02
+    - _TiltX: 0
+    - _TiltZ: 0
     - _UVSec: 0
     - _Wobble: 0.02
     - _WobbleSpeed: 3
