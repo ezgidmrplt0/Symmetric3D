@@ -8,7 +8,7 @@ public class LiquidTransfer : MonoBehaviour
     public Color liquidColor = Color.white;
     public float fillAmount = 0f; 
     public float transferDuration = 0.5f;
-    public float maxAdjacencyDistance = 2.5f;
+    public float maxAdjacencyDistance = 1.5f; // Sadece 1 grid (yaklaşık 1.4 birim) mesafeye izin verir
 
     [HideInInspector]
     public bool transferring = false;
@@ -58,7 +58,11 @@ public class LiquidTransfer : MonoBehaviour
 
             float dist = Vector3.Distance(transform.position, other.transform.position);
 
-            if (dist < maxAdjacencyDistance && dist > 0.1f)
+            float diffX = Mathf.Abs(transform.position.x - other.transform.position.x);
+            float diffY = Mathf.Abs(transform.position.y - other.transform.position.y);
+            bool isAligned = diffX < 0.1f || diffY < 0.1f;
+
+            if (dist < maxAdjacencyDistance && dist > 0.1f && isAligned)
             {
                 Vector3 posMe = new Vector3(transform.position.x, transform.position.y, 0);
                 Vector3 posOther = new Vector3(other.transform.position.x, other.transform.position.y, 0);

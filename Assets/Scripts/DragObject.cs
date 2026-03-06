@@ -10,7 +10,12 @@ public class DragObject : MonoBehaviour
 
     private Vector3 startPosition;
 
+    [Header("Ayarlar")]
     public float snapDistance = 1.5f;
+    
+    [Header("Çarpışma (Collision)")]
+    [Tooltip("Diğer objelerin içinden geçmesini engelleyen çap (Gerekirse Inspector'dan küçültüp büyütebilirsiniz)")]
+    public float collisionDistance = 1.0f;
 
     void Start()
     {
@@ -69,7 +74,52 @@ public class DragObject : MonoBehaviour
     void Drag(Vector3 screenPos)
     {
         Vector3 world = cam.ScreenToWorldPoint(new Vector3(screenPos.x, screenPos.y, zDepth));
-        transform.position = world + offset;
+        Vector3 desiredPos = world + offset;
+
+        DragObject[] allObjects = FindObjectsOfType<DragObject>();
+
+        Vector3 currentPos = transform.position;
+        Vector3 moveDir = desiredPos - currentPos;
+        float expectedDistance = moveDir.magnitude;
+
+        // Objeye hızlıca fareyi çeksek bile objenin içinden (tunneling) geçmemesi için adım adım hareket simülasyonu
+        int steps = Mathf.CeilToInt(expectedDistance / 0.1f);
+        if (steps > 0)
+        {
+            Vector3 stepVec = moveDir / steps;
+
+            for (int s = 0; s < steps; s++)
+            {
+                currentPos += stepVec;
+
+                // Her adımda diğer objelerle çarpışmayı (overlap) çöz
+                for (int i = 0; i < 2; i++) 
+                {
+                    foreach (DragObject obj in allObjects)
+                    {
+                        if (obj == this) continue;
+
+                        Vector2 myPos2D = new Vector2(currentPos.x, currentPos.y);
+                        Vector2 otherPos2D = new Vector2(obj.transform.position.x, obj.transform.position.y);
+
+                        float dist = Vector2.Distance(myPos2D, otherPos2D);
+
+                        if (dist < collisionDistance)
+                        {
+                            Vector2 pushDir = (myPos2D - otherPos2D).normalized;
+                            if (pushDir == Vector2.zero) pushDir = Vector2.up;
+
+                            // İtme miktarını uygulayarak etrafından kaymasını sağla
+                            Vector2 resolvedPos2D = otherPos2D + pushDir * collisionDistance;
+                            currentPos.x = resolvedPos2D.x;
+                            currentPos.y = resolvedPos2D.y;
+                        }
+                    }
+                }
+            }
+        }
+
+        transform.position = new Vector3(currentPos.x, currentPos.y, desiredPos.z);
     }
 
     void Drop()
