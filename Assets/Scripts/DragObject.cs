@@ -125,7 +125,7 @@ public class DragObject : MonoBehaviour
                 );
 
                 // Bırakıldıktan sonra simetriği olup olmadığını kontrol et
-                LiquidTransfer transfer = GetComponent<LiquidTransfer>();
+                LiquidTransfer transfer = GetComponentInChildren<LiquidTransfer>();
                 if (transfer != null) transfer.CheckSymmetry();
             }
             else

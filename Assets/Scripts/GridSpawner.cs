@@ -54,18 +54,35 @@ public class GridSpawner : MonoBehaviour
 
     void SpawnObjects()
     {
-        for (int i = 0; i < spawnCount; i++)
+        if (gridPositions.Count < 4) return;
+
+        // Define directions for symmetric pairs
+        // Up/Down pair
+        Quaternion rotUp = Quaternion.Euler(0, 0, 0);
+        Quaternion rotDown = Quaternion.Euler(0, 0, 180);
+        // Left/Right pair
+        Quaternion rotLeft = Quaternion.Euler(0, 0, 90);
+        Quaternion rotRight = Quaternion.Euler(0, 0, -90);
+
+        List<Quaternion> rotationPairs = new List<Quaternion>();
+        
+        // Add two pairs (A-B and C-D)
+        // Pair 1: Randomly choose between Vertical or Horizontal symmetry
+        if (Random.value > 0.5f) { rotationPairs.Add(rotUp); rotationPairs.Add(rotDown); }
+        else { rotationPairs.Add(rotLeft); rotationPairs.Add(rotRight); }
+
+        // Pair 2: Randomly choose between Vertical or Horizontal symmetry
+        if (Random.value > 0.5f) { rotationPairs.Add(rotUp); rotationPairs.Add(rotDown); }
+        else { rotationPairs.Add(rotLeft); rotationPairs.Add(rotRight); }
+
+        for (int i = 0; i < 4; i++)
         {
-            if (gridPositions.Count == 0)
-                return;
-
             int randomIndex = Random.Range(0, gridPositions.Count);
-
             Vector3 spawnPos = gridPositions[randomIndex];
-
             spawnPos.z -= objectOffset;
 
-            Instantiate(objectPrefab, spawnPos, Quaternion.identity, transform);
+            // Spawn with symmetric rotation
+            Instantiate(objectPrefab, spawnPos, rotationPairs[i], transform);
 
             gridPositions.RemoveAt(randomIndex);
         }

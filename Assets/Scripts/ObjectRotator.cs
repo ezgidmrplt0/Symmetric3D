@@ -13,6 +13,7 @@ public class ObjectRotator : MonoBehaviour
     private bool isRotating = false;
 
     // Objenin üzerinde bir Collider (Örn: SphereCollider veya BoxCollider) olduğu sürece fare ve dokunmatik tıklamaları algılar
+    /*
     void OnMouseDown()
     {
         // Eğer obje zaten dönüyorsa, bitene kadar yeni tıklamayı engelle (bug olmaması için)
@@ -28,11 +29,12 @@ public class ObjectRotator : MonoBehaviour
                 isRotating = false;
                 
                 // Rotasyon bitince sıvı aktarımı için kontrol et
-                LiquidTransfer liquidTransfer = GetComponent<LiquidTransfer>();
+                LiquidTransfer liquidTransfer = GetComponentInChildren<LiquidTransfer>();
                 if(liquidTransfer != null)
                 {
                     liquidTransfer.CheckSymmetry();
                 }
             });
     }
+    */
 }

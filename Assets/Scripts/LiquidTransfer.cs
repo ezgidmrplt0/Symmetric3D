@@ -114,10 +114,10 @@ public class LiquidTransfer : MonoBehaviour
             });
 
         // Verici küre aynı anda küçülüp yok olacak
-        transform.DOScale(0, transferDuration)
+        transform.parent.DOScale(0, transferDuration)
         .OnComplete(() =>
         {
-            Destroy(gameObject);
+            Destroy(transform.parent.gameObject);
             
             // Sıvı tamamen aktarıldı, hedef nesnenin transfer kilidini aç
             target.transferring = false;
