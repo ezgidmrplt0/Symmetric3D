@@ -75,14 +75,33 @@ public class GridSpawner : MonoBehaviour
         if (Random.value > 0.5f) { rotationPairs.Add(rotUp); rotationPairs.Add(rotDown); }
         else { rotationPairs.Add(rotLeft); rotationPairs.Add(rotRight); }
 
-        for (int i = 0; i < 4; i++)
+        // Pair 3: Randomly choose between Vertical or Horizontal symmetry
+        if (Random.value > 0.5f) { rotationPairs.Add(rotUp); rotationPairs.Add(rotDown); }
+        else { rotationPairs.Add(rotLeft); rotationPairs.Add(rotRight); }
+
+        Color red = new Color(0.8f, 0.1f, 0.1f);   // Tatlı bir kırmızı
+        Color blue = new Color(0.1f, 0.4f, 0.8f);  // Tatlı bir mavi
+        Color green = new Color(0.1f, 0.7f, 0.2f); // Tatlı bir yeşil
+
+        for (int i = 0; i < 6; i++)
         {
+            if (gridPositions.Count == 0) break;
+
             int randomIndex = Random.Range(0, gridPositions.Count);
             Vector3 spawnPos = gridPositions[randomIndex];
             spawnPos.z -= objectOffset;
 
             // Spawn with symmetric rotation
-            Instantiate(objectPrefab, spawnPos, rotationPairs[i], transform);
+            GameObject newObj = Instantiate(objectPrefab, spawnPos, rotationPairs[i], transform);
+            
+            // Renk ata
+            LiquidTransfer lt = newObj.GetComponentInChildren<LiquidTransfer>();
+            if (lt != null)
+            {
+                if (i < 2) lt.liquidColor = red;
+                else if (i < 4) lt.liquidColor = blue;
+                else lt.liquidColor = green;
+            }
 
             gridPositions.RemoveAt(randomIndex);
         }

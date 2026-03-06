@@ -10,7 +10,6 @@ public class ObjectRotator : MonoBehaviour
     [Tooltip("Dönüşün ne kadar saniye süreceği")]
     public float rotateDuration = 0.3f;
 
-    private bool isRotating = false;
 
     // Objenin üzerinde bir Collider (Örn: SphereCollider veya BoxCollider) olduğu sürece fare ve dokunmatik tıklamaları algılar
     /*

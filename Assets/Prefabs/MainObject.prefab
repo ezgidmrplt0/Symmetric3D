@@ -120,20 +120,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   snapDistance: 1.5
---- !u!114 &2253886326804591811
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2541529924135553766}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 7b3a3f289d5bf774e8edb3a54afebc5c, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  rotationAmount: {x: 0, y: 0, z: 90}
-  rotateDuration: 0.3
 --- !u!1 &6547184393761214108
 GameObject:
   m_ObjectHideFlags: 0
@@ -269,5 +255,5 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   liquidMat: {fileID: 2100000, guid: 2e7b1fb41ceb7d5498a28adeb7b4e01e, type: 2}
-  fillAmount: 0.5
+  fillAmount: 0
   transferDuration: 0.5
