@@ -126,6 +126,21 @@ public class DragObject : MonoBehaviour
     {
         dragging = false;
 
+        // Tıklama (Tap) Kontrolü
+        // Kullanıcı objeyi sürüklemeden sadece bırakmışsa, objeyi kendi etrafında döndürelim (Simetri bulmaca mekaniği için)
+        float dragDistance = Vector3.Distance(transform.position, startPosition);
+        if (dragDistance < 0.2f)
+        {
+            transform.position = startPosition; // Konumu olduğu gibi kalsın
+
+            ObjectRotator rotator = GetComponent<ObjectRotator>();
+            if (rotator != null)
+            {
+                rotator.RotateObject();
+            }
+            return; // Sürükleme fonksiyonlarını çalıştırma
+        }
+
         GameObject[] grids = GameObject.FindGameObjectsWithTag("Grid");
 
         float closestDistance = Mathf.Infinity;

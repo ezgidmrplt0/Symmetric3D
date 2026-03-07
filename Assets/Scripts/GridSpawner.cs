@@ -54,56 +54,36 @@ public class GridSpawner : MonoBehaviour
 
     void SpawnObjects()
     {
-        if (gridPositions.Count < 4) return;
+        if (gridPositions.Count < 3) return;
 
-        // Define directions for symmetric pairs
-        // Up/Down pair
-        Quaternion rotUp = Quaternion.Euler(0, 0, 0);
-        Quaternion rotDown = Quaternion.Euler(0, 0, 180);
-        // Left/Right pair
-        Quaternion rotLeft = Quaternion.Euler(0, 0, 90);
-        Quaternion rotRight = Quaternion.Euler(0, 0, -90);
+        Color red = new Color(0.8f, 0.1f, 0.1f);
 
-        List<Quaternion> rotationPairs = new List<Quaternion>();
+        // 1. Obje (Çeyrek) - Yukarı baksın (Yatay düzlem simetrisi)
+        SpawnSpecificObject(red, 1, Quaternion.Euler(0,0,0));
+
+        // 2. Obje (Çeyrek) - Aşağı baksın (Yatay düzlem simetrisi)
+        SpawnSpecificObject(red, 1, Quaternion.Euler(0,0,180));
+
+        // 3. Obje (Yarım) - Aşağı baksın
+        // (Bu sayede çeyreklerden oluşan 'yukarı bakan' yarım ile tam bir uyum sağlar)
+        SpawnSpecificObject(red, 2, Quaternion.Euler(0,0,180));
+    }
+
+    void SpawnSpecificObject(Color color, int slices, Quaternion rotation)
+    {
+        int randomIndex = Random.Range(0, gridPositions.Count);
+        Vector3 spawnPos = gridPositions[randomIndex];
+        spawnPos.z -= objectOffset;
+
+        GameObject newObj = Instantiate(objectPrefab, spawnPos, rotation, transform);
         
-        // Add two pairs (A-B and C-D)
-        // Pair 1: Randomly choose between Vertical or Horizontal symmetry
-        if (Random.value > 0.5f) { rotationPairs.Add(rotUp); rotationPairs.Add(rotDown); }
-        else { rotationPairs.Add(rotLeft); rotationPairs.Add(rotRight); }
-
-        // Pair 2: Randomly choose between Vertical or Horizontal symmetry
-        if (Random.value > 0.5f) { rotationPairs.Add(rotUp); rotationPairs.Add(rotDown); }
-        else { rotationPairs.Add(rotLeft); rotationPairs.Add(rotRight); }
-
-        // Pair 3: Randomly choose between Vertical or Horizontal symmetry
-        if (Random.value > 0.5f) { rotationPairs.Add(rotUp); rotationPairs.Add(rotDown); }
-        else { rotationPairs.Add(rotLeft); rotationPairs.Add(rotRight); }
-
-        Color red = new Color(0.8f, 0.1f, 0.1f);   // Tatlı bir kırmızı
-        Color blue = new Color(0.1f, 0.4f, 0.8f);  // Tatlı bir mavi
-        Color green = new Color(0.1f, 0.7f, 0.2f); // Tatlı bir yeşil
-
-        for (int i = 0; i < 6; i++)
+        LiquidTransfer lt = newObj.GetComponentInChildren<LiquidTransfer>();
+        if (lt != null)
         {
-            if (gridPositions.Count == 0) break;
-
-            int randomIndex = Random.Range(0, gridPositions.Count);
-            Vector3 spawnPos = gridPositions[randomIndex];
-            spawnPos.z -= objectOffset;
-
-            // Spawn with symmetric rotation
-            GameObject newObj = Instantiate(objectPrefab, spawnPos, rotationPairs[i], transform);
-            
-            // Renk ata
-            LiquidTransfer lt = newObj.GetComponentInChildren<LiquidTransfer>();
-            if (lt != null)
-            {
-                if (i < 2) lt.liquidColor = red;
-                else if (i < 4) lt.liquidColor = blue;
-                else lt.liquidColor = green;
-            }
-
-            gridPositions.RemoveAt(randomIndex);
+            lt.liquidColor = color;
+            lt.currentSlices = slices; // Kaç dilimle başlayacağını ayarla
         }
+
+        gridPositions.RemoveAt(randomIndex);
     }
 }

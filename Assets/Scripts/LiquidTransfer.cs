@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections.Generic;
 using DG.Tweening;
 
 public class LiquidTransfer : MonoBehaviour
@@ -10,11 +11,18 @@ public class LiquidTransfer : MonoBehaviour
     public float transferDuration = 0.5f;
     public float maxAdjacencyDistance = 1.5f; // Sadece 1 grid (yaklaşık 1.4 birim) mesafeye izin verir
 
+    [Header("Dilim (Slice) Ayarları")]
+    public int currentSlices = 1;
+    public int maxSlices = 4;
+
     [HideInInspector]
     public bool transferring = false;
 
     void Start()
     {
+        // Başlangıç doluluğunu -0.5 (boş) ile 0.5 (dolu) arasına oranla
+        fillAmount = Mathf.Lerp(-0.5f, 0.5f, (float)currentSlices / maxSlices);
+
         if (liquidMat != null)
         {
             liquidMat = new Material(liquidMat);
@@ -45,16 +53,17 @@ public class LiquidTransfer : MonoBehaviour
 
     public void CheckSymmetry()
     {
-        if (transferring) return;
+        if (this == null || transferring || currentSlices >= maxSlices) return;
 
         LiquidTransfer[] allLiquids = FindObjectsOfType<LiquidTransfer>();
 
         foreach (LiquidTransfer other in allLiquids)
         {
-            if (other == this || other.transferring) continue;
+            if (other == this || other == null || other.transferring || other.currentSlices <= 0) continue;
 
-            // Renkler aynı mı kontrolü
-            if (other.liquidColor != this.liquidColor) continue;
+            // Renkler ve aynı zamanda dilim büyüklükleri aynı mı kontrolü
+            // (1/4'lük çeyrek sadece 1/4'lük çeyrekle, 1/2'lik yarım sadece 1/2'lik yarımla birleşir)
+            if (other.liquidColor != this.liquidColor || other.currentSlices != this.currentSlices) continue;
 
             float dist = Vector3.Distance(transform.position, other.transform.position);
 
@@ -83,22 +92,56 @@ public class LiquidTransfer : MonoBehaviour
         }
     }
 
-    void StartTransfer(LiquidTransfer target)
+    void StartTransfer(LiquidTransfer giver)
     {
         transferring = true;
-        target.transferring = true;
+        giver.transferring = true;
 
-        // Hedef dolacak (0.5), Verici boşalacak (-0.5)
-        DOTween.To(() => target.fillAmount, x => target.fillAmount = x, 0.5f, transferDuration)
-            .OnUpdate(() => { if (target.liquidMat != null) target.liquidMat.SetFloat("_FillAmount", target.fillAmount); });
+        int needed = maxSlices - this.currentSlices;
+        int takeAmount = Mathf.Min(needed, giver.currentSlices);
 
-        DOTween.To(() => fillAmount, x => fillAmount = x, -0.5f, transferDuration)
-            .OnUpdate(() => { if (liquidMat != null) liquidMat.SetFloat("_FillAmount", fillAmount); })
-            .OnComplete(() =>
+        this.currentSlices += takeAmount;
+        giver.currentSlices -= takeAmount;
+
+        float myTargetFill = Mathf.Lerp(-0.5f, 0.5f, (float)this.currentSlices / maxSlices);
+        float giverTargetFill = Mathf.Lerp(-0.5f, 0.5f, (float)giver.currentSlices / maxSlices);
+
+        Sequence seq = DOTween.Sequence();
+
+        seq.Join(DOTween.To(() => giver.fillAmount, x => giver.fillAmount = x, giverTargetFill, transferDuration)
+            .OnUpdate(() => { if (giver != null && giver.liquidMat != null) giver.liquidMat.SetFloat("_FillAmount", giver.fillAmount); }));
+
+        seq.Join(DOTween.To(() => this.fillAmount, x => this.fillAmount = x, myTargetFill, transferDuration)
+            .OnUpdate(() => { if (this != null && this.liquidMat != null) this.liquidMat.SetFloat("_FillAmount", this.fillAmount); }));
+
+        seq.OnComplete(() =>
+        {
+            if (giver != null)
             {
-                // Animasyon bitince ikisi de silinir
-                transform.parent.DOScale(0, 0.2f).OnComplete(() => Destroy(transform.parent.gameObject));
-                target.transform.parent.DOScale(0, 0.2f).OnComplete(() => Destroy(target.transform.parent.gameObject));
-            });
+                if (giver.currentSlices <= 0)
+                {
+                    if (giver.transform.parent != null)
+                        giver.transform.parent.DOScale(0, 0.2f).OnComplete(() => Destroy(giver.transform.parent.gameObject));
+                }
+                else
+                {
+                    giver.transferring = false;
+                }
+            }
+
+            if (this != null)
+            {
+                if (this.currentSlices >= maxSlices)
+                {
+                    // Tamamlandığında objeyi patlat/yok et
+                    if (this.transform.parent != null)
+                        this.transform.parent.DOScale(0, 0.2f).OnComplete(() => Destroy(this.transform.parent.gameObject));
+                }
+                else
+                {
+                    this.transferring = false;
+                }
+            }
+        });
     }
 }

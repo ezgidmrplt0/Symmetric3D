@@ -11,23 +11,23 @@ public class ObjectRotator : MonoBehaviour
     public float rotateDuration = 0.3f;
 
 
-    // Objenin üzerinde bir Collider (Örn: SphereCollider veya BoxCollider) olduğu sürece fare ve dokunmatik tıklamaları algılar
-    /*
-    void OnMouseDown()
+    private bool isRotating = false;
+
+    public void RotateObject()
     {
-        // Eğer obje zaten dönüyorsa, bitene kadar yeni tıklamayı engelle (bug olmaması için)
         if (isRotating) return;
 
         isRotating = true;
 
         // Objeyi kendi animasyon motorunuzla (DOTween) pürüzsüzce 90 derece döndür
-        transform.DORotate(rotationAmount, rotateDuration, RotateMode.WorldAxisAdd)
-            .SetEase(Ease.OutBack) // Animasyonun sonunda tatlı bir sekme (zıplama) efekti verir
+        // RotateMode.WorldAxisAdd yerine LocalAxisAdd daha kararlı rotasyon sağlar
+        transform.DORotate(rotationAmount, rotateDuration, RotateMode.LocalAxisAdd)
+            .SetEase(Ease.OutBack) // Animasyonun sonunda tatlı bir sekme efekti
             .OnComplete(() => 
             {
                 isRotating = false;
                 
-                // Rotasyon bitince sıvı aktarımı için kontrol et
+                // Rotasyon bitince sıvı aktarımı (dilim birleştirme) için kontrol et
                 LiquidTransfer liquidTransfer = GetComponentInChildren<LiquidTransfer>();
                 if(liquidTransfer != null)
                 {
@@ -35,5 +35,4 @@ public class ObjectRotator : MonoBehaviour
                 }
             });
     }
-    */
 }
