@@ -7,15 +7,19 @@ public class GridSpawner : MonoBehaviour
     public GameObject gridPrefab;
     public GameObject objectPrefab;
 
-    [Header("Level Data Kaynağı")]
-    public List<LevelData> levels = new List<LevelData>();
+    [Header("Level Kaynağı")]
+    [Tooltip("Symmetric3D > Level Akış Yöneticisi'nden oluşturulan asset buraya sürüklenir")]
+    public LevelSequenceData sequence;
     public int currentLevelIndex = 0;
 
     [Header("Görsel Ayarlar")]
     public float spacing = 0.4f;
     public float objectOffset = 0.3f;
 
-    private List<GameObject> activeSpawnedObjects = new List<GameObject>(); // Sahnede o an var olan objeleri temizlemek için listeliyoruz
+    private List<GameObject> activeSpawnedObjects = new List<GameObject>();
+
+    // Kolaylık property'si ─ sequence listesine kısayol
+    private List<LevelData> levels => sequence != null ? sequence.levels : null;
 
     void Start()
     {
@@ -26,41 +30,74 @@ public class GridSpawner : MonoBehaviour
     {
         ClearCurrentLevel();
 
-        if (levels.Count > 0 && currentLevelIndex < levels.Count)
+        if (levels == null || levels.Count == 0)
         {
-            if (levels[currentLevelIndex] != null)
-            {
-                SpawnLevel(levels[currentLevelIndex]);
-            }
+            Debug.LogWarning("GridSpawner: LevelSequenceData atanmamış veya boş!");
+            return;
+        }
+
+        if (currentLevelIndex < levels.Count && levels[currentLevelIndex] != null)
+        {
+            SpawnLevel(levels[currentLevelIndex]);
         }
         else
         {
-            Debug.LogWarning("GridSpawner üzerinde yüklü Level kalmadı veya indeks hatalı!");
+            Debug.LogWarning("GridSpawner: Geçersiz level index!");
         }
     }
 
     public void NextLevel()
     {
-        if (currentLevelIndex < levels.Count - 1)
+        GameManager.Instance?.ResetLevelState();
+
+        if (levels == null || levels.Count == 0) return;
+
+        int progress = GameManager.Instance != null ? GameManager.Instance.totalProgress : 0;
+
+        // newMechanicUnlocked true ise progress sıfırlanmış olsa bile tüm tipler açık sayılır
+        bool mechanicUnlocked = GameManager.Instance != null && GameManager.Instance.newMechanicUnlocked;
+        int effectiveProgress = mechanicUnlocked ? 100 : progress;
+
+        // Kilitli olmayan bir sonraki level'ı bul
+        int startIndex = currentLevelIndex;
+        int next = currentLevelIndex;
+
+        for (int i = 1; i <= levels.Count; i++)
         {
-            currentLevelIndex++;
-            SpawnCurrentLevel();
+            int candidate = (currentLevelIndex + i) % levels.Count;
+            LevelData candidateLevel = levels[candidate];
+
+            // Tüm listeyi dolaştıysak başa dön (hepsi kilitliyse bile çalışmaya devam et)
+            if (candidate == startIndex)
+            {
+                next = candidate;
+                break;
+            }
+
+            if (candidateLevel == null) continue;
+
+            // Unlock kontrolü — effectiveProgress ile
+            if (sequence != null && !sequence.IsLevelUnlocked(candidateLevel, effectiveProgress))
+            {
+                Debug.Log($"[GridSpawner] '{candidateLevel.levelDisplayName}' kilitli, atlanıyor.");
+                continue;
+            }
+
+            next = candidate;
+            break;
         }
-        else
-        {
+
+        if (next == startIndex && next == currentLevelIndex)
             Debug.Log("Oyun Bitti! Tüm leveller tamamlandı.");
-            // Burada başa dönebilir veya kazandın ekranı çıkartabilirsiniz
-            currentLevelIndex = 0; 
-            SpawnCurrentLevel();
-        }
+
+        currentLevelIndex = next;
+        SpawnCurrentLevel();
     }
 
     void ClearCurrentLevel()
     {
         foreach (GameObject obj in activeSpawnedObjects)
-        {
             if (obj != null) Destroy(obj);
-        }
         activeSpawnedObjects.Clear();
     }
 
@@ -70,7 +107,6 @@ public class GridSpawner : MonoBehaviour
         int gY = level.gridY;
 
         float gridSize = gridPrefab.transform.localScale.x;
-
         float offsetX = (gX - 1) * (gridSize + spacing) / 2f;
         float offsetY = (gY - 1) * (gridSize + spacing) / 2f;
 
@@ -84,14 +120,12 @@ public class GridSpawner : MonoBehaviour
                     y * (gridSize + spacing) - offsetY,
                     0
                 );
-
-                Vector3 worldPos = transform.position + pos;
-                GameObject gridObj = Instantiate(gridPrefab, worldPos, Quaternion.identity, transform);
+                GameObject gridObj = Instantiate(gridPrefab, transform.position + pos, Quaternion.identity, transform);
                 activeSpawnedObjects.Add(gridObj);
             }
         }
 
-        // Oyuncu Objelerini (Küreleri / Pastaları) Çiz
+        // Oyuncu Objelerini Çiz
         foreach (var piece in level.pieces)
         {
             Vector3 piecePos = new Vector3(
@@ -100,17 +134,14 @@ public class GridSpawner : MonoBehaviour
                 -objectOffset
             );
 
-            Vector3 worldPiecePos = transform.position + piecePos;
-
-            // Objeyi belirtilen açıyla rotasyonlu olarak oluştur
-            GameObject newObj = Instantiate(objectPrefab, worldPiecePos, Quaternion.Euler(0, 0, piece.rotationZ), transform);
+            GameObject newObj = Instantiate(objectPrefab, transform.position + piecePos,
+                Quaternion.Euler(0, 0, piece.rotationZ), transform);
             activeSpawnedObjects.Add(newObj);
-            
-            // Renk ve dilim atamasını yap
+
             LiquidTransfer lt = newObj.GetComponentInChildren<LiquidTransfer>();
             if (lt != null)
             {
-                lt.liquidColor = piece.liquidColor;
+                lt.liquidColor   = piece.liquidColor;
                 lt.currentSlices = piece.currentSlices;
             }
         }
@@ -118,20 +149,18 @@ public class GridSpawner : MonoBehaviour
 
     public Vector3 GetWorldPosition(Vector2Int gridPos)
     {
-        if (levels.Count == 0 || currentLevelIndex >= levels.Count) return transform.position;
+        if (levels == null || levels.Count == 0 || currentLevelIndex >= levels.Count)
+            return transform.position;
+
         LevelData level = levels[currentLevelIndex];
-        
-        float gridSize = gridPrefab.transform.localScale.x;
+        float gridSize  = gridPrefab.transform.localScale.x;
+        float offsetX   = (level.gridX - 1) * (gridSize + spacing) / 2f;
+        float offsetY   = (level.gridY - 1) * (gridSize + spacing) / 2f;
 
-        float offsetX = (level.gridX - 1) * (gridSize + spacing) / 2f;
-        float offsetY = (level.gridY - 1) * (gridSize + spacing) / 2f;
-
-        Vector3 piecePos = new Vector3(
+        return transform.position + new Vector3(
             gridPos.x * (gridSize + spacing) - offsetX,
             gridPos.y * (gridSize + spacing) - offsetY,
             -objectOffset
         );
-
-        return transform.position + piecePos;
     }
 }

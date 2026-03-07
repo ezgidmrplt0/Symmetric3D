@@ -12,14 +12,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c59920f407dc8f14785c8fd032f0cff0, type: 3}
   m_Name: Level_01
   m_EditorClassIdentifier: 
+  levelDisplayName: 
+  levelType: 0
   gridX: 2
   gridY: 2
   pieces:
-  - gridPosition: {x: 0, y: 1}
-    liquidColor: {r: 1, g: 0.041578963, b: 0, a: 1}
-    currentSlices: 1
-    rotationZ: 0
   - gridPosition: {x: 1, y: 0}
-    liquidColor: {r: 1, g: 0.041578963, b: 0, a: 1}
-    currentSlices: 1
+    liquidColor: {r: 0.8, g: 0.1, b: 0.1, a: 1}
+    currentSlices: 2
+    rotationZ: 0
+  - gridPosition: {x: 0, y: 1}
+    liquidColor: {r: 0.8, g: 0.1, b: 0.1, a: 1}
+    currentSlices: 2
     rotationZ: 180

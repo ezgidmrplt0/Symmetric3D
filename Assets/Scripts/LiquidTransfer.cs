@@ -121,7 +121,11 @@ public class LiquidTransfer : MonoBehaviour
                 if (giver.currentSlices <= 0)
                 {
                     if (giver.transform.parent != null)
-                        giver.transform.parent.DOScale(0, 0.2f).OnComplete(() => Destroy(giver.transform.parent.gameObject));
+                        giver.transform.parent.DOScale(0, 0.2f).OnComplete(() =>
+                        {
+                            Destroy(giver.transform.parent.gameObject);
+                            CheckLevelComplete();
+                        });
                 }
                 else
                 {
@@ -135,12 +139,30 @@ public class LiquidTransfer : MonoBehaviour
                 {
                     // Tamamlandığında objeyi patlat/yok et
                     if (this.transform.parent != null)
-                        this.transform.parent.DOScale(0, 0.2f).OnComplete(() => Destroy(this.transform.parent.gameObject));
+                        this.transform.parent.DOScale(0, 0.2f).OnComplete(() =>
+                        {
+                            Destroy(this.transform.parent.gameObject);
+                            CheckLevelComplete();
+                        });
                 }
                 else
                 {
                     this.transferring = false;
                 }
+            }
+        });
+    }
+
+    void CheckLevelComplete()
+    {
+        // Sahnede hâlâ DragObject var mı? (Destroy 1 frame sonra gerçekleşir, o yüzden kısa delay)
+        DOVirtual.DelayedCall(0.1f, () =>
+        {
+            DragObject[] remaining = FindObjectsOfType<DragObject>();
+            if (remaining.Length == 0)
+            {
+                if (GameManager.Instance != null)
+                    GameManager.Instance.LevelComplete();
             }
         });
     }
