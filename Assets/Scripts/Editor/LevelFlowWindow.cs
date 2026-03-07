@@ -12,6 +12,7 @@ public class LevelFlowWindow : EditorWindow
     {
         { LevelData.LevelType.Classic,     new Color(0.55f, 0.55f, 0.55f) },
         { LevelData.LevelType.QuarterFill, new Color(0.9f,  0.55f, 0.1f)  },
+        { LevelData.LevelType.ColorMix,    new Color(0.3f,  0.6f,  0.9f)  },
     };
 
     [MenuItem("Symmetric3D/Level Akış Yöneticisi")]
@@ -80,6 +81,23 @@ public class LevelFlowWindow : EditorWindow
 
     void DrawTypeConfigs()
     {
+        // Enum'daki tüm LevelType'lar asset'te yoksa otomatik ekle
+        if (sequence.typeConfigs != null)
+        {
+            bool synced = false;
+            foreach (LevelData.LevelType lt in System.Enum.GetValues(typeof(LevelData.LevelType)))
+            {
+                bool exists = sequence.typeConfigs.Exists(c => c.levelType == lt);
+                if (!exists)
+                {
+                    Undo.RecordObject(sequence, "LevelType Sync");
+                    sequence.typeConfigs.Add(new LevelSequenceData.LevelTypeConfig { levelType = lt, unlockAtProgress = 100 });
+                    synced = true;
+                }
+            }
+            if (synced) EditorUtility.SetDirty(sequence);
+        }
+
         // Tablo başlığı
         EditorGUILayout.BeginHorizontal();
         GUILayout.Label("Tür", EditorStyles.boldLabel, GUILayout.Width(120));
@@ -91,7 +109,7 @@ public class LevelFlowWindow : EditorWindow
 
         if (sequence.typeConfigs == null) return;
 
-        int progress = GameManager.Instance != null ? GameManager.Instance.totalProgress : 0;
+        int lifetimeProgress = GameManager.Instance != null ? GameManager.Instance.lifetimeProgress : 0;
 
         bool dirty = false;
         foreach (var cfg in sequence.typeConfigs)
@@ -106,7 +124,7 @@ public class LevelFlowWindow : EditorWindow
 
             // Açılma % slider
             int newVal = EditorGUILayout.IntField(cfg.unlockAtProgress, GUILayout.Width(50));
-            newVal = Mathf.Clamp(newVal, 0, 100);
+            newVal = Mathf.Max(newVal, 0); // Sadece negatife gitmesin
             GUILayout.Label("%", GUILayout.Width(16));
             if (newVal != cfg.unlockAtProgress)
             {
@@ -116,7 +134,7 @@ public class LevelFlowWindow : EditorWindow
             }
 
             // Durum
-            bool unlocked = progress >= cfg.unlockAtProgress;
+            bool unlocked = lifetimeProgress >= cfg.unlockAtProgress;
             GUIStyle statusStyle = new GUIStyle(EditorStyles.label)
             {
                 normal = { textColor = unlocked ? new Color(0.2f, 0.8f, 0.2f) : new Color(0.8f, 0.4f, 0.1f) }
@@ -140,7 +158,7 @@ public class LevelFlowWindow : EditorWindow
             return;
         }
 
-        int progress = GameManager.Instance != null ? GameManager.Instance.totalProgress : 0;
+        int lifetimeProgress = GameManager.Instance != null ? GameManager.Instance.lifetimeProgress : 0;
 
         // Tablo başlığı
         EditorGUILayout.BeginHorizontal();
@@ -184,7 +202,7 @@ public class LevelFlowWindow : EditorWindow
                 GUILayout.Label(level.levelType.ToString(), GUILayout.Width(100));
 
                 int unlockPct = sequence.GetUnlockProgress(level.levelType);
-                bool unlocked = progress >= unlockPct;
+                bool unlocked = lifetimeProgress >= unlockPct;
                 GUIStyle s = new GUIStyle(EditorStyles.label)
                 {
                     normal = { textColor = unlocked ? new Color(0.2f, 0.8f, 0.2f) : new Color(0.8f, 0.4f, 0.1f) }

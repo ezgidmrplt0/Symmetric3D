@@ -18,8 +18,18 @@ public class GridSpawner : MonoBehaviour
 
     private List<GameObject> activeSpawnedObjects = new List<GameObject>();
 
-    // Kolaylık property'si ─ sequence listesine kısayol
+    // Kolaylık property'leri
     private List<LevelData> levels => sequence != null ? sequence.levels : null;
+
+    public LevelData.LevelType CurrentLevelType
+    {
+        get
+        {
+            if (levels == null || currentLevelIndex >= levels.Count || levels[currentLevelIndex] == null)
+                return LevelData.LevelType.Classic;
+            return levels[currentLevelIndex].levelType;
+        }
+    }
 
     void Start()
     {
@@ -52,11 +62,10 @@ public class GridSpawner : MonoBehaviour
 
         if (levels == null || levels.Count == 0) return;
 
-        int progress = GameManager.Instance != null ? GameManager.Instance.totalProgress : 0;
-
-        // newMechanicUnlocked true ise progress sıfırlanmış olsa bile tüm tipler açık sayılır
-        bool mechanicUnlocked = GameManager.Instance != null && GameManager.Instance.newMechanicUnlocked;
-        int effectiveProgress = mechanicUnlocked ? 100 : progress;
+        // Unlock kontrolü için birikimli progress kullan (hiç sıfırlanmaz)
+        int effectiveProgress = GameManager.Instance != null
+            ? GameManager.Instance.lifetimeProgress
+            : 0;
 
         // Kilitli olmayan bir sonraki level'ı bul
         int startIndex = currentLevelIndex;

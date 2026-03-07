@@ -12,12 +12,13 @@ public class GameManager : MonoBehaviour
     [Tooltip("%100 dolunca hangi levelden itibaren yeni mechanic gelsin")]
     public int newMechanicStartLevelIndex = 10;
 
-    // PlayerPrefs key'leri
-    private const string PROGRESS_KEY = "TotalProgress";
-    private const string MECHANIC_UNLOCKED_KEY = "NewMechanicUnlocked";
+    private const string PROGRESS_KEY          = "TotalProgress";
+    private const string LIFETIME_PROGRESS_KEY  = "LifetimeProgress";
+    private const string MECHANIC_UNLOCKED_KEY  = "NewMechanicUnlocked";
 
-    [HideInInspector] public int totalProgress;
-    [HideInInspector] public int previousTotalProgress; // Artıştan önceki değer, panel animasyonu için
+    [HideInInspector] public int totalProgress;         // 0-100 döngüsel (bar animasyonu için)
+    [HideInInspector] public int previousTotalProgress; // Artıştan önceki değer
+    [HideInInspector] public int lifetimeProgress;      // Hiç sıfırlanmayan birikimli sayı
     [HideInInspector] public bool newMechanicUnlocked;
 
     // Aynı level içinde çift tetiklenmeyi önler
@@ -44,13 +45,15 @@ public class GameManager : MonoBehaviour
 
     void LoadProgress()
     {
-        totalProgress = PlayerPrefs.GetInt(PROGRESS_KEY, 0);
+        totalProgress    = PlayerPrefs.GetInt(PROGRESS_KEY, 0);
+        lifetimeProgress = PlayerPrefs.GetInt(LIFETIME_PROGRESS_KEY, 0);
         newMechanicUnlocked = PlayerPrefs.GetInt(MECHANIC_UNLOCKED_KEY, 0) == 1;
     }
 
     void SaveProgress()
     {
         PlayerPrefs.SetInt(PROGRESS_KEY, totalProgress);
+        PlayerPrefs.SetInt(LIFETIME_PROGRESS_KEY, lifetimeProgress);
         PlayerPrefs.SetInt(MECHANIC_UNLOCKED_KEY, newMechanicUnlocked ? 1 : 0);
         PlayerPrefs.Save();
     }
@@ -64,21 +67,22 @@ public class GameManager : MonoBehaviour
         if (levelCompleting) return;
         levelCompleting = true;
 
-        // Artıştan önce önceki değeri kaydet (panel animasyonu için)
+        // Artıştan önce önceki değeri kaydet
         previousTotalProgress = totalProgress;
 
-        // Progress artır
-        totalProgress += progressPerLevel;
+        // Birikimli sayıç (hiç sıfırlanmaz) — unlock için kullanılır
+        lifetimeProgress += progressPerLevel;
 
-        // %100'e ulaşınca yeni mechanic aç ve sıfırla
+        // Görsel bar için döngüsel 0-100
+        totalProgress += progressPerLevel;
         if (totalProgress >= 100)
+            totalProgress -= 100;
+
+        // newMechanicUnlocked artık lifetimeProgress >= 100 ile tetiklenir
+        if (lifetimeProgress >= 100 && !newMechanicUnlocked)
         {
-            if (!newMechanicUnlocked)
-            {
-                newMechanicUnlocked = true;
-                Debug.Log("Yeni Mechanic Açıldı!");
-            }
-            totalProgress = 0;
+            newMechanicUnlocked = true;
+            Debug.Log("Yeni Mechanic Açıldı!");
         }
 
         SaveProgress();

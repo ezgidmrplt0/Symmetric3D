@@ -53,7 +53,28 @@ public class LiquidTransfer : MonoBehaviour
 
     public void CheckSymmetry()
     {
-        if (this == null || transferring || currentSlices >= maxSlices) return;
+        if (this == null || transferring) return;
+
+        // Aktif level türünü al
+        GridSpawner spawner = FindObjectOfType<GridSpawner>();
+        LevelData.LevelType levelType = spawner != null
+            ? spawner.CurrentLevelType
+            : LevelData.LevelType.Classic;
+
+        if (levelType == LevelData.LevelType.ColorMix)
+        {
+            CheckColorMix();
+        }
+        else
+        {
+            CheckClassicSymmetry();
+        }
+    }
+
+    // ── Classic Mod ──────────────────────────────────────────────
+    void CheckClassicSymmetry()
+    {
+        if (transferring || currentSlices >= maxSlices) return;
 
         LiquidTransfer[] allLiquids = FindObjectsOfType<LiquidTransfer>();
 
@@ -61,37 +82,110 @@ public class LiquidTransfer : MonoBehaviour
         {
             if (other == this || other == null || other.transferring || other.currentSlices <= 0) continue;
 
-            // Renkler ve aynı zamanda dilim büyüklükleri aynı mı kontrolü
-            // (1/4'lük çeyrek sadece 1/4'lük çeyrekle, 1/2'lik yarım sadece 1/2'lik yarımla birleşir)
-            if (other.liquidColor != this.liquidColor || other.currentSlices != this.currentSlices) continue;
+            // Aynı renk, aynı dilim sayısı
+            if (!ColorMixData.ColorsMatch(other.liquidColor, this.liquidColor) ||
+                other.currentSlices != this.currentSlices) continue;
 
-            float dist = Vector3.Distance(transform.position, other.transform.position);
-
-            float diffX = Mathf.Abs(transform.position.x - other.transform.position.x);
-            float diffY = Mathf.Abs(transform.position.y - other.transform.position.y);
-            bool isAligned = diffX < 0.1f || diffY < 0.1f;
-
-            if (dist < maxAdjacencyDistance && dist > 0.1f && isAligned)
+            if (IsAdjacentFaceToFace(other))
             {
-                Vector3 posMe = new Vector3(transform.position.x, transform.position.y, 0);
-                Vector3 posOther = new Vector3(other.transform.position.x, other.transform.position.y, 0);
-                Vector3 dirToOther = (posOther - posMe).normalized;
-
-                Vector3 myFlatFaceDir = new Vector3(transform.up.x, transform.up.y, 0).normalized; 
-                Vector3 otherFlatFaceDir = new Vector3(other.transform.up.x, other.transform.up.y, 0).normalized;
-
-                float dotMe = Vector3.Dot(myFlatFaceDir, dirToOther);
-                float dotOther = Vector3.Dot(otherFlatFaceDir, -dirToOther);
-
-                if (dotMe > 0.9f && dotOther > 0.9f)
-                {
-                    StartTransfer(other);
-                    break;
-                }
+                StartTransfer(other);
+                break;
             }
         }
     }
 
+    // ── ColorMix Mod ─────────────────────────────────────────────
+    void CheckColorMix()
+    {
+        if (transferring) return;
+
+        LiquidTransfer[] allLiquids = FindObjectsOfType<LiquidTransfer>();
+
+        foreach (LiquidTransfer other in allLiquids)
+        {
+            if (other == this || other == null || other.transferring || other.currentSlices <= 0) continue;
+
+            // Aynı renk birleşmez
+            if (ColorMixData.ColorsMatch(other.liquidColor, this.liquidColor)) continue;
+
+            // Tarife göre karışım kontrolü
+            if (!ColorMixData.TryGetMix(this.liquidColor, other.liquidColor, out Color mixResult)) continue;
+
+            if (IsAdjacentFaceToFace(other))
+            {
+                StartColorMix(other, mixResult);
+                break;
+            }
+        }
+    }
+
+    // ── Ortak Konum/Yön Kontrolü ────────────────────────────────
+    bool IsAdjacentFaceToFace(LiquidTransfer other)
+    {
+        float dist  = Vector3.Distance(transform.position, other.transform.position);
+        float diffX = Mathf.Abs(transform.position.x - other.transform.position.x);
+        float diffY = Mathf.Abs(transform.position.y - other.transform.position.y);
+        bool aligned = diffX < 0.1f || diffY < 0.1f;
+
+        if (dist >= maxAdjacencyDistance || dist <= 0.1f || !aligned) return false;
+
+        Vector3 dirToOther    = (other.transform.position - transform.position).normalized;
+        Vector3 myFace        = new Vector3(transform.up.x, transform.up.y, 0).normalized;
+        Vector3 otherFace     = new Vector3(other.transform.up.x, other.transform.up.y, 0).normalized;
+
+        return Vector3.Dot(myFace, dirToOther) > 0.9f &&
+               Vector3.Dot(otherFace, -dirToOther) > 0.9f;
+    }
+
+    // ── ColorMix Transfer ────────────────────────────────────────
+    void StartColorMix(LiquidTransfer giver, Color mixedColor)
+    {
+        transferring = true;
+        giver.transferring = true;
+
+        // Receiver (this) tam dolacak, giver tamamen boşalacak
+        float receiverTargetFill = 0.5f;   // maxSlices / maxSlices = 1 → Lerp(-0.5, 0.5, 1) = 0.5
+        float giverTargetFill    = -0.5f;  // 0 / maxSlices = 0 → Lerp(-0.5, 0.5, 0) = -0.5
+
+        // Receiver'ın rengini hemen karışım rengine çevir
+        if (liquidMat != null)
+        {
+            liquidMat.SetColor("_LiquidColor", mixedColor);
+            liquidMat.SetColor("_ColorA",      mixedColor);
+        }
+
+        Sequence seq = DOTween.Sequence();
+
+        // Giver boşalsın
+        seq.Join(DOTween.To(() => giver.fillAmount, x => giver.fillAmount = x, giverTargetFill, transferDuration)
+            .OnUpdate(() => { if (giver != null && giver.liquidMat != null) giver.liquidMat.SetFloat("_FillAmount", giver.fillAmount); }));
+
+        // Receiver karışım rengiyle dolsun
+        seq.Join(DOTween.To(() => this.fillAmount, x => this.fillAmount = x, receiverTargetFill, transferDuration)
+            .OnUpdate(() => { if (this != null && this.liquidMat != null) this.liquidMat.SetFloat("_FillAmount", this.fillAmount); }));
+
+        // Dolunca ikisi de yok olsun
+        seq.OnComplete(() =>
+        {
+            // Giver
+            if (giver != null && giver.transform.parent != null)
+                giver.transform.parent.DOScale(0f, 0.2f).OnComplete(() =>
+                {
+                    Destroy(giver.transform.parent.gameObject);
+                    CheckLevelComplete();
+                });
+
+            // Receiver (mix rengiyle dolu)
+            if (this != null && this.transform.parent != null)
+                this.transform.parent.DOScale(0f, 0.2f).OnComplete(() =>
+                {
+                    Destroy(this.transform.parent.gameObject);
+                    CheckLevelComplete();
+                });
+        });
+    }
+
+    // ── Classic Transfer ─────────────────────────────────────────
     void StartTransfer(LiquidTransfer giver)
     {
         transferring = true;

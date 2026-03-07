@@ -19,6 +19,7 @@ public class LevelSequenceData : ScriptableObject
     {
         new LevelTypeConfig { levelType = LevelData.LevelType.Classic,     unlockAtProgress = 0   },
         new LevelTypeConfig { levelType = LevelData.LevelType.QuarterFill, unlockAtProgress = 100 },
+        new LevelTypeConfig { levelType = LevelData.LevelType.ColorMix,    unlockAtProgress = 100 },
     };
 
     // ── Sıralı Level Listesi ─────────────────────────────────────

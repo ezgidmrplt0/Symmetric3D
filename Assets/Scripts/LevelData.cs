@@ -9,7 +9,7 @@ public class LevelData : ScriptableObject
     {
         Classic,        // Kaydır-birleştir (her zaman açık)
         QuarterFill,    // Çeyrek dolu obje mekaniği (%100'de açılır)
-        // İleride buraya yeni türler eklenecek
+        ColorMix,       // Renk karıştırma — farklı renkler birleşip yeni renk yapar
     }
 
 

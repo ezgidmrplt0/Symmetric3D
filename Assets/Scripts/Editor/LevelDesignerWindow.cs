@@ -100,7 +100,21 @@ public class LevelDesignerWindow : EditorWindow
         // ── 3. BÖLÜM: Fırça Ayarları ─────────────────────────────
         DrawSectionHeader("🖌️ Fırça (Brush) Ayarları");
 
-        brushColor = EditorGUILayout.ColorField("Renk", brushColor);
+        // Renk Presetleri
+        GUILayout.Label("Hızlı Renk Seç:", EditorStyles.miniLabel);
+        EditorGUILayout.BeginHorizontal();
+
+        DrawColorPreset("🔵 Mavi",    ColorMixData.Mavi);
+        DrawColorPreset("🔴 Kırmızı", ColorMixData.Kirmizi);
+        DrawColorPreset("🟡 Sarı",    ColorMixData.Sari);
+        DrawColorPreset("🟣 Mor",     ColorMixData.Mor);
+        DrawColorPreset("🟠 Turuncu", ColorMixData.Turuncu);
+        DrawColorPreset("🟢 Yeşil",   ColorMixData.Yesil);
+
+        EditorGUILayout.EndHorizontal();
+        GUILayout.Space(4);
+
+        brushColor = EditorGUILayout.ColorField("Renk (manuel)", brushColor);
         brushSlices = EditorGUILayout.IntSlider("Dilim (Slices)", brushSlices, 1, 4);
 
         string[] rotOptions = { "Yukarı (0°)", "Sağa (90°)", "Aşağı (180°)", "Sola (-90°)" };
@@ -237,6 +251,15 @@ public class LevelDesignerWindow : EditorWindow
 
     LevelData.PieceData GetPieceAt(int x, int y) =>
         currentLevel.pieces.Find(p => p.gridPosition.x == x && p.gridPosition.y == y);
+
+    void DrawColorPreset(string label, Color color)
+    {
+        Color prev = GUI.backgroundColor;
+        GUI.backgroundColor = color;
+        if (GUILayout.Button(label, GUILayout.Height(22)))
+            brushColor = color;
+        GUI.backgroundColor = prev;
+    }
 
     void CreateNewLevel()
     {
