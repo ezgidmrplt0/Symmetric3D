@@ -52,6 +52,11 @@ public class DragObject : MonoBehaviour
 
     void TryPick(Vector3 screenPos)
     {
+        if (TutorialManager.Instance != null)
+        {
+            TutorialManager.Instance.HideTutorial();
+        }
+
         Ray ray = cam.ScreenPointToRay(screenPos);
         RaycastHit hit;
 
