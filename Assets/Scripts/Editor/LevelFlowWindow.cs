@@ -7,6 +7,10 @@ public class LevelFlowWindow : EditorWindow
     private LevelSequenceData sequence;
     private Vector2 scrollPos;
 
+    // Sürükle-bırak takibi için
+    private int draggingIndex = -1;
+    private int hoverIndex = -1;
+
     // Her LevelType için renk kodu
     private static readonly Dictionary<LevelData.LevelType, Color> typeColors = new()
     {
@@ -75,13 +79,18 @@ public class LevelFlowWindow : EditorWindow
         }
 
         EditorGUILayout.EndScrollView();
+
+        // Drag-drop esnasında sürekli repaint (kasmasını önler)
+        if (draggingIndex >= 0)
+        {
+            Repaint();
+        }
     }
 
     // ── Bölüm 1: Tür Konfigürasyonu ──────────────────────────────
 
     void DrawTypeConfigs()
     {
-        // Enum'daki tüm LevelType'lar asset'te yoksa otomatik ekle
         if (sequence.typeConfigs != null)
         {
             bool synced = false;
@@ -98,7 +107,6 @@ public class LevelFlowWindow : EditorWindow
             if (synced) EditorUtility.SetDirty(sequence);
         }
 
-        // Tablo başlığı
         EditorGUILayout.BeginHorizontal();
         GUILayout.Label("Tür", EditorStyles.boldLabel, GUILayout.Width(120));
         GUILayout.Label("Açılma (%)", EditorStyles.boldLabel, GUILayout.Width(90));
@@ -116,15 +124,13 @@ public class LevelFlowWindow : EditorWindow
         {
             EditorGUILayout.BeginHorizontal();
 
-            // Tür renk etiketi
             Color prev = GUI.backgroundColor;
             if (typeColors.TryGetValue(cfg.levelType, out Color c)) GUI.backgroundColor = c;
             GUILayout.Label(cfg.levelType.ToString(), EditorStyles.miniButtonMid, GUILayout.Width(120));
             GUI.backgroundColor = prev;
 
-            // Açılma % slider
             int newVal = EditorGUILayout.IntField(cfg.unlockAtProgress, GUILayout.Width(50));
-            newVal = Mathf.Max(newVal, 0); // Sadece negatife gitmesin
+            newVal = Mathf.Max(newVal, 0); 
             GUILayout.Label("%", GUILayout.Width(16));
             if (newVal != cfg.unlockAtProgress)
             {
@@ -133,7 +139,6 @@ public class LevelFlowWindow : EditorWindow
                 dirty = true;
             }
 
-            // Durum
             bool unlocked = lifetimeProgress >= cfg.unlockAtProgress;
             GUIStyle statusStyle = new GUIStyle(EditorStyles.label)
             {
@@ -160,23 +165,57 @@ public class LevelFlowWindow : EditorWindow
 
         int lifetimeProgress = GameManager.Instance != null ? GameManager.Instance.lifetimeProgress : 0;
 
-        // Tablo başlığı
         EditorGUILayout.BeginHorizontal();
+        GUILayout.Label("≡",       EditorStyles.boldLabel, GUILayout.Width(20)); // Tutamak başlığı
         GUILayout.Label("#",       EditorStyles.boldLabel, GUILayout.Width(28));
         GUILayout.Label("Ad",      EditorStyles.boldLabel, GUILayout.Width(130));
         GUILayout.Label("Tür",     EditorStyles.boldLabel, GUILayout.Width(100));
         GUILayout.Label("Açılma",  EditorStyles.boldLabel, GUILayout.Width(70));
-        GUILayout.Label("",                                GUILayout.Width(90));  // Butonlar
+        GUILayout.Label("",                                GUILayout.Width(30)); 
         EditorGUILayout.EndHorizontal();
         DrawThinLine();
 
         int removeIndex = -1;
-        int swapA = -1, swapB = -1;
+        Event evt = Event.current;
 
         for (int i = 0; i < sequence.levels.Count; i++)
         {
             LevelData level = sequence.levels[i];
-            EditorGUILayout.BeginHorizontal();
+
+            // Arka plan kutusu
+            GUIStyle rowStyle = new GUIStyle(GUI.skin.box);
+            rowStyle.margin = new RectOffset(0, 0, 0, 0);
+            rowStyle.padding = new RectOffset(2, 2, 4, 4);
+
+            if (draggingIndex == i)
+                GUI.backgroundColor = new Color(0.1f, 0.5f, 0.8f, 0.8f); 
+            else if (hoverIndex == i && draggingIndex >= 0)
+                GUI.backgroundColor = new Color(0.3f, 0.3f, 0.3f, 1f); 
+            else
+                GUI.backgroundColor = Color.clear; // Orijinal transparan görünüm
+                
+            Rect rowRect = EditorGUILayout.BeginHorizontal(rowStyle);
+            GUI.backgroundColor = Color.white; 
+
+            // Handle (Tutamak) ve satıra tıklandığını algılama
+            Rect handleRect = GUILayoutUtility.GetRect(new GUIContent("≡"), EditorStyles.label, GUILayout.Width(20));
+            GUI.Label(handleRect, "≡");
+            EditorGUIUtility.AddCursorRect(handleRect, MouseCursor.Pan);
+
+            if (evt.type == EventType.MouseDown && rowRect.Contains(evt.mousePosition) && evt.button == 0)
+            {
+                draggingIndex = i;
+                hoverIndex = i;
+                evt.Use();
+            }
+
+            if (draggingIndex >= 0 && evt.type == EventType.MouseDrag)
+            {
+                if (rowRect.Contains(evt.mousePosition))
+                {
+                    hoverIndex = i;
+                }
+            }
 
             // Index
             GUILayout.Label((i + 1).ToString(), GUILayout.Width(28));
@@ -189,11 +228,10 @@ public class LevelFlowWindow : EditorWindow
             }
             else
             {
-                // Tür rengi
                 Color prev = GUI.backgroundColor;
                 if (typeColors.TryGetValue(level.levelType, out Color tc)) GUI.backgroundColor = tc;
 
-                // İsim (tıklanınca asset'e ping)
+                // Orijinaldeki buton
                 if (GUILayout.Button(level.levelDisplayName, EditorStyles.miniButtonMid, GUILayout.Width(130)))
                     EditorGUIUtility.PingObject(level);
 
@@ -210,27 +248,47 @@ public class LevelFlowWindow : EditorWindow
                 GUILayout.Label(unlockPct == 0 ? "✅ Açık" : unlocked ? $"✅ %{unlockPct}" : $"🔒 %{unlockPct}", s, GUILayout.Width(70));
             }
 
-            // ▲ ▼ ✕ butonları
-            GUI.enabled = i > 0;
-            if (GUILayout.Button("▲", GUILayout.Width(24))) { swapA = i; swapB = i - 1; }
-            GUI.enabled = i < sequence.levels.Count - 1;
-            if (GUILayout.Button("▼", GUILayout.Width(24))) { swapA = i; swapB = i + 1; }
-            GUI.enabled = true;
-
+            // ✕ butonu (Kaldırma)
             GUI.backgroundColor = new Color(0.9f, 0.3f, 0.3f);
             if (GUILayout.Button("✕", GUILayout.Width(24))) removeIndex = i;
             GUI.backgroundColor = Color.white;
 
             EditorGUILayout.EndHorizontal();
+
+            // Araya giren cizgi
+            if (draggingIndex >= 0 && draggingIndex != i && hoverIndex == i)
+            {
+                float lineY = (draggingIndex < i) ? rowRect.yMax : rowRect.yMin - 2;
+                Rect lineRect = new Rect(rowRect.x, lineY, rowRect.width, 3);
+                EditorGUI.DrawRect(lineRect, Color.cyan);
+            }
         }
 
-        // Swap / Remove işlemleri
-        if (swapA >= 0 && swapB >= 0)
+        // Bırakma Olayı
+        if (evt.type == EventType.MouseUp)
         {
-            Undo.RecordObject(sequence, "Level Sırası Değiştir");
-            (sequence.levels[swapA], sequence.levels[swapB]) = (sequence.levels[swapB], sequence.levels[swapA]);
-            EditorUtility.SetDirty(sequence);
+            if (draggingIndex >= 0)
+            {
+                if (hoverIndex >= 0 && hoverIndex != draggingIndex)
+                {
+                    Undo.RecordObject(sequence, "Level Sırası Değiştir");
+                    LevelData item = sequence.levels[draggingIndex];
+                    sequence.levels.RemoveAt(draggingIndex);
+                    sequence.levels.Insert(hoverIndex, item);
+                    EditorUtility.SetDirty(sequence);
+                }
+                draggingIndex = -1;
+                hoverIndex = -1;
+                evt.Use();
+            }
         }
+
+        // Event emme
+        if (draggingIndex >= 0 && evt.type == EventType.MouseDrag)
+        {
+            evt.Use();
+        }
+
         if (removeIndex >= 0)
         {
             Undo.RecordObject(sequence, "Level Çıkar");
@@ -243,7 +301,6 @@ public class LevelFlowWindow : EditorWindow
 
     void DrawAddLevelArea()
     {
-        // Drag-drop alanı
         Rect dropArea = GUILayoutUtility.GetRect(0, 40, GUILayout.ExpandWidth(true));
         GUI.Box(dropArea, "📂  LevelData asset'ini buraya sürükle veya seç");
 
@@ -268,7 +325,6 @@ public class LevelFlowWindow : EditorWindow
             evt.Use();
         }
 
-        // Manuel seçim butonu
         GUILayout.Space(4);
         EditorGUILayout.BeginHorizontal();
         GUILayout.FlexibleSpace();

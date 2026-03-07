@@ -54,13 +54,20 @@ public class LevelDesignerWindow : EditorWindow
 
         EditorGUI.BeginChangeCheck();
 
-        string newName = EditorGUILayout.TextField("Seviye Adı", currentLevel.levelDisplayName);
+        // Otomatik isim sekronizasyonu (Dosya adı = Seviye Adı)
+        if (currentLevel.levelDisplayName != currentLevel.name)
+        {
+            Undo.RecordObject(currentLevel, "Seviye Adı Güncelle");
+            currentLevel.levelDisplayName = currentLevel.name;
+            EditorUtility.SetDirty(currentLevel);
+        }
+
+        EditorGUILayout.LabelField("Seviye Adı", currentLevel.name);
         LevelData.LevelType newType = (LevelData.LevelType)EditorGUILayout.EnumPopup("Level Türü", currentLevel.levelType);
 
         if (EditorGUI.EndChangeCheck())
         {
             Undo.RecordObject(currentLevel, "Level Bilgisi Değiştir");
-            currentLevel.levelDisplayName = newName;
             currentLevel.levelType = newType;
             EditorUtility.SetDirty(currentLevel);
         }
@@ -272,9 +279,9 @@ public class LevelDesignerWindow : EditorWindow
             LevelData newLevel = ScriptableObject.CreateInstance<LevelData>();
             newLevel.gridX = gridX;
             newLevel.gridY = gridY;
-            newLevel.levelDisplayName = "Yeni Level";
 
             AssetDatabase.CreateAsset(newLevel, path);
+            newLevel.levelDisplayName = newLevel.name;
             AssetDatabase.SaveAssets();
             currentLevel = newLevel;
             EditorGUIUtility.PingObject(newLevel);
