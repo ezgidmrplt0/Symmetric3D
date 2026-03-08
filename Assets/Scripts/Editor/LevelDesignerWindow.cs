@@ -11,6 +11,8 @@ public class LevelDesignerWindow : EditorWindow
     private Color brushColor = new Color(0.8f, 0.1f, 0.1f);
     private int brushSlices = 1;
     private float brushRotationZ = 0f;
+    private bool brushIsShadowTrigger = false;
+
 
     private bool isGridEditMode = false;
 
@@ -85,6 +87,9 @@ public class LevelDesignerWindow : EditorWindow
                 break;
             case LevelData.LevelType.ColorMix:
                 EditorGUILayout.HelpBox("ColorMix — Farklı renklerin birleşimiyle yeni renkler oluşturun.", MessageType.None);
+                break;
+            case LevelData.LevelType.Shadow:
+                EditorGUILayout.HelpBox("Shadow — Tek kalan parçalar (isShadowTrigger) diğer eşleşmeler bittiğinde eşlerini doğurur.", MessageType.None);
                 break;
             default:
                 EditorGUILayout.HelpBox("Seçilen mod için açıklama bulunamadı.", MessageType.None);
@@ -185,6 +190,16 @@ public class LevelDesignerWindow : EditorWindow
         if (currentRotIndex < 0) currentRotIndex = 0;
         currentRotIndex = EditorGUILayout.Popup("Baktığı Yön", currentRotIndex, rotOptions);
         brushRotationZ = rotValues[currentRotIndex];
+        
+        if (currentLevel.levelType == LevelData.LevelType.Shadow)
+        {
+            brushIsShadowTrigger = EditorGUILayout.Toggle("Shadow Trigger?", brushIsShadowTrigger);
+        }
+        else
+        {
+            brushIsShadowTrigger = false;
+        }
+
 
         GUILayout.Space(6);
 
@@ -270,8 +285,9 @@ public class LevelDesignerWindow : EditorWindow
                             4 => "4/4",
                             _ => piece.currentSlices.ToString() + "/4"
                         };
-                        buttonText = $"{sliceLabel}\n{yon}";
+                        buttonText = $"{sliceLabel}\n{yon}" + (currentLevel.levelType == LevelData.LevelType.Shadow && piece.isShadowTrigger ? "\n(S)" : "");
                     }
+
                     else
                     {
                         buttonText = "Boş\n(+)";
@@ -320,6 +336,7 @@ public class LevelDesignerWindow : EditorWindow
                             if (piece == null)
                             {
                                 piece = new LevelData.PieceData { gridPosition = new Vector2Int(x, y) };
+                                piece.isShadowTrigger = brushIsShadowTrigger;
                                 currentLevel.pieces.Add(piece);
                             }
                             else
@@ -327,6 +344,7 @@ public class LevelDesignerWindow : EditorWindow
                                 brushColor = piece.liquidColor;
                                 brushSlices = piece.currentSlices;
                                 brushRotationZ = piece.rotationZ;
+                                brushIsShadowTrigger = piece.isShadowTrigger;
                             }
 
                             if (piece != null)
@@ -334,7 +352,9 @@ public class LevelDesignerWindow : EditorWindow
                                 piece.liquidColor   = brushColor;
                                 piece.currentSlices = brushSlices;
                                 piece.rotationZ     = brushRotationZ;
+                                piece.isShadowTrigger = brushIsShadowTrigger;
                             }
+
                             EditorUtility.SetDirty(currentLevel);
                         }
                     }

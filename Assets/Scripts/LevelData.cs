@@ -9,7 +9,8 @@ public class LevelData : ScriptableObject
     {
         Classic,        // Kaydır-birleştir (her zaman açık)
         QuarterFill,    // Çeyrek dolu obje mekaniği (%100'de açılır)
-        ColorMix        // Renk karıştırma — farklı renkler birleşip yeni renk yapar
+        ColorMix,       // Renk karıştırma — farklı renkler birleşip yeni renk yapar
+        Shadow          // Gölge mekaniği — tek kalan parça kendi eşini doğurur
     }
 
 
@@ -37,6 +38,7 @@ public class LevelData : ScriptableObject
         public Color liquidColor = Color.white;
         public int currentSlices = 1;
         public float rotationZ = 0f;
+        public bool isShadowTrigger = false;
     }
 
     [Header("Parçalar")]

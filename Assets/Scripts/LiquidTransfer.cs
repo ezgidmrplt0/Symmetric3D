@@ -14,21 +14,35 @@ public class LiquidTransfer : MonoBehaviour
     [Header("Dilim (Slice) Ayarları")]
     public int currentSlices = 1;
     public int maxSlices = 4;
+    public bool isShadowTrigger = false;
+    public bool isShadowChild = false;
+    private bool shadowSpawned = false;
+
 
     [HideInInspector]
     public bool transferring = false;
 
     void Start()
     {
+        UpdateVisuals();
+    }
+
+    public void UpdateVisuals()
+    {
         // Başlangıç doluluğunu -0.5 (boş) ile 0.5 (dolu) arasına oranla
         fillAmount = Mathf.Lerp(-0.5f, 0.5f, (float)currentSlices / maxSlices);
 
         if (liquidMat != null)
         {
-            liquidMat = new Material(liquidMat);
+            // Runtime'da her zaman instance üzerinden çalışmalıyız
+            if (Application.isPlaying && !liquidMat.name.Contains("(Instance)"))
+            {
+                liquidMat = new Material(liquidMat);
+            }
+            
             liquidMat.SetFloat("_FillAmount", fillAmount);
-            liquidMat.SetColor("_LiquidColor", liquidColor); // Renk ayarla
-            liquidMat.SetColor("_ColorA", liquidColor);      // Shader'daki diğer renk property'si
+            liquidMat.SetColor("_LiquidColor", liquidColor);
+            liquidMat.SetColor("_ColorA", liquidColor);
 
             Renderer[] renderers = GetComponentsInChildren<Renderer>();
             foreach (Renderer r in renderers)
@@ -37,10 +51,14 @@ public class LiquidTransfer : MonoBehaviour
                 bool changed = false;
                 for (int i = 0; i < sharedMats.Length; i++)
                 {
+                    // Shader ismine göre hedef materyali bul ve değiştir
                     if (sharedMats[i] != null && sharedMats[i].shader.name == "Custom/LiquidFullControl")
                     {
-                        sharedMats[i] = liquidMat;
-                        changed = true;
+                        if (sharedMats[i] != liquidMat)
+                        {
+                            sharedMats[i] = liquidMat;
+                            changed = true;
+                        }
                     }
                 }
                 if (changed) r.sharedMaterials = sharedMats;
@@ -50,6 +68,8 @@ public class LiquidTransfer : MonoBehaviour
             if (tiltCode != null) tiltCode.liquidMat = liquidMat;
         }
     }
+
+
 
     public void CheckSymmetry()
     {
@@ -258,6 +278,39 @@ public class LiquidTransfer : MonoBehaviour
                 if (GameManager.Instance != null)
                     GameManager.Instance.LevelComplete();
             }
+            else
+            {
+                // Hâlâ obje var, ama hepsi ShadowTrigger mı?
+                bool anyRegularLeft = false;
+                List<LiquidTransfer> triggers = new List<LiquidTransfer>();
+
+                foreach (var obj in remaining)
+                {
+                    LiquidTransfer lt = obj.GetComponentInChildren<LiquidTransfer>();
+                    if (lt != null)
+                    {
+                        if (!lt.isShadowTrigger || lt.shadowSpawned || lt.isShadowChild)
+                            anyRegularLeft = true;
+                        else if (lt.isShadowTrigger && !lt.shadowSpawned)
+                            triggers.Add(lt);
+                    }
+                }
+
+                if (!anyRegularLeft && triggers.Count > 0)
+                {
+                    // Sadece gölge bekleyen tetikleyiciler kaldı
+                    GridSpawner spawner = FindObjectOfType<GridSpawner>();
+                    if (spawner != null)
+                    {
+                        foreach (var t in triggers)
+                        {
+                            t.shadowSpawned = true;
+                            spawner.SpawnShadowFor(t);
+                        }
+                    }
+                }
+            }
         });
     }
+
 }
