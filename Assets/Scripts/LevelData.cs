@@ -26,6 +26,9 @@ public class LevelData : ScriptableObject
     public int gridX = 3;
     public int gridY = 3;
 
+    [Tooltip("Eğer bu liste boş değilse, grid X/Y yerine bu koordinatlar kullanılır.")]
+    public List<Vector2Int> customGridPositions = new List<Vector2Int>();
+
     // ── Parçalar ────────────────────────────────────────────────
     [System.Serializable]
     public class PieceData

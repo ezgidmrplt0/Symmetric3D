@@ -12,6 +12,8 @@ public class LevelDesignerWindow : EditorWindow
     private int brushSlices = 1;
     private float brushRotationZ = 0f;
 
+    private bool isGridEditMode = false;
+
     private Vector2 scrollPos;
 
     [MenuItem("Symmetric3D/Level Tasarımcısı")]
@@ -107,7 +109,25 @@ public class LevelDesignerWindow : EditorWindow
 
         GUILayout.Space(6);
 
-        // ── 3. BÖLÜM: Fırça Ayarları ─────────────────────────────
+        // ── 3. BÖLÜM: Grid Şekillendirme ────────────────────────────
+        DrawSectionHeader("🧱 Grid Şekillendirme");
+        
+        Color oldGuiColor = GUI.backgroundColor;
+        GUI.backgroundColor = isGridEditMode ? Color.green : Color.white;
+        if (GUILayout.Button(isGridEditMode ? "✅ Grid Düzenleme Modu: AÇIK" : "⬛ Grid Düzenleme Modu: KAPALI", GUILayout.Height(30)))
+        {
+            isGridEditMode = !isGridEditMode;
+        }
+        GUI.backgroundColor = oldGuiColor;
+        
+        if (isGridEditMode)
+        {
+            EditorGUILayout.HelpBox("Grid Düzenleme Modu: Grid üzerindeki hücrelere tıklayarak onları aktif/pasif yapabilirsiniz.", MessageType.Info);
+        }
+
+        GUILayout.Space(6);
+
+        // ── 4. BÖLÜM: Fırça Ayarları ─────────────────────────────
         DrawSectionHeader("🖌️ Fırça (Brush) Ayarları");
 
         // Renk Presetleri
@@ -221,28 +241,45 @@ public class LevelDesignerWindow : EditorWindow
 
             for (int x = 0; x < gridX; x++)
             {
+                Vector2Int pos = new Vector2Int(x, y);
+                bool isCellActive = currentLevel.customGridPositions.Count == 0 || currentLevel.customGridPositions.Contains(pos);
                 LevelData.PieceData piece = GetPieceAt(x, y);
 
-                string buttonText = "Boş\n(+)";
-                Color bgColor = new Color(0.3f, 0.3f, 0.3f);
+                string buttonText = "";
+                Color bgColor = isCellActive ? new Color(0.3f, 0.3f, 0.3f) : new Color(0.15f, 0.15f, 0.15f);
 
-                if (piece != null)
+                if (isGridEditMode)
                 {
-                    bgColor = piece.liquidColor;
-                    string yon = piece.rotationZ switch
+                    buttonText = isCellActive ? "AÇIK" : "KAPALI";
+                }
+                else if (isCellActive)
+                {
+                    if (piece != null)
                     {
-                        90    => "→",
-                        180   => "↓",
-                        -90   => "←",
-                        _     => "↑"
-                    };
-                    string sliceLabel = piece.currentSlices switch {
-                        1 => "1/4",
-                        2 => "2/4",
-                        4 => "4/4",
-                        _ => piece.currentSlices.ToString() + "/4"
-                    };
-                    buttonText = $"{sliceLabel}\n{yon}";
+                        bgColor = piece.liquidColor;
+                        string yon = piece.rotationZ switch
+                        {
+                            90    => "→",
+                            180   => "↓",
+                            -90   => "←",
+                            _     => "↑"
+                        };
+                        string sliceLabel = piece.currentSlices switch {
+                            1 => "1/4",
+                            2 => "2/4",
+                            4 => "4/4",
+                            _ => piece.currentSlices.ToString() + "/4"
+                        };
+                        buttonText = $"{sliceLabel}\n{yon}";
+                    }
+                    else
+                    {
+                        buttonText = "Boş\n(+)";
+                    }
+                }
+                else
+                {
+                    buttonText = "—";
                 }
 
                 GUI.backgroundColor = bgColor;
@@ -251,36 +288,62 @@ public class LevelDesignerWindow : EditorWindow
 
                 if (GUI.Button(bRect, buttonText))
                 {
-                    if (Event.current.button == 0) // Sol tık: Seç ve Güncelle
+                    if (isGridEditMode)
                     {
-                        Undo.RecordObject(currentLevel, "Parça Ekle/Güncelle");
-                        if (piece == null)
+                        Undo.RecordObject(currentLevel, "Grid Hücresi Tıkla");
+                        
+                        // Eğer hiç özel pozisyon yoksa, önce mevcut dikdörtgeni doldur ki "pasif yapma" başlasın
+                        if (currentLevel.customGridPositions.Count == 0)
                         {
-                            piece = new LevelData.PieceData { gridPosition = new Vector2Int(x, y) };
-                            currentLevel.pieces.Add(piece);
+                            for (int gx = 0; gx < gridX; gx++)
+                                for (int gy = 0; gy < gridY; gy++)
+                                    currentLevel.customGridPositions.Add(new Vector2Int(gx, gy));
+                        }
+
+                        if (currentLevel.customGridPositions.Contains(pos))
+                        {
+                            currentLevel.customGridPositions.Remove(pos);
+                            // Eğer bir parça varsa onu da sil
+                            if (piece != null) currentLevel.pieces.Remove(piece);
                         }
                         else
                         {
-                            // Eğer parça varsa, bir kere tıklayınca onun ayarlarını fırçaya çek
-                            brushColor = piece.liquidColor;
-                            brushSlices = piece.currentSlices;
-                            brushRotationZ = piece.rotationZ;
-                        }
-
-                        if (piece != null)
-                        {
-                            piece.liquidColor   = brushColor;
-                            piece.currentSlices = brushSlices;
-                            piece.rotationZ     = brushRotationZ;
+                            currentLevel.customGridPositions.Add(pos);
                         }
                         EditorUtility.SetDirty(currentLevel);
+                    }
+                    else if (isCellActive)
+                    {
+                        if (Event.current.button == 0) // Sol tık: Seç ve Güncelle
+                        {
+                            Undo.RecordObject(currentLevel, "Parça Ekle/Güncelle");
+                            if (piece == null)
+                            {
+                                piece = new LevelData.PieceData { gridPosition = new Vector2Int(x, y) };
+                                currentLevel.pieces.Add(piece);
+                            }
+                            else
+                            {
+                                brushColor = piece.liquidColor;
+                                brushSlices = piece.currentSlices;
+                                brushRotationZ = piece.rotationZ;
+                            }
+
+                            if (piece != null)
+                            {
+                                piece.liquidColor   = brushColor;
+                                piece.currentSlices = brushSlices;
+                                piece.rotationZ     = brushRotationZ;
+                            }
+                            EditorUtility.SetDirty(currentLevel);
+                        }
                     }
                     GUI.FocusControl(null);
                 }
 
-                // Sağ tık fallback
+                // Sağ tık: Silme (Edit modunda değilse)
                 Event e = Event.current;
-                if (e.isMouse && e.type == EventType.MouseDown && bRect.Contains(e.mousePosition) && e.button == 1)
+                if (!isGridEditMode && e.isMouse && e.type == EventType.MouseDown && bRect.Contains(e.mousePosition) && e.button == 1)
                 {
                     if (piece != null)
                     {

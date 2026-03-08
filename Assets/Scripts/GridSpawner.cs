@@ -125,25 +125,56 @@ public class GridSpawner : MonoBehaviour
 
     void SpawnLevel(LevelData level)
     {
-        int gX = level.gridX;
-        int gY = level.gridY;
-
         float gridSize = gridPrefab.transform.localScale.x;
-        float offsetX = (gX - 1) * (gridSize + spacing) / 2f;
-        float offsetY = (gY - 1) * (gridSize + spacing) / 2f;
+        bool isCustom = level.customGridPositions != null && level.customGridPositions.Count > 0;
+
+        float minX = 0, maxX = level.gridX - 1;
+        float minY = 0, maxY = level.gridY - 1;
+
+        if (isCustom)
+        {
+            minX = minY = float.MaxValue;
+            maxX = maxY = float.MinValue;
+            foreach (var pos in level.customGridPositions)
+            {
+                if (pos.x < minX) minX = pos.x;
+                if (pos.x > maxX) maxX = pos.x;
+                if (pos.y < minY) minY = pos.y;
+                if (pos.y > maxY) maxY = pos.y;
+            }
+        }
+
+        float offsetX = (minX + maxX) * (gridSize + spacing) / 2f;
+        float offsetY = (minY + maxY) * (gridSize + spacing) / 2f;
 
         // Grid Zeminlerini Çiz
-        for (int x = 0; x < gX; x++)
+        if (isCustom)
         {
-            for (int y = 0; y < gY; y++)
+            foreach (var pos in level.customGridPositions)
             {
-                Vector3 pos = new Vector3(
-                    x * (gridSize + spacing) - offsetX,
-                    y * (gridSize + spacing) - offsetY,
+                Vector3 worldPos = new Vector3(
+                    pos.x * (gridSize + spacing) - offsetX,
+                    pos.y * (gridSize + spacing) - offsetY,
                     0
                 );
-                GameObject gridObj = Instantiate(gridPrefab, transform.position + pos, Quaternion.identity, transform);
+                GameObject gridObj = Instantiate(gridPrefab, transform.position + worldPos, Quaternion.identity, transform);
                 activeSpawnedObjects.Add(gridObj);
+            }
+        }
+        else
+        {
+            for (int x = 0; x < level.gridX; x++)
+            {
+                for (int y = 0; y < level.gridY; y++)
+                {
+                    Vector3 pos = new Vector3(
+                        x * (gridSize + spacing) - offsetX,
+                        y * (gridSize + spacing) - offsetY,
+                        0
+                    );
+                    GameObject gridObj = Instantiate(gridPrefab, transform.position + pos, Quaternion.identity, transform);
+                    activeSpawnedObjects.Add(gridObj);
+                }
             }
         }
 
@@ -178,8 +209,26 @@ public class GridSpawner : MonoBehaviour
 
         LevelData level = levels[currentLevelIndex];
         float gridSize  = gridPrefab.transform.localScale.x;
-        float offsetX   = (level.gridX - 1) * (gridSize + spacing) / 2f;
-        float offsetY   = (level.gridY - 1) * (gridSize + spacing) / 2f;
+        
+        bool isCustom = level.customGridPositions != null && level.customGridPositions.Count > 0;
+        float minX = 0, maxX = level.gridX - 1;
+        float minY = 0, maxY = level.gridY - 1;
+
+        if (isCustom)
+        {
+            minX = minY = float.MaxValue;
+            maxX = maxY = float.MinValue;
+            foreach (var pos in level.customGridPositions)
+            {
+                if (pos.x < minX) minX = pos.x;
+                if (pos.x > maxX) maxX = pos.x;
+                if (pos.y < minY) minY = pos.y;
+                if (pos.y > maxY) maxY = pos.y;
+            }
+        }
+
+        float offsetX = (minX + maxX) * (gridSize + spacing) / 2f;
+        float offsetY = (minY + maxY) * (gridSize + spacing) / 2f;
 
         return transform.position + new Vector3(
             gridPos.x * (gridSize + spacing) - offsetX,
