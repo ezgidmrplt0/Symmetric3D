@@ -10,13 +10,17 @@ public class LevelFlowWindow : EditorWindow
     // Sürükle-bırak takibi için
     private int draggingIndex = -1;
     private int hoverIndex = -1;
+    private int draggingTypeIndex = -1;
+    private int hoverTypeIndex = -1;
 
     // Her LevelType için renk kodu
     private static readonly Dictionary<LevelData.LevelType, Color> typeColors = new()
     {
-        { LevelData.LevelType.Classic,     new Color(0.55f, 0.55f, 0.55f) },
-        { LevelData.LevelType.QuarterFill, new Color(0.9f,  0.55f, 0.1f)  },
-        { LevelData.LevelType.ColorMix,    new Color(0.3f,  0.6f,  0.9f)  },
+        { LevelData.LevelType.Classic,     new Color(0.4f,  0.4f,  0.4f)  }, // Koyu Gri
+        { LevelData.LevelType.QuarterFill, new Color(0.8f,  0.4f,  0.1f)  }, // Turuncu/Kahve
+        { LevelData.LevelType.ColorMix,    new Color(0.2f,  0.5f,  0.8f)  }, // Mavi
+        { LevelData.LevelType.Shadow,      new Color(0.6f,  0.3f,  0.8f)  }, // Mor
+        { LevelData.LevelType.Rotation,    new Color(0.2f,  0.7f,  0.4f)  }, // Yeşil
     };
 
     [MenuItem("Symmetric3D/Level Akış Yöneticisi")]
@@ -81,7 +85,7 @@ public class LevelFlowWindow : EditorWindow
         EditorGUILayout.EndScrollView();
 
         // Drag-drop esnasında sürekli repaint (kasmasını önler)
-        if (draggingIndex >= 0)
+        if (draggingIndex >= 0 || draggingTypeIndex >= 0)
         {
             Repaint();
         }
@@ -115,6 +119,7 @@ public class LevelFlowWindow : EditorWindow
         }
 
         EditorGUILayout.BeginHorizontal();
+        GUILayout.Label("≡", EditorStyles.boldLabel, GUILayout.Width(20));
         GUILayout.Label("Tür", EditorStyles.boldLabel, GUILayout.Width(120));
         GUILayout.Label("Açılma (%)", EditorStyles.boldLabel, GUILayout.Width(90));
         GUILayout.Label("Durum", EditorStyles.boldLabel);
@@ -127,17 +132,49 @@ public class LevelFlowWindow : EditorWindow
         int lifetimeProgress = GameManager.Instance != null ? GameManager.Instance.lifetimeProgress : 0;
 
         bool dirty = false;
-        foreach (var cfg in sequence.typeConfigs)
+        Event evt = Event.current;
+        for (int i = 0; i < sequence.typeConfigs.Count; i++)
         {
-            EditorGUILayout.BeginHorizontal();
+            var cfg = sequence.typeConfigs[i];
+            
+            GUIStyle rowStyle = new GUIStyle(GUI.skin.box);
+            rowStyle.margin = new RectOffset(0, 0, 0, 0);
+            rowStyle.padding = new RectOffset(2, 2, 4, 4);
 
-            Color prev = GUI.backgroundColor;
+            if (draggingTypeIndex == i)
+                GUI.backgroundColor = new Color(0.1f, 0.5f, 0.8f, 0.8f);
+            else if (hoverTypeIndex == i && draggingTypeIndex >= 0)
+                GUI.backgroundColor = new Color(0.3f, 0.3f, 0.3f, 1f);
+            else
+                GUI.backgroundColor = Color.clear;
+
+            Rect rowRect = EditorGUILayout.BeginHorizontal(rowStyle);
+            GUI.backgroundColor = Color.white;
+
+            // Handle
+            Rect handleRect = GUILayoutUtility.GetRect(new GUIContent("≡"), EditorStyles.label, GUILayout.Width(20));
+            GUI.Label(handleRect, "≡");
+            EditorGUIUtility.AddCursorRect(handleRect, MouseCursor.Pan);
+
+            if (evt.type == EventType.MouseDown && handleRect.Contains(evt.mousePosition) && evt.button == 0)
+            {
+                draggingTypeIndex = i;
+                hoverTypeIndex = i;
+                evt.Use();
+            }
+
+            if (draggingTypeIndex >= 0 && evt.type == EventType.MouseDrag && rowRect.Contains(evt.mousePosition))
+            {
+                hoverTypeIndex = i;
+            }
+
+            Color prevCell = GUI.backgroundColor;
             if (typeColors.TryGetValue(cfg.levelType, out Color c)) GUI.backgroundColor = c;
             GUILayout.Label(cfg.levelType.ToString(), EditorStyles.miniButtonMid, GUILayout.Width(120));
-            GUI.backgroundColor = prev;
+            GUI.backgroundColor = prevCell;
 
             int newVal = EditorGUILayout.IntField(cfg.unlockAtProgress, GUILayout.Width(50));
-            newVal = Mathf.Max(newVal, 0); 
+            newVal = Mathf.Max(newVal, 0);
             GUILayout.Label("%", GUILayout.Width(16));
             if (newVal != cfg.unlockAtProgress)
             {
@@ -155,6 +192,39 @@ public class LevelFlowWindow : EditorWindow
                 : unlocked ? "✅ Açık" : "🔒 Kilitli", statusStyle);
 
             EditorGUILayout.EndHorizontal();
+
+            // Araya giren çizgi
+            if (draggingTypeIndex >= 0 && draggingTypeIndex != i && hoverTypeIndex == i)
+            {
+                float lineY = (draggingTypeIndex < i) ? rowRect.yMax : rowRect.yMin - 2;
+                Rect lineRect = new Rect(rowRect.x, lineY, rowRect.width, 3);
+                EditorGUI.DrawRect(lineRect, Color.cyan);
+            }
+        }
+
+        // Bırakma Olayı
+        if (evt.type == EventType.MouseUp)
+        {
+            if (draggingTypeIndex >= 0)
+            {
+                if (hoverTypeIndex >= 0 && hoverTypeIndex != draggingTypeIndex)
+                {
+                    Undo.RecordObject(sequence, "Type Config Sırası Değiştir");
+                    var item = sequence.typeConfigs[draggingTypeIndex];
+                    sequence.typeConfigs.RemoveAt(draggingTypeIndex);
+                    sequence.typeConfigs.Insert(hoverTypeIndex, item);
+                    EditorUtility.SetDirty(sequence);
+                    dirty = true;
+                }
+                draggingTypeIndex = -1;
+                hoverTypeIndex = -1;
+                evt.Use();
+            }
+        }
+
+        if (draggingTypeIndex >= 0 && evt.type == EventType.MouseDrag)
+        {
+            evt.Use();
         }
 
         if (dirty) EditorUtility.SetDirty(sequence);
