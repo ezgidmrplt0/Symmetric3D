@@ -290,7 +290,6 @@ public class LevelDesignerWindow : EditorWindow
                         };
                         buttonText = $"{sliceLabel}\n{yon}" + (currentLevel.levelType == LevelData.LevelType.Shadow && piece.isShadowTrigger ? "\n(S)" : "");
                     }
-
                     else
                     {
                         buttonText = "Boş\n(+)";
@@ -305,13 +304,26 @@ public class LevelDesignerWindow : EditorWindow
                 Rect bRect = GUILayoutUtility.GetRect(new GUIContent(buttonText), GUI.skin.button,
                     GUILayout.Width(65), GUILayout.Height(65));
 
+                Event e = Event.current;
+                
+                // Sağ tık: Silme (Edit modunda değilse) - GUI.Button'dan önce yakalamalıyız
+                if (!isGridEditMode && e.type == EventType.MouseDown && e.button == 1 && bRect.Contains(e.mousePosition))
+                {
+                    if (piece != null)
+                    {
+                        Undo.RecordObject(currentLevel, "Parça Sil");
+                        currentLevel.pieces.Remove(piece);
+                        EditorUtility.SetDirty(currentLevel);
+                        e.Use();
+                    }
+                }
+
                 if (GUI.Button(bRect, buttonText))
                 {
                     if (isGridEditMode)
                     {
                         Undo.RecordObject(currentLevel, "Grid Hücresi Tıkla");
                         
-                        // Eğer hiç özel pozisyon yoksa, önce mevcut dikdörtgeni doldur ki "pasif yapma" başlasın
                         if (currentLevel.customGridPositions.Count == 0)
                         {
                             for (int gx = 0; gx < gridX; gx++)
@@ -322,7 +334,6 @@ public class LevelDesignerWindow : EditorWindow
                         if (currentLevel.customGridPositions.Contains(pos))
                         {
                             currentLevel.customGridPositions.Remove(pos);
-                            // Eğer bir parça varsa onu da sil
                             if (piece != null) currentLevel.pieces.Remove(piece);
                         }
                         else
@@ -333,12 +344,15 @@ public class LevelDesignerWindow : EditorWindow
                     }
                     else if (isCellActive)
                     {
-                        if (Event.current.button == 0) // Sol tık: Seç ve Güncelle
+                        if (e.button == 0) 
                         {
                             Undo.RecordObject(currentLevel, "Parça Ekle/Güncelle");
                             if (piece == null)
                             {
                                 piece = new LevelData.PieceData { gridPosition = new Vector2Int(x, y) };
+                                piece.liquidColor   = brushColor;
+                                piece.currentSlices = brushSlices;
+                                piece.rotationZ     = brushRotationZ;
                                 piece.isShadowTrigger = brushIsShadowTrigger;
                                 currentLevel.pieces.Add(piece);
                             }
@@ -348,33 +362,16 @@ public class LevelDesignerWindow : EditorWindow
                                 brushSlices = piece.currentSlices;
                                 brushRotationZ = piece.rotationZ;
                                 brushIsShadowTrigger = piece.isShadowTrigger;
-                            }
 
-                            if (piece != null)
-                            {
                                 piece.liquidColor   = brushColor;
                                 piece.currentSlices = brushSlices;
                                 piece.rotationZ     = brushRotationZ;
                                 piece.isShadowTrigger = brushIsShadowTrigger;
                             }
-
                             EditorUtility.SetDirty(currentLevel);
                         }
                     }
                     GUI.FocusControl(null);
-                }
-
-                // Sağ tık: Silme (Edit modunda değilse)
-                Event e = Event.current;
-                if (!isGridEditMode && e.isMouse && e.type == EventType.MouseDown && bRect.Contains(e.mousePosition) && e.button == 1)
-                {
-                    if (piece != null)
-                    {
-                        Undo.RecordObject(currentLevel, "Parça Sil");
-                        currentLevel.pieces.Remove(piece);
-                        EditorUtility.SetDirty(currentLevel);
-                        e.Use();
-                    }
                 }
 
                 GUI.backgroundColor = Color.white;
