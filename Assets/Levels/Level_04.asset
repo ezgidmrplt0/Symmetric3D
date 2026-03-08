@@ -14,22 +14,30 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   levelDisplayName: Level_04
   levelType: 0
-  gridX: 3
+  gridX: 4
   gridY: 2
   pieces:
   - gridPosition: {x: 0, y: 1}
-    liquidColor: {r: 0, g: 1, b: 0, a: 1}
-    currentSlices: 1
-    rotationZ: 0
+    liquidColor: {r: 1, g: 0, b: 0, a: 1}
+    currentSlices: 2
+    rotationZ: 90
   - gridPosition: {x: 2, y: 1}
     liquidColor: {r: 0, g: 1, b: 0, a: 1}
-    currentSlices: 1
-    rotationZ: 180
-  - gridPosition: {x: 0, y: 0}
-    liquidColor: {r: 0, g: 0, b: 1, a: 1}
-    currentSlices: 1
+    currentSlices: 2
+    rotationZ: 90
+  - gridPosition: {x: 3, y: 0}
+    liquidColor: {r: 0, g: 1, b: 0, a: 1}
+    currentSlices: 2
+    rotationZ: -90
+  - gridPosition: {x: 3, y: 1}
+    liquidColor: {r: 1, g: 0, b: 0, a: 1}
+    currentSlices: 2
     rotationZ: -90
   - gridPosition: {x: 1, y: 1}
     liquidColor: {r: 0, g: 0, b: 1, a: 1}
-    currentSlices: 1
-    rotationZ: 90
+    currentSlices: 2
+    rotationZ: 0
+  - gridPosition: {x: 1, y: 0}
+    liquidColor: {r: 0, g: 0, b: 1, a: 1}
+    currentSlices: 2
+    rotationZ: 180

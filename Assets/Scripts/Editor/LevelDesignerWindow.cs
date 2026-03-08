@@ -72,17 +72,20 @@ public class LevelDesignerWindow : EditorWindow
             EditorUtility.SetDirty(currentLevel);
         }
 
-        // Türe göre açıklama göster (açılma % bilgisi LevelFlowWindow'da yönetiliyor)
+        // Türe göre açıklama göster
         switch (currentLevel.levelType)
         {
             case LevelData.LevelType.Classic:
                 EditorGUILayout.HelpBox("Classic — Kaydır ve eşleştir.  |  Açılma: Her zaman açık", MessageType.None);
                 break;
             case LevelData.LevelType.QuarterFill:
-                EditorGUILayout.HelpBox("QuarterFill — Çeyrek dolu obje mekaniği.  |  Açılma koşulu Level Akış Yöneticisi'nde ayarlanır.", MessageType.None);
+                EditorGUILayout.HelpBox("QuarterFill — Çeyrek dolu obje mekaniği.  |  Açılma: %100", MessageType.None);
+                break;
+            case LevelData.LevelType.ColorMix:
+                EditorGUILayout.HelpBox("ColorMix — Farklı renklerin birleşimiyle yeni renkler oluşturun.", MessageType.None);
                 break;
             default:
-                EditorGUILayout.HelpBox("Açılma koşulu Level Akış Yöneticisi'nde ayarlanır.", MessageType.None);
+                EditorGUILayout.HelpBox("Seçilen mod için açıklama bulunamadı.", MessageType.None);
                 break;
         }
 
@@ -122,7 +125,39 @@ public class LevelDesignerWindow : EditorWindow
         GUILayout.Space(4);
 
         brushColor = EditorGUILayout.ColorField("Renk (manuel)", brushColor);
-        brushSlices = EditorGUILayout.IntSlider("Dilim (Slices)", brushSlices, 1, 4);
+
+        // --- Dinamik Slice Seçimi (Butonlar ile) ---
+        GUILayout.Space(2);
+        EditorGUILayout.BeginHorizontal();
+        EditorGUILayout.PrefixLabel("Dilim (Slices)");
+        
+        int[] availableSlices = GetAvailableSlices(currentLevel.levelType);
+        
+        // Fırça dilimi şu anki modda yoksa, ilk geçerli olana çek
+        if (System.Array.IndexOf(availableSlices, brushSlices) == -1)
+            brushSlices = availableSlices[0];
+
+        string[] sliceLabels = new string[availableSlices.Length];
+        for (int i = 0; i < availableSlices.Length; i++)
+        {
+            sliceLabels[i] = availableSlices[i] switch
+            {
+                1 => "Çeyrek (1/4)",
+                2 => "Yarım (2/4)",
+                4 => "Tam (4/4)",
+                _ => availableSlices[i] + "/4"
+            };
+        }
+
+        int currentSliceIndex = System.Array.IndexOf(availableSlices, brushSlices);
+        if (currentSliceIndex == -1) currentSliceIndex = 0;
+
+        int newSliceIndex = GUILayout.Toolbar(currentSliceIndex, sliceLabels, GUILayout.Height(25));
+        if (newSliceIndex != currentSliceIndex)
+            brushSlices = availableSlices[newSliceIndex];
+
+        EditorGUILayout.EndHorizontal();
+        GUILayout.Space(2);
 
         string[] rotOptions = { "Yukarı (0°)", "Sağa (90°)", "Aşağı (180°)", "Sola (-90°)" };
         int[] rotValues = { 0, 90, 180, -90 };
@@ -201,7 +236,13 @@ public class LevelDesignerWindow : EditorWindow
                         -90   => "←",
                         _     => "↑"
                     };
-                    buttonText = $"{piece.currentSlices}/4\n{yon}";
+                    string sliceLabel = piece.currentSlices switch {
+                        1 => "1/4",
+                        2 => "2/4",
+                        4 => "4/4",
+                        _ => piece.currentSlices.ToString() + "/4"
+                    };
+                    buttonText = $"{sliceLabel}\n{yon}";
                 }
 
                 GUI.backgroundColor = bgColor;
@@ -210,16 +251,7 @@ public class LevelDesignerWindow : EditorWindow
 
                 if (GUI.Button(bRect, buttonText))
                 {
-                    if (Event.current.button == 1)
-                    {
-                        if (piece != null)
-                        {
-                            Undo.RecordObject(currentLevel, "Parça Sil");
-                            currentLevel.pieces.Remove(piece);
-                            EditorUtility.SetDirty(currentLevel);
-                        }
-                    }
-                    else
+                    if (Event.current.button == 0) // Sol tık: Seç ve Güncelle
                     {
                         Undo.RecordObject(currentLevel, "Parça Ekle/Güncelle");
                         if (piece == null)
@@ -227,9 +259,20 @@ public class LevelDesignerWindow : EditorWindow
                             piece = new LevelData.PieceData { gridPosition = new Vector2Int(x, y) };
                             currentLevel.pieces.Add(piece);
                         }
-                        piece.liquidColor   = brushColor;
-                        piece.currentSlices = brushSlices;
-                        piece.rotationZ     = brushRotationZ;
+                        else
+                        {
+                            // Eğer parça varsa, bir kere tıklayınca onun ayarlarını fırçaya çek
+                            brushColor = piece.liquidColor;
+                            brushSlices = piece.currentSlices;
+                            brushRotationZ = piece.rotationZ;
+                        }
+
+                        if (piece != null)
+                        {
+                            piece.liquidColor   = brushColor;
+                            piece.currentSlices = brushSlices;
+                            piece.rotationZ     = brushRotationZ;
+                        }
                         EditorUtility.SetDirty(currentLevel);
                     }
                     GUI.FocusControl(null);
@@ -286,5 +329,14 @@ public class LevelDesignerWindow : EditorWindow
             currentLevel = newLevel;
             EditorGUIUtility.PingObject(newLevel);
         }
+    }
+
+    private int[] GetAvailableSlices(LevelData.LevelType type)
+    {
+        return type switch
+        {
+            LevelData.LevelType.QuarterFill => new int[] { 1, 2, 4 },
+            _ => new int[] { 2, 4 } // Classic ve ColorMix modlarında sadece Yarım ve Tam
+        };
     }
 }

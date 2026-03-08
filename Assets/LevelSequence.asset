@@ -19,8 +19,11 @@ MonoBehaviour:
     unlockAtProgress: 100
   - levelType: 2
     unlockAtProgress: 200
+  - levelType: 3
+    unlockAtProgress: 0
   levels:
   - {fileID: 11400000, guid: 512ccf2c2fe1323448bfa872859b8dc3, type: 2}
+  - {fileID: 11400000, guid: b2d36e5460294de34adfb926a6e75d1b, type: 2}
   - {fileID: 11400000, guid: 680a76eaba95d48aeb3e9fe98a1b1040, type: 2}
   - {fileID: 11400000, guid: 8865759d32f0a2f4cba2d07e5eae6814, type: 2}
   - {fileID: 11400000, guid: ea513077782490d42beb23f76be62775, type: 2}

@@ -1,5 +1,6 @@
 using UnityEngine;
 using System.Collections.Generic;
+using DG.Tweening;
 
 public class GridSpawner : MonoBehaviour
 {
@@ -33,6 +34,13 @@ public class GridSpawner : MonoBehaviour
 
     void Start()
     {
+        // PlayerPrefs'ten kaldığı yeri oku
+        currentLevelIndex = PlayerPrefs.GetInt("CurrentLevelIndex", 0);
+        
+        // Eğer index listeden büyükse sıfırla (data değişmiş olabilir)
+        if (levels != null && currentLevelIndex >= levels.Count)
+            currentLevelIndex = 0;
+
         SpawnCurrentLevel();
     }
 
@@ -100,6 +108,11 @@ public class GridSpawner : MonoBehaviour
             Debug.Log("Oyun Bitti! Tüm leveller tamamlandı.");
 
         currentLevelIndex = next;
+        
+        // Kaldığı yeri kaydet
+        PlayerPrefs.SetInt("CurrentLevelIndex", currentLevelIndex);
+        PlayerPrefs.Save();
+
         SpawnCurrentLevel();
     }
 
@@ -155,6 +168,8 @@ public class GridSpawner : MonoBehaviour
             }
         }
     }
+
+    public bool HasPendingShadows() => false;
 
     public Vector3 GetWorldPosition(Vector2Int gridPos)
     {

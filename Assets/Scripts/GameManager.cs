@@ -109,13 +109,14 @@ public class GameManager : MonoBehaviour
         return (levelIndex - newMechanicStartLevelIndex) % 5 == 0;
     }
 
-    // --- Debug / Test ---
     [ContextMenu("Progress Sıfırla")]
     public void ResetProgress()
     {
         totalProgress = 0;
+        lifetimeProgress = 0;
         newMechanicUnlocked = false;
+        PlayerPrefs.DeleteKey("CurrentLevelIndex");
         SaveProgress();
-        Debug.Log("Progress sıfırlandı.");
+        Debug.Log("Tüm progress ve level kaydı sıfırlandı.");
     }
 }
