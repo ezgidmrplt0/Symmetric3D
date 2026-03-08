@@ -94,6 +94,7 @@ public class LevelFlowWindow : EditorWindow
         if (sequence.typeConfigs != null)
         {
             bool synced = false;
+            // 1. Yeni eklenenleri senkronize et
             foreach (LevelData.LevelType lt in System.Enum.GetValues(typeof(LevelData.LevelType)))
             {
                 bool exists = sequence.typeConfigs.Exists(c => c.levelType == lt);
@@ -104,6 +105,12 @@ public class LevelFlowWindow : EditorWindow
                     synced = true;
                 }
             }
+
+            // 2. Enum'da olmayan (obsolete) türleri temizle
+            var allTypes = new HashSet<LevelData.LevelType>((LevelData.LevelType[])System.Enum.GetValues(typeof(LevelData.LevelType)));
+            int removedCount = sequence.typeConfigs.RemoveAll(c => !allTypes.Contains(c.levelType));
+            if (removedCount > 0) synced = true;
+
             if (synced) EditorUtility.SetDirty(sequence);
         }
 
@@ -202,7 +209,8 @@ public class LevelFlowWindow : EditorWindow
             GUI.Label(handleRect, "≡");
             EditorGUIUtility.AddCursorRect(handleRect, MouseCursor.Pan);
 
-            if (evt.type == EventType.MouseDown && rowRect.Contains(evt.mousePosition) && evt.button == 0)
+            // Sadece handle (≡) üzerine basılırsa sürükleme başlasın
+            if (evt.type == EventType.MouseDown && handleRect.Contains(evt.mousePosition) && evt.button == 0)
             {
                 draggingIndex = i;
                 hoverIndex = i;
@@ -294,6 +302,7 @@ public class LevelFlowWindow : EditorWindow
             Undo.RecordObject(sequence, "Level Çıkar");
             sequence.levels.RemoveAt(removeIndex);
             EditorUtility.SetDirty(sequence);
+            Repaint();
         }
     }
 
