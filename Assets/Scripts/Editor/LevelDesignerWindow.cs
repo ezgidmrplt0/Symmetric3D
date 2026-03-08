@@ -91,6 +91,9 @@ public class LevelDesignerWindow : EditorWindow
             case LevelData.LevelType.Shadow:
                 EditorGUILayout.HelpBox("Shadow — Tek kalan parçalar (isShadowTrigger) diğer eşleşmeler bittiğinde eşlerini doğurur.", MessageType.None);
                 break;
+            case LevelData.LevelType.Rotation:
+                EditorGUILayout.HelpBox("Rotation — Parçalar tıklandığında 90 derece döner. Sürükleme de aktiftir.", MessageType.None);
+                break;
             default:
                 EditorGUILayout.HelpBox("Seçilen mod için açıklama bulunamadı.", MessageType.None);
                 break;

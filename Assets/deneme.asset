@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: deneme
   m_EditorClassIdentifier: 
   levelDisplayName: deneme
-  levelType: 3
+  levelType: 4
   gridX: 3
   gridY: 3
   customGridPositions: []
@@ -26,20 +26,15 @@ MonoBehaviour:
   - gridPosition: {x: 1, y: 2}
     liquidColor: {r: 0.8, g: 0.1, b: 0.1, a: 1}
     currentSlices: 2
-    rotationZ: 180
-    isShadowTrigger: 0
-  - gridPosition: {x: 1, y: 1}
-    liquidColor: {r: 0.5, g: 0, b: 0.5, a: 1}
-    currentSlices: 2
-    rotationZ: 180
-    isShadowTrigger: 0
-  - gridPosition: {x: 0, y: 0}
-    liquidColor: {r: 0.5, g: 0, b: 0.5, a: 1}
-    currentSlices: 2
     rotationZ: 0
     isShadowTrigger: 0
   - gridPosition: {x: 2, y: 2}
-    liquidColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
+    liquidColor: {r: 0, g: 1, b: 0, a: 1}
     currentSlices: 2
     rotationZ: 0
-    isShadowTrigger: 1
+    isShadowTrigger: 0
+  - gridPosition: {x: 2, y: 1}
+    liquidColor: {r: 0, g: 1, b: 0, a: 1}
+    currentSlices: 2
+    rotationZ: 90
+    isShadowTrigger: 0

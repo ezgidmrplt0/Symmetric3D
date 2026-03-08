@@ -9,6 +9,9 @@ public class DragObject : MonoBehaviour
     private float zDepth;
 
     private Vector3 startPosition;
+    private Vector2 startScreenPos;
+    private float startTime;
+
 
     [Header("Ayarlar")]
     public float snapDistance = 1.5f;
@@ -70,6 +73,9 @@ public class DragObject : MonoBehaviour
 
                 zDepth = cam.WorldToScreenPoint(transform.position).z;
 
+                startScreenPos = screenPos;
+                startTime = Time.time;
+
                 Vector3 world = cam.ScreenToWorldPoint(new Vector3(screenPos.x, screenPos.y, zDepth));
                 offset = transform.position - world;
             }
@@ -78,6 +84,12 @@ public class DragObject : MonoBehaviour
 
     void Drag(Vector3 screenPos)
     {
+        // Sürükleme başladığında (eşik geçildiğinde) tutorial gizle
+        if (Vector2.Distance(screenPos, startScreenPos) > 10f)
+        {
+             // Tutorial gizleme zaten TryPick'te var ama hareket edince de emin olalım
+        }
+
         Vector3 world = cam.ScreenToWorldPoint(new Vector3(screenPos.x, screenPos.y, zDepth));
         Vector3 desiredPos = world + offset;
 
@@ -131,20 +143,39 @@ public class DragObject : MonoBehaviour
     {
         dragging = false;
 
-        // Tıklama (Tap) Kontrolü
-        // Kullanıcı objeyi sürüklemeden sadece bırakmışsa, objeyi kendi etrafında döndürelim (Simetri bulmaca mekaniği için)
-        float dragDistance = Vector3.Distance(transform.position, startPosition);
-        if (dragDistance < 0.2f)
+        float screenDist = Vector2.Distance(Input.mousePosition, startScreenPos);
+        float duration = Time.time - startTime;
+
+        // Debug log ekleyelim ki sorunu anlayalım
+        // Debug.Log($"Drop - Dist: {screenDist}, Duration: {duration}, Dragging: {dragging}");
+
+        if (screenDist < 50f && duration < 0.5f)
         {
             transform.position = startPosition; // Konumu olduğu gibi kalsın
 
-            ObjectRotator rotator = GetComponent<ObjectRotator>();
-            if (rotator != null)
+            GridSpawner spawner = FindObjectOfType<GridSpawner>();
+            if (spawner != null)
             {
-                rotator.RotateObject();
+                // Debug.Log($"Level Type: {spawner.CurrentLevelType}");
+                if (spawner.CurrentLevelType == LevelData.LevelType.Rotation)
+                {
+                    ObjectRotator rotator = GetComponent<ObjectRotator>();
+                    if (rotator == null) rotator = GetComponentInChildren<ObjectRotator>();
+
+                    if (rotator != null)
+                    {
+                        rotator.RotateObject();
+                    }
+                    else
+                    {
+                        Debug.LogWarning("ObjectRotator bulunamadı!");
+                    }
+                }
             }
             return; // Sürükleme fonksiyonlarını çalıştırma
         }
+
+
 
         GameObject[] grids = GameObject.FindGameObjectsWithTag("Grid");
 

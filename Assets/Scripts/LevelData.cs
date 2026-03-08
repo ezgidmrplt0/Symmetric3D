@@ -10,7 +10,8 @@ public class LevelData : ScriptableObject
         Classic,        // Kaydır-birleştir (her zaman açık)
         QuarterFill,    // Çeyrek dolu obje mekaniği (%100'de açılır)
         ColorMix,       // Renk karıştırma — farklı renkler birleşip yeni renk yapar
-        Shadow          // Gölge mekaniği — tek kalan parça kendi eşini doğurur
+        Shadow,         // Gölge mekaniği — tek kalan parça kendi eşini doğurur
+        Rotation        // Dönme mekaniği — parçalar hem sürüklenir hem 90 derece döner
     }
 
 

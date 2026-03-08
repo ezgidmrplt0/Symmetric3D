@@ -13,6 +13,7 @@ GameObject:
   - component: {fileID: 909674614683322669}
   - component: {fileID: 6954316644408500180}
   - component: {fileID: 6898953826347593860}
+  - component: {fileID: 213917902098604090}
   m_Layer: 0
   m_Name: MainObject
   m_TagString: Untagged
@@ -121,6 +122,20 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   snapDistance: 1.5
   collisionDistance: 1
+--- !u!114 &213917902098604090
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2541529924135553766}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7b3a3f289d5bf774e8edb3a54afebc5c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  rotationAmount: {x: 0, y: 0, z: 90}
+  rotateDuration: 0.3
 --- !u!1 &6547184393761214108
 GameObject:
   m_ObjectHideFlags: 0
@@ -260,4 +275,8 @@ MonoBehaviour:
   fillAmount: 0
   transferDuration: 0.5
   maxAdjacencyDistance: 1
+  currentSlices: 1
+  maxSlices: 4
+  isShadowTrigger: 0
+  isShadowChild: 0
   transferring: 0
