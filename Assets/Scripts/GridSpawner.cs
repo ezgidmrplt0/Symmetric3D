@@ -96,7 +96,7 @@ public class GridSpawner : MonoBehaviour
             // Unlock kontrolü — effectiveProgress ile
             if (sequence != null && !sequence.IsLevelUnlocked(candidateLevel, effectiveProgress))
             {
-                Debug.Log($"[GridSpawner] '{candidateLevel.levelDisplayName}' kilitli, atlanıyor.");
+                Debug.Log($"[GridSpawner] '{candidateLevel.levelDisplayName}' kilitli! (Tür: {candidateLevel.levelType}, Gerekli: {sequence.GetUnlockProgress(candidateLevel.levelType)}, Mevcut: {effectiveProgress})");
                 continue;
             }
 

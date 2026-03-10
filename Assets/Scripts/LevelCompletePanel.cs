@@ -21,6 +21,9 @@ public class LevelCompletePanel : MonoBehaviour
     [Tooltip("Yeni Mechanic açıldığında gösterilecek obje (isteğe bağlı)")]
     public GameObject newMechanicUnlockBanner;
 
+    [Tooltip("Yeni Level Türü açıldığında gösterilecek popup")]
+    public NewLevelUnlockPanel newLevelUnlockPopup;
+
     [Header("Animasyon Ayarları")]
     public float barAnimDuration = 1.2f;
     public float panelFadeInDuration = 0.4f;
@@ -94,6 +97,23 @@ public class LevelCompletePanel : MonoBehaviour
                     newMechanicUnlockBanner.SetActive(true);
                     newMechanicUnlockBanner.transform.localScale = Vector3.zero;
                     newMechanicUnlockBanner.transform.DOScale(1f, 0.4f).SetEase(Ease.OutBack);
+                }
+
+                // Her %100 dolduğunda popup'ı göster
+                if (GameManager.Instance.hitProgressHundred)
+                {
+                    if (newLevelUnlockPopup != null)
+                    {
+                        // Mevcut progress'e uygun mekanik ismini bulalım
+                        GameManager.Instance.GetTypeForProgress(GameManager.Instance.lifetimeProgress, out LevelData.LevelType displayType);
+                        
+                        Debug.Log($"[LevelCompletePanel] %100 doldu, popup gösteriliyor. Tür: {displayType}");
+                        newLevelUnlockPopup.Show(displayType);
+                    }
+                    else
+                    {
+                        Debug.LogWarning("[LevelCompletePanel] %100 doldu ama 'newLevelUnlockPopup' referansı Inspector'da atanmamış!");
+                    }
                 }
             });
         });
