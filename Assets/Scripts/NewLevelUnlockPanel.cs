@@ -5,6 +5,14 @@ using DG.Tweening;
 
 public class NewLevelUnlockPanel : MonoBehaviour
 {
+    // Mekaniklere özel ikonu ayarlamak için oluşturduğumuz struct
+    [System.Serializable]
+    public struct MechanicIconData
+    {
+        public LevelData.LevelType levelType;
+        public Sprite icon;
+    }
+
     [Header("UI References")]
     public GameObject panelRoot;
     public CanvasGroup canvasGroup;
@@ -16,6 +24,10 @@ public class NewLevelUnlockPanel : MonoBehaviour
     public Image rewardImage;
     public Button okButton;
 
+    [Header("Mekanik İkonları")]
+    [Tooltip("Hangi mekanik türü için hangi görselin çıkacağını buradan ayarlayabilirsiniz.")]
+    public System.Collections.Generic.List<MechanicIconData> mechanicIcons = new System.Collections.Generic.List<MechanicIconData>();
+
     private void Awake()
     {
         if (panelRoot != null) panelRoot.SetActive(false);
@@ -25,8 +37,33 @@ public class NewLevelUnlockPanel : MonoBehaviour
     public void Show(LevelData.LevelType type)
     {
         // UI Metinlerini ve Görüntülerini Ayarla
-        if (headerText != null) headerText.text = "Level Unlocked!";
+        if (headerText != null) headerText.text = "New Mechanic!";
         if (levelNameText != null) levelNameText.text = type.ToString();
+        
+        // Doğru ikonu bul ve uygula
+        if (rewardImage != null)
+        {
+            Sprite foundSprite = null;
+            foreach (var item in mechanicIcons)
+            {
+                if (item.levelType == type)
+                {
+                    foundSprite = item.icon;
+                    break;
+                }
+            }
+
+            if (foundSprite != null)
+            {
+                rewardImage.sprite = foundSprite;
+                rewardImage.gameObject.SetActive(true);
+            }
+            else
+            {
+                // İkon atanmamışsa image'i gizle veya sabit bırak
+                rewardImage.gameObject.SetActive(false);
+            }
+        }
         
         panelRoot.SetActive(true);
         

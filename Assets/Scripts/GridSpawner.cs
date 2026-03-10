@@ -265,41 +265,9 @@ public class GridSpawner : MonoBehaviour
             {
                 combinedBounds.Encapsulate(new Bounds(tileWorldPos, Vector3.one * gridSize));
             }
-
-            float p = framePadding;
-            float t = frameThickness;
-            float R = gridSize / 2f + p + t / 2f;
-
-            // Kenar çizim mantığı (aynı kalıyor)
-            // Üst Kenar
-            if (!occupied.Contains(pos + Vector2Int.up))
-            {
-                float xL = occupied.Contains(pos + Vector2Int.left) && !occupied.Contains(pos + Vector2Int.left + Vector2Int.up) ? -step / 2f : -R;
-                float xR = occupied.Contains(pos + Vector2Int.right) && !occupied.Contains(pos + Vector2Int.right + Vector2Int.up) ? step / 2f : R;
-                SpawnCustomSegment(tileWorldPos + new Vector3((xL + xR) / 2f, R, 0), new Vector3(xR - xL, t, t));
-            }
-            // Alt Kenar
-            if (!occupied.Contains(pos + Vector2Int.down))
-            {
-                float xL = occupied.Contains(pos + Vector2Int.left) && !occupied.Contains(pos + Vector2Int.left + Vector2Int.down) ? -step / 2f : -R;
-                float xR = occupied.Contains(pos + Vector2Int.right) && !occupied.Contains(pos + Vector2Int.right + Vector2Int.down) ? step / 2f : R;
-                SpawnCustomSegment(tileWorldPos + new Vector3((xL + xR) / 2f, -R, 0), new Vector3(xR - xL, t, t));
-            }
-            // Sol Kenar
-            if (!occupied.Contains(pos + Vector2Int.left))
-            {
-                float yB = occupied.Contains(pos + Vector2Int.down) && !occupied.Contains(pos + Vector2Int.down + Vector2Int.left) ? -step / 2f : -R;
-                float yT = occupied.Contains(pos + Vector2Int.up) && !occupied.Contains(pos + Vector2Int.up + Vector2Int.left) ? step / 2f : R;
-                SpawnCustomSegment(tileWorldPos + new Vector3(-R, (yB + yT) / 2f, 0), new Vector3(t, yT - yB, t));
-            }
-            // Sağ Kenar
-            if (!occupied.Contains(pos + Vector2Int.right))
-            {
-                float yB = occupied.Contains(pos + Vector2Int.down) && !occupied.Contains(pos + Vector2Int.down + Vector2Int.right) ? -step / 2f : -R;
-                float yT = occupied.Contains(pos + Vector2Int.up) && !occupied.Contains(pos + Vector2Int.up + Vector2Int.right) ? step / 2f : R;
-                SpawnCustomSegment(tileWorldPos + new Vector3(R, (yB + yT) / 2f, 0), new Vector3(t, yT - yB, t));
-            }
         }
+
+        SpawnCleanFrameSegments(occupied, step, gridSize, offsetX, offsetY);
 
         // 5. Kamerayı Ayarla (Otomatik ve Merkezi)
         Camera cam = mainCamera != null ? mainCamera : Camera.main;
@@ -344,6 +312,88 @@ public class GridSpawner : MonoBehaviour
         }
     }
 
+    void SpawnCleanFrameSegments(HashSet<Vector2Int> occupied, float step, float gridSize, float offsetX, float offsetY)
+{
+    float t = frameThickness;
+    float edge = gridSize / 2f + framePadding;
+
+    foreach (var pos in occupied)
+    {
+        Vector3 center = transform.position + new Vector3(
+            pos.x * step - offsetX,
+            pos.y * step - offsetY,
+            0
+        );
+
+        float length = step; // gridSize yerine hücre boyutu olan step'i kullanmak grid iç çakışmalarını çözer.
+        
+        // Komşulukları (çevredeki hücreleri) kontrol et
+        bool left = occupied.Contains(pos + Vector2Int.left);
+        bool right = occupied.Contains(pos + Vector2Int.right);
+        bool up = occupied.Contains(pos + Vector2Int.up);
+        bool down = occupied.Contains(pos + Vector2Int.down);
+
+        // TOP
+        if (!up)
+        {
+            float len = step;
+            if (!left) len += t; // Sol boşsa kaplamak için sola uzat
+            if (!right) len += t; // Sağ boşsa kaplamak için sağa uzat
+
+            float xOffset = 0;
+            if (!left && right) xOffset = -t / 2f; 
+            if (!right && left) xOffset = t / 2f;  
+
+            Vector3 worldPos = center + new Vector3(xOffset, edge + t / 2f, 0);
+            SpawnCustomSegment(worldPos, new Vector3(len, t, t));
+        }
+
+        // BOTTOM
+        if (!down)
+        {
+            float len = step;
+            if (!left) len += t; 
+            if (!right) len += t; 
+
+            float xOffset = 0;
+            if (!left && right) xOffset = -t / 2f;
+            if (!right && left) xOffset = t / 2f;
+
+            Vector3 worldPos = center + new Vector3(xOffset, -edge - t / 2f, 0);
+            SpawnCustomSegment(worldPos, new Vector3(len, t, t));
+        }
+
+        // LEFT
+        if (!left)
+        {
+            float len = step;
+            if (!up) len += t; 
+            if (!down) len += t; 
+
+            float yOffset = 0;
+            if (!down && up) yOffset = -t / 2f;
+            if (!up && down) yOffset = t / 2f;
+
+            Vector3 worldPos = center + new Vector3(-edge - t / 2f, yOffset, 0);
+            SpawnCustomSegment(worldPos, new Vector3(t, len, t));
+        }
+
+        // RIGHT
+        if (!right)
+        {
+            float len = step;
+            if (!up) len += t; 
+            if (!down) len += t; 
+
+            float yOffset = 0;
+            if (!down && up) yOffset = -t / 2f;
+            if (!up && down) yOffset = t / 2f;
+
+            Vector3 worldPos = center + new Vector3(edge + t / 2f, yOffset, 0);
+            SpawnCustomSegment(worldPos, new Vector3(t, len, t));
+        }
+    }
+}
     void SpawnCustomSegment(Vector3 worldPos, Vector3 scale)
     {
         GameObject seg = null;
