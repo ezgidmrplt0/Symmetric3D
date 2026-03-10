@@ -462,6 +462,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Lose
       objectReference: {fileID: 0}
+    - target: {fileID: 8510022068901887151, guid: f863797bb8c1212c7898b0ad23e35975, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
     m_RemovedComponents:
     - {fileID: 480338453299147269, guid: f863797bb8c1212c7898b0ad23e35975, type: 3}
     m_RemovedGameObjects:
@@ -496,8 +500,19 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   panelRoot: {fileID: 338703154}
-  retryButton: {fileID: 0}
+  retryButton: {fileID: 502907846}
   panelFadeInDuration: 0.4
+--- !u!114 &502907846 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 1951250881634639142, guid: f863797bb8c1212c7898b0ad23e35975, type: 3}
+  m_PrefabInstance: {fileID: 338703152}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4e29b1a8efbd4b44bb3f3716e73f07ff, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &693465494
 GameObject:
   m_ObjectHideFlags: 0
@@ -905,7 +920,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8510022068901887151, guid: f863797bb8c1212c7898b0ad23e35975, type: 3}
       propertyPath: m_IsActive
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -1128,7 +1143,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2508430584408265187, guid: 48062912f29680864b86f7a4474afbec, type: 3}
       propertyPath: m_IsActive
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 9218332984121215912, guid: 48062912f29680864b86f7a4474afbec, type: 3}
       propertyPath: m_Pivot.x
