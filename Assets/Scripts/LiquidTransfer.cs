@@ -125,16 +125,22 @@ public class LiquidTransfer : MonoBehaviour
         {
             if (other == this || other == null || other.transferring || other.currentSlices <= 0) continue;
 
-            // Aynı renk birleşmez
+            // Aynı renk birleşmez (Kullanıcı isteğiyle kapatıldı)
             if (ColorMixData.ColorsMatch(other.liquidColor, this.liquidColor)) continue;
 
             // Tarife göre karışım kontrolü
-            if (!ColorMixData.TryGetMix(this.liquidColor, other.liquidColor, out Color mixResult)) continue;
-
-            if (IsAdjacentFaceToFace(other))
+            if (ColorMixData.TryGetMix(this.liquidColor, other.liquidColor, out Color mixResult))
             {
-                StartColorMix(other, mixResult);
-                break;
+                // Karışım var ama bakış yönleri mi tutmuyor?
+                if (IsAdjacentFaceToFace(other))
+                {
+                    StartColorMix(other, mixResult);
+                    break;
+                }
+                else
+                {
+                    // Debug.Log($"[ColorMix] Karışım bulundu ({this.liquidColor} + {other.liquidColor}) ama bakış yönleri veya mesafe uygun değil!");
+                }
             }
         }
     }
