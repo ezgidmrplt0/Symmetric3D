@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections;
 using System.Collections.Generic;
 using DG.Tweening;
 
@@ -17,7 +18,16 @@ public class GridSpawner : MonoBehaviour
     public float spacing = 0.4f;
     public float objectOffset = 0.3f;
 
+    [Header("Kamera ve Çerçeve (Modüler)")]
+    public GameObject frameSegmentPrefab;
+    public Camera mainCamera;
+    public float frameThickness = 0.15f;
+    public float framePadding = 0.15f;    // Grid ile çerçeve arasındaki boşluk
+    public float cameraPadding = 1.2f;    // Ekran kenarlarından daha fazla pay
+    public float cameraVerticalOffset = 0.5f; // Grid'i dikeyde kaydırmak için
+
     private List<GameObject> activeSpawnedObjects = new List<GameObject>();
+    private List<GameObject> activeFrameSegments = new List<GameObject>();
 
     // Kolaylık property'leri
     private List<LevelData> levels => sequence != null ? sequence.levels : null;
@@ -125,6 +135,9 @@ public class GridSpawner : MonoBehaviour
 
     void SpawnLevel(LevelData level)
     {
+        // GameManager durumunu temizle (özellikle levelCompleting flag'ı)
+        GameManager.Instance?.ResetLevelState();
+
         float gridSize = gridPrefab.transform.localScale.x;
         bool isCustom = level.customGridPositions != null && level.customGridPositions.Count > 0;
 
@@ -199,6 +212,153 @@ public class GridSpawner : MonoBehaviour
                 lt.isShadowTrigger = piece.isShadowTrigger;
             }
         }
+
+        // Çerçeve ve Kamera Ayarla (Artık otomatik coroutine ile)
+        StartCoroutine(AdjustViewportCoroutine(level, minX, maxX, minY, maxY, gridSize));
+    }
+
+    IEnumerator AdjustViewportCoroutine(LevelData level, float minX, float maxX, float minY, float maxY, float gridSize)
+    {
+        // 1. Ekran oranının (aspect ratio) güncellenmesi için bir kare bekle
+        yield return new WaitForEndOfFrame();
+
+        // 2. Grid Pozisyonlarını Topla
+        HashSet<Vector2Int> occupied = new HashSet<Vector2Int>();
+        if (level.customGridPositions != null && level.customGridPositions.Count > 0)
+        {
+            foreach (var p in level.customGridPositions) occupied.Add(p);
+        }
+        else
+        {
+            for (int x = 0; x < level.gridX; x++)
+                for (int y = 0; y < level.gridY; y++)
+                    occupied.Add(new Vector2Int(x, y));
+        }
+
+        // 3. Eski Çerçeveyi Temizle
+        foreach (var seg in activeFrameSegments) if (seg != null) Destroy(seg);
+        activeFrameSegments.Clear();
+
+        float step = gridSize + spacing;
+        float offsetX = (minX + maxX) * step / 2f;
+        float offsetY = (minY + maxY) * step / 2f;
+
+        // Bounds initialization: Sadece grid merkezini baz alma, tüm alanları kapsa
+        bool boundsInit = false;
+        Bounds combinedBounds = new Bounds(Vector3.zero, Vector3.zero);
+
+        // 4. Kenarları Tespit Et ve Çiz
+        foreach (var pos in occupied)
+        {
+            Vector3 tileWorldPos = transform.position + new Vector3(
+                pos.x * step - offsetX,
+                pos.y * step - offsetY,
+                0
+            );
+
+            if (!boundsInit)
+            {
+                combinedBounds = new Bounds(tileWorldPos, Vector3.one * gridSize);
+                boundsInit = true;
+            }
+            else
+            {
+                combinedBounds.Encapsulate(new Bounds(tileWorldPos, Vector3.one * gridSize));
+            }
+
+            float p = framePadding;
+            float t = frameThickness;
+            float R = gridSize / 2f + p + t / 2f;
+
+            // Kenar çizim mantığı (aynı kalıyor)
+            // Üst Kenar
+            if (!occupied.Contains(pos + Vector2Int.up))
+            {
+                float xL = occupied.Contains(pos + Vector2Int.left) && !occupied.Contains(pos + Vector2Int.left + Vector2Int.up) ? -step / 2f : -R;
+                float xR = occupied.Contains(pos + Vector2Int.right) && !occupied.Contains(pos + Vector2Int.right + Vector2Int.up) ? step / 2f : R;
+                SpawnCustomSegment(tileWorldPos + new Vector3((xL + xR) / 2f, R, 0), new Vector3(xR - xL, t, t));
+            }
+            // Alt Kenar
+            if (!occupied.Contains(pos + Vector2Int.down))
+            {
+                float xL = occupied.Contains(pos + Vector2Int.left) && !occupied.Contains(pos + Vector2Int.left + Vector2Int.down) ? -step / 2f : -R;
+                float xR = occupied.Contains(pos + Vector2Int.right) && !occupied.Contains(pos + Vector2Int.right + Vector2Int.down) ? step / 2f : R;
+                SpawnCustomSegment(tileWorldPos + new Vector3((xL + xR) / 2f, -R, 0), new Vector3(xR - xL, t, t));
+            }
+            // Sol Kenar
+            if (!occupied.Contains(pos + Vector2Int.left))
+            {
+                float yB = occupied.Contains(pos + Vector2Int.down) && !occupied.Contains(pos + Vector2Int.down + Vector2Int.left) ? -step / 2f : -R;
+                float yT = occupied.Contains(pos + Vector2Int.up) && !occupied.Contains(pos + Vector2Int.up + Vector2Int.left) ? step / 2f : R;
+                SpawnCustomSegment(tileWorldPos + new Vector3(-R, (yB + yT) / 2f, 0), new Vector3(t, yT - yB, t));
+            }
+            // Sağ Kenar
+            if (!occupied.Contains(pos + Vector2Int.right))
+            {
+                float yB = occupied.Contains(pos + Vector2Int.down) && !occupied.Contains(pos + Vector2Int.down + Vector2Int.right) ? -step / 2f : -R;
+                float yT = occupied.Contains(pos + Vector2Int.up) && !occupied.Contains(pos + Vector2Int.up + Vector2Int.right) ? step / 2f : R;
+                SpawnCustomSegment(tileWorldPos + new Vector3(R, (yB + yT) / 2f, 0), new Vector3(t, yT - yB, t));
+            }
+        }
+
+        // 5. Kamerayı Ayarla (Otomatik ve Merkezi)
+        Camera cam = mainCamera != null ? mainCamera : Camera.main;
+        if (cam != null)
+        {
+            // Bounding box'a frame kalınlığını ve padding'i de ekle
+            float frameFullEdge = framePadding + frameThickness;
+            combinedBounds.Expand(frameFullEdge * 2f);
+
+            float h = combinedBounds.size.y + cameraPadding * 2f;
+            float w = combinedBounds.size.x + cameraPadding * 2f;
+
+            if (cam.orthographic)
+            {
+                float sizeByHeight = h / 2f;
+                float sizeByWidth = (w / 2f) / cam.aspect;
+                float targetSize = Mathf.Max(sizeByHeight, sizeByWidth);
+                
+                cam.DOOrthoSize(targetSize, 0.6f).SetEase(Ease.OutCubic);
+                
+                Vector3 camTarget = combinedBounds.center;
+                camTarget.y += cameraVerticalOffset; 
+                camTarget.z = cam.transform.position.z;
+                cam.transform.DOMove(camTarget, 0.6f).SetEase(Ease.OutCubic);
+            }
+            else
+            {
+                // Perspective Zoom: Mesafeyi hesapla
+                float halfFovRad = cam.fieldOfView * 0.5f * Mathf.Deg2Rad;
+                float distByHeight = (h / 2f) / Mathf.Tan(halfFovRad);
+                float distByWidth = (w / 2f) / (Mathf.Tan(halfFovRad) * cam.aspect);
+                
+                float targetDistance = Mathf.Max(distByHeight, distByWidth);
+                
+                // Kameranın bakış doğrultusunu (forward) bozmadan mesafeyi ayarla
+                Vector3 baseTarget = combinedBounds.center;
+                baseTarget.y += cameraVerticalOffset;
+                
+                Vector3 camTarget = baseTarget - cam.transform.forward * targetDistance;
+                cam.transform.DOMove(camTarget, 0.6f).SetEase(Ease.OutCubic);
+            }
+        }
+    }
+
+    void SpawnCustomSegment(Vector3 worldPos, Vector3 scale)
+    {
+        GameObject seg = null;
+        if (frameSegmentPrefab != null)
+            seg = Instantiate(frameSegmentPrefab, worldPos, Quaternion.identity, transform);
+        else
+        {
+            seg = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            seg.transform.position = worldPos;
+            seg.transform.parent = transform;
+            Destroy(seg.GetComponent<BoxCollider>());
+        }
+
+        seg.transform.localScale = scale;
+        activeFrameSegments.Add(seg);
     }
 
     public bool HasPendingShadows()
@@ -334,5 +494,131 @@ public class GridSpawner : MonoBehaviour
             gridPos.y * (gridSize + spacing) - offsetY,
             -objectOffset
         );
+    }
+
+    public void CheckForFail()
+    {
+        if (PossibleMovesExist()) return;
+        
+        Debug.Log("[GridSpawner] Oynanabilir hamle kalmadı, FAIL tetikleniyor.");
+        GameManager.Instance?.LevelFail();
+    }
+
+    private bool PossibleMovesExist()
+    {
+        LiquidTransfer[] all = FindObjectsOfType<LiquidTransfer>();
+        List<LiquidTransfer> activePieces = new List<LiquidTransfer>();
+
+        Debug.Log($"<color=cyan>[GridSpawner]</color> Fail Kontrolü başladı. Sahnede toplam {all.Length} LiquidTransfer bulundu.");
+
+        // Eğer silinen nesneler varsa (transferring), bekle
+        foreach (var lt in all)
+        {
+            if (lt.transferring)
+            {
+                Debug.Log($"<color=yellow>[GridSpawner]</color> '{lt.name}' şu an transfer halinde. Kontrol erteleniyor.");
+                return true;
+            }
+            if (lt != null && lt.gameObject.activeInHierarchy) 
+                activePieces.Add(lt);
+        }
+
+        if (activePieces.Count == 0)
+        {
+            Debug.Log("<color=green>[GridSpawner]</color> Aktif parça kalmadı, temiz kazanıldı.");
+            return true; 
+        }
+
+        // Parça detaylarını dök
+        string piecesLog = "[GridSpawner] Aktif Parçalar Listesi:\n";
+        foreach(var ap in activePieces) piecesLog += $"- {ap.name} | Renk: {ap.liquidColor} | Dilim: {ap.currentSlices}/{ap.maxSlices} | Shadow: {ap.isShadowTrigger}\n";
+        Debug.Log(piecesLog);
+
+        // Shadow Trigger kontrolü (Tek başına ise ama gölge bekliyorsa fail değildir)
+        if (activePieces.Count == 1)
+        {
+            var lt = activePieces[0];
+            if (lt.isShadowTrigger && !lt.shadowSpawned)
+            {
+                 Debug.Log("<color=white>[GridSpawner]</color> Tek parça kaldı ama ShadowTrigger! Gölge doğurması bekleniyor.");
+                 return true; 
+            }
+            Debug.Log($"<color=red>[GridSpawner]</color> Tek parça kaldı ve eşleşme imkansız! (ShadowTrigger değil veya gölge doğurmuş)");
+            return false;
+        }
+
+        // Tüm çiftleri kontrol et
+        for (int i = 0; i < activePieces.Count; i++)
+        {
+            for (int j = i + 1; j < activePieces.Count; j++)
+            {
+                if (CanInteractionsExist(activePieces[i], activePieces[j]))
+                {
+                    Debug.Log($"<color=green>[GridSpawner]</color> Potansiyel Eşleşme Bulundu: {activePieces[i].name} <-> {activePieces[j].name}");
+                    return true;
+                }
+            }
+        }
+
+        // Hiç eşleşme bulunamadıysa ama Shadow bekleyen bir trigger varsa yine fail değildir
+        foreach(var lt in activePieces) 
+        {
+            if (lt.isShadowTrigger && !lt.shadowSpawned)
+            {
+                Debug.Log($"<color=white>[GridSpawner]</color> Eşleşme yok ama '{lt.name}' bir ShadowTrigger. Bekleniyor.");
+                return true;
+            }
+        }
+
+        Debug.Log($"<color=red>[GridSpawner]</color> {activePieces.Count} parça arasında hiçbir geçerli etkileşim bulunamadı. FAIL KOŞULU!");
+        return false;
+    }
+
+    private bool CanInteractionsExist(LiquidTransfer a, LiquidTransfer b)
+    {
+        if (a == null || b == null) return false;
+        
+        // Shadow durumunda her zaman hamle var sayalım (gölge henüz gelmemişse bile)
+        if (a.isShadowChild || b.isShadowChild) return true; 
+
+        bool capable = false;
+        if (CurrentLevelType == LevelData.LevelType.ColorMix)
+        {
+            // Renkler farklı ve karışabiliyorsa hamle var demektir
+            if (!ColorMixData.ColorsMatch(a.liquidColor, b.liquidColor))
+            {
+                if (ColorMixData.TryGetMix(a.liquidColor, b.liquidColor, out _)) capable = true;
+            }
+        }
+        else
+        {
+            // Classic: Aynı renk + Aynı dilim sayısı + Dolu değilse
+            bool colorMatch = ColorMixData.ColorsMatch(a.liquidColor, b.liquidColor);
+            bool sliceMatch = a.currentSlices == b.currentSlices;
+            bool notFull = a.currentSlices < a.maxSlices;
+
+            if (colorMatch && sliceMatch && notFull) capable = true;
+        }
+
+        if (!capable) return false;
+
+        // ROTASYON KONTROLÜ
+        // Eğer Rotation modu değilse, parçaların birbirine bakabilecek (zıt) olması gerekir.
+        if (CurrentLevelType != LevelData.LevelType.Rotation)
+        {
+            Vector3 myFace    = a.transform.up;
+            Vector3 otherFace = b.transform.up;
+            
+            // Eğer dot product -0.9'dan küçükse (birbirlerinin tam zıttı yöne bakıyorlar demektir)
+            // Not: IsAdjacentFaceToFace mantığında transform.up'lar birbirine bakmalı.
+            // Bu da up vektörlerinin birbirine zıt olması demektir (Biri Up diğeri Down gibi).
+            if (Vector3.Dot(myFace, -otherFace) < 0.9f)
+            {
+                // Debug.Log($"[GridSpawner] {a.name} ve {b.name} uyumlu ama yönleri zıt değil! FAIL adayı.");
+                return false;
+            }
+        }
+
+        return true;
     }
 }

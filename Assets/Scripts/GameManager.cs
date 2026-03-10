@@ -30,8 +30,9 @@ public class GameManager : MonoBehaviour
 
     [HideInInspector] public bool hitProgressHundred;   // Bu level'da 100% barajı aşıldı mı?
 
-    // Level tamamlandığında tetiklenecek event
+    // Level durum eventleri
     public static UnityEvent OnLevelCompleted = new UnityEvent();
+    public static UnityEvent OnLevelFailed    = new UnityEvent();
 
     void Awake()
     {
@@ -100,6 +101,18 @@ public class GameManager : MonoBehaviour
 
         // Panel'i tetikle
         OnLevelCompleted.Invoke();
+    }
+
+    /// <summary>
+    /// Level başarısız olduğunda (hamle kalmadığında) çağrılır.
+    /// </summary>
+    public void LevelFail()
+    {
+        if (levelCompleting) return;
+        levelCompleting = true;
+
+        Debug.Log("Level Başarısız! Hamle kalmadı.");
+        OnLevelFailed.Invoke();
     }
 
     /// <summary>

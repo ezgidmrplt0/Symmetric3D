@@ -16,7 +16,7 @@ public class LiquidTransfer : MonoBehaviour
     public int maxSlices = 4;
     public bool isShadowTrigger = false;
     public bool isShadowChild = false;
-    private bool shadowSpawned = false;
+    public bool shadowSpawned = false;
 
 
     [HideInInspector]
@@ -88,6 +88,12 @@ public class LiquidTransfer : MonoBehaviour
         else
         {
             CheckClassicSymmetry();
+        }
+
+        // Eğer bir hamle (transfer) başlamadıysa, oyunun tıkanıp tıkanmadığını kontrol et
+        if (!transferring)
+        {
+            FindObjectOfType<GridSpawner>()?.CheckForFail();
         }
     }
 
@@ -205,6 +211,7 @@ public class LiquidTransfer : MonoBehaviour
             if (this != null && this.transform.parent != null)
                 this.transform.parent.DOScale(0f, 0.2f).OnComplete(() =>
                 {
+                    this.transferring = false;
                     Destroy(this.transform.parent.gameObject);
                     CheckLevelComplete();
                 });
@@ -243,6 +250,7 @@ public class LiquidTransfer : MonoBehaviour
                     if (giver.transform.parent != null)
                         giver.transform.parent.DOScale(0, 0.2f).OnComplete(() =>
                         {
+                            giver.transferring = false;
                             Destroy(giver.transform.parent.gameObject);
                             CheckLevelComplete();
                         });
@@ -261,6 +269,7 @@ public class LiquidTransfer : MonoBehaviour
                     if (this.transform.parent != null)
                         this.transform.parent.DOScale(0, 0.2f).OnComplete(() =>
                         {
+                            this.transferring = false;
                             Destroy(this.transform.parent.gameObject);
                             CheckLevelComplete();
                         });
@@ -276,17 +285,42 @@ public class LiquidTransfer : MonoBehaviour
     void CheckLevelComplete()
     {
         // Sahnede hâlâ DragObject var mı? (Destroy 1 frame sonra gerçekleşir, o yüzden kısa delay)
-        DOVirtual.DelayedCall(0.1f, () =>
+        DOVirtual.DelayedCall(0.15f, () =>
         {
-            DragObject[] remaining = FindObjectsOfType<DragObject>();
-            if (remaining.Length == 0)
+            // Sadece DragObject olan ve yok edilmeyen (scaling down olmayan) objeleri say
+            DragObject[] allObjects = FindObjectsOfType<DragObject>();
+            List<DragObject> remaining = new List<DragObject>();
+            foreach(var obj in allObjects)
             {
-                if (GameManager.Instance != null)
-                    GameManager.Instance.LevelComplete();
+                LiquidTransfer lt = obj.GetComponentInChildren<LiquidTransfer>();
+                if(lt != null && !lt.transferring)
+                {
+                    remaining.Add(obj);
+                }
             }
-            else
+
+            if (remaining.Count == 0)
             {
-                // Hâlâ obje var, ama hepsi ShadowTrigger mı?
+                // Eğer gerçekten hiç parça kalmadıysa (transferring olanlar dahil hepsi bittiyse)
+                LiquidTransfer[] allLiquids = FindObjectsOfType<LiquidTransfer>();
+                bool anyTransferring = false;
+                foreach(var l in allLiquids) if(l != null && l.transferring) anyTransferring = true;
+
+                Debug.Log($"<color=green>[LiquidTransfer]</color> Kalan parça yok. Transferring var mı: {anyTransferring}");
+
+                if (!anyTransferring)
+                {
+                    if (GameManager.Instance != null)
+                        GameManager.Instance.LevelComplete();
+                    return;
+                }
+            }
+            
+            // Hâlâ parça var or some pieces are still transferring
+            if (remaining.Count > 0)
+            {
+                Debug.Log($"<color=orange>[LiquidTransfer]</color> Level devam ediyor. Kalan aktif parça sayısı: {remaining.Count}");
+                // Hâlâ parça var, ama hepsi ShadowTrigger mı?
                 bool anyRegularLeft = false;
                 List<LiquidTransfer> triggers = new List<LiquidTransfer>();
 
@@ -314,6 +348,11 @@ public class LiquidTransfer : MonoBehaviour
                             spawner.SpawnShadowFor(t);
                         }
                     }
+                }
+                else
+                {
+                    // Hâlâ normal objeler var, hamle kalıp kalmadığını kontrol et
+                    FindObjectOfType<GridSpawner>()?.CheckForFail();
                 }
             }
         });
