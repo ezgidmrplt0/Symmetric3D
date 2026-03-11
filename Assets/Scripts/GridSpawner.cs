@@ -192,6 +192,8 @@ public class GridSpawner : MonoBehaviour
         }
 
         // Oyuncu Objelerini Çiz
+        Dictionary<int, LinkedObjectGroup> groups = new Dictionary<int, LinkedObjectGroup>();
+
         foreach (var piece in level.pieces)
         {
             Vector3 piecePos = new Vector3(
@@ -204,6 +206,21 @@ public class GridSpawner : MonoBehaviour
                 Quaternion.Euler(0, 0, piece.rotationZ), transform);
             activeSpawnedObjects.Add(newObj);
 
+            // Bağlı grup kontrolü
+            if (piece.linkId > 0)
+            {
+                if (!groups.ContainsKey(piece.linkId))
+                {
+                    GameObject groupObj = new GameObject("LinkedGroup_" + piece.linkId);
+                    groupObj.transform.parent = transform;
+                    groupObj.transform.position = transform.position;
+                    LinkedObjectGroup log = groupObj.AddComponent<LinkedObjectGroup>();
+                    groups[piece.linkId] = log;
+                    activeSpawnedObjects.Add(groupObj); // Temizlerken silinsin
+                }
+                newObj.transform.parent = groups[piece.linkId].transform;
+            }
+
             LiquidTransfer lt = newObj.GetComponentInChildren<LiquidTransfer>();
             if (lt != null)
             {
@@ -211,6 +228,12 @@ public class GridSpawner : MonoBehaviour
                 lt.currentSlices = piece.currentSlices;
                 lt.isShadowTrigger = piece.isShadowTrigger;
             }
+        }
+
+        // Grubu başlat (Drag logic'lerini kapat, vs.)
+        foreach (var kvp in groups)
+        {
+            kvp.Value.InitGroup();
         }
 
         // Çerçeve ve Kamera Ayarla (Artık otomatik coroutine ile)

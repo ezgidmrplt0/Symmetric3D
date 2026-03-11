@@ -12,6 +12,7 @@ public class LevelDesignerWindow : EditorWindow
     private int brushSlices = 1;
     private float brushRotationZ = 0f;
     private bool brushIsShadowTrigger = false;
+    private int brushLinkId = 0;
 
 
     private bool isGridEditMode = false;
@@ -93,6 +94,9 @@ public class LevelDesignerWindow : EditorWindow
                 break;
             case LevelData.LevelType.Rotation:
                 EditorGUILayout.HelpBox("Rotation — Parçalar tıklandığında 90 derece döner. Sürükleme de aktiftir.", MessageType.None);
+                break;
+            case LevelData.LevelType.Linked:
+                EditorGUILayout.HelpBox("Linked — Aynı 'Bağlantı Grubu'na sahip objeler birbirine yapışır ve çoklu blok mantığıyla (2'li, 3'lü vb.) grup halinde hareket ederler.", MessageType.None);
                 break;
             default:
                 EditorGUILayout.HelpBox("Seçilen mod için açıklama bulunamadı.", MessageType.None);
@@ -187,8 +191,8 @@ public class LevelDesignerWindow : EditorWindow
         EditorGUILayout.EndHorizontal();
         GUILayout.Space(2);
 
-        string[] rotOptions = { "Yukarı (0°)", "Sağa (90°)", "Aşağı (180°)", "Sola (-90°)" };
-        int[] rotValues = { 0, 90, 180, -90 };
+        string[] rotOptions = { "Yukarı (180°)", "Sağa (-90°)", "Aşağı (0°)", "Sola (90°)" };
+        int[] rotValues = { 180, -90, 0, 90 };
         int currentRotIndex = System.Array.IndexOf(rotValues, (int)brushRotationZ);
         if (currentRotIndex < 0) currentRotIndex = 0;
         currentRotIndex = EditorGUILayout.Popup("Baktığı Yön", currentRotIndex, rotOptions);
@@ -203,6 +207,16 @@ public class LevelDesignerWindow : EditorWindow
             brushIsShadowTrigger = false;
         }
 
+        if (currentLevel.levelType == LevelData.LevelType.Linked)
+        {
+            GUILayout.Space(2);
+            brushLinkId = EditorGUILayout.IntSlider("Bağlantı Grubu (Link)", brushLinkId, 1, 9);
+            EditorGUILayout.HelpBox($"Şu an Link {brushLinkId} seçili. Aynı Link'e sahip iki veya daha fazla parça çizerseniz grup olarak hareket ederler.", MessageType.Info);
+        }
+        else
+        {
+            brushLinkId = 0; // Linked modunda değilse sıfırla
+        }
 
         GUILayout.Space(6);
 
@@ -277,9 +291,9 @@ public class LevelDesignerWindow : EditorWindow
                         bgColor = piece.liquidColor;
                         string yon = piece.rotationZ switch
                         {
-                            90    => "→",
-                            180   => "↓",
-                            -90   => "←",
+                            -90   => "→",
+                            0     => "↓",
+                            90    => "←",
                             _     => "↑"
                         };
                         string sliceLabel = piece.currentSlices switch {
@@ -288,7 +302,8 @@ public class LevelDesignerWindow : EditorWindow
                             4 => "4/4",
                             _ => piece.currentSlices.ToString() + "/4"
                         };
-                        buttonText = $"{sliceLabel}\n{yon}" + (currentLevel.levelType == LevelData.LevelType.Shadow && piece.isShadowTrigger ? "\n(S)" : "");
+                        string linkTxt = piece.linkId > 0 ? $"\n[L{piece.linkId}]" : "";
+                        buttonText = $"{sliceLabel}\n{yon}" + (currentLevel.levelType == LevelData.LevelType.Shadow && piece.isShadowTrigger ? "\n(S)" : "") + linkTxt;
                     }
                     else
                     {
@@ -354,6 +369,7 @@ public class LevelDesignerWindow : EditorWindow
                                 piece.currentSlices = brushSlices;
                                 piece.rotationZ     = brushRotationZ;
                                 piece.isShadowTrigger = brushIsShadowTrigger;
+                                piece.linkId        = brushLinkId;
                                 currentLevel.pieces.Add(piece);
                             }
                             else
@@ -362,11 +378,13 @@ public class LevelDesignerWindow : EditorWindow
                                 brushSlices = piece.currentSlices;
                                 brushRotationZ = piece.rotationZ;
                                 brushIsShadowTrigger = piece.isShadowTrigger;
+                                brushLinkId = piece.linkId;
 
                                 piece.liquidColor   = brushColor;
                                 piece.currentSlices = brushSlices;
                                 piece.rotationZ     = brushRotationZ;
                                 piece.isShadowTrigger = brushIsShadowTrigger;
+                                piece.linkId        = brushLinkId;
                             }
                             EditorUtility.SetDirty(currentLevel);
                         }

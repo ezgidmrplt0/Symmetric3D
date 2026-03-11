@@ -11,7 +11,8 @@ public class LevelData : ScriptableObject
         QuarterFill,    // Çeyrek dolu obje mekaniği (%100'de açılır)
         ColorMix,       // Renk karıştırma — farklı renkler birleşip yeni renk yapar
         Shadow,         // Gölge mekaniği — tek kalan parça kendi eşini doğurur
-        Rotation        // Dönme mekaniği — parçalar hem sürüklenir hem 90 derece döner
+        Rotation,       // Dönme mekaniği — parçalar hem sürüklenir hem 90 derece döner
+        Linked          // Bağlı (Çoklu) parça mekaniği — Parçalar birbirine bağlanarak tek bir blok halinde hareket eder
     }
 
 
@@ -40,6 +41,7 @@ public class LevelData : ScriptableObject
         public int currentSlices = 1;
         public float rotationZ = 0f;
         public bool isShadowTrigger = false;
+        public int linkId = 0; // Bağımlı parçalar için (0 = bağımsız)
     }
 
     [Header("Parçalar")]
