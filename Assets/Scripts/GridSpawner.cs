@@ -2,6 +2,7 @@ using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
 using DG.Tweening;
+using TMPro;
 
 public class GridSpawner : MonoBehaviour
 {
@@ -25,6 +26,9 @@ public class GridSpawner : MonoBehaviour
     public float framePadding = 0.15f;    // Grid ile çerçeve arasındaki boşluk
     public float cameraPadding = 1.2f;    // Ekran kenarlarından daha fazla pay
     public float cameraVerticalOffset = 0.5f; // Grid'i dikeyde kaydırmak için
+
+    [Header("UI Referansları")]
+    public TextMeshProUGUI levelText;
 
     private List<GameObject> activeSpawnedObjects = new List<GameObject>();
     private List<GameObject> activeFrameSegments = new List<GameObject>();
@@ -50,6 +54,23 @@ public class GridSpawner : MonoBehaviour
         // Eğer index listeden büyükse sıfırla (data değişmiş olabilir)
         if (levels != null && currentLevelIndex >= levels.Count)
             currentLevelIndex = 0;
+
+        // Eğer Inspector'da atanmadıysa otomatik bulmaya çalış
+        if (levelText == null)
+        {
+            GameObject levelObj = GameObject.Find("LEVEL");
+            if (levelObj != null) levelText = levelObj.GetComponent<TextMeshProUGUI>();
+            else
+            {
+                // Alternatif olarak Canvas altında ara
+                GameObject canvas = GameObject.Find("Canvas");
+                if (canvas != null)
+                {
+                    Transform t = canvas.transform.Find("LEVEL");
+                    if (t != null) levelText = t.GetComponent<TextMeshProUGUI>();
+                }
+            }
+        }
 
         SpawnCurrentLevel();
     }
@@ -137,6 +158,12 @@ public class GridSpawner : MonoBehaviour
     {
         // GameManager durumunu temizle (özellikle levelCompleting flag'ı)
         GameManager.Instance?.ResetLevelState();
+
+        // Level Text Güncelle (İnsan bazlı: 0. index -> Level 1)
+        if (levelText != null)
+        {
+            levelText.text = "LEVEL " + (currentLevelIndex + 1);
+        }
 
         float gridSize = gridPrefab.transform.localScale.x;
         bool isCustom = level.customGridPositions != null && level.customGridPositions.Count > 0;
