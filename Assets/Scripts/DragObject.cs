@@ -5,20 +5,20 @@ public class DragObject : MonoBehaviour
     private Camera cam;
     private bool dragging = false;
 
-    private Vector3 offset;
+    private Vector2 screenGrabOffset; 
     private float zDepth;
-
     private Vector3 startPosition;
     private Vector2 startScreenPos;
     private float startTime;
 
-
     [Header("Ayarlar")]
-    public float snapDistance = 1.5f;
+    [Header("Görsel (Drag)")]
+    [Tooltip("Sürüklerken objenin kameraya ne kadar yaklaşacağını belirler.")]
+    public float dragZOffset = -0.8f;
     
     [Header("Çarpışma (Collision)")]
-    [Tooltip("Diğer objelerin içinden geçmesini engelleyen çap (Gerekirse Inspector'dan küçültüp büyütebilirsiniz)")]
-    public float collisionDistance = 1.0f;
+    [Tooltip("Görsel izdüşüm üzerinden diğer objelere ne kadar yaklaşabileceğini belirler.")]
+    public float collisionDistance = 0.5f;
 
     void Start()
     {
@@ -27,39 +27,35 @@ public class DragObject : MonoBehaviour
 
     void Update()
     {
+        // 1. INPUT YÖNETİMİ
+        Vector3 inputPos = Vector3.zero;
+        bool inputDown = false;
+        bool inputUp = false;
+        bool inputHeld = false;
+
         if (Input.touchCount > 0)
         {
-            Touch touch = Input.GetTouch(0);
-
-            if (touch.phase == TouchPhase.Began)
-                TryPick(touch.position);
-
-            if (touch.phase == TouchPhase.Moved && dragging)
-                Drag(touch.position);
-
-            if (touch.phase == TouchPhase.Ended)
-                Drop();
+            Touch t = Input.GetTouch(0);
+            inputPos = t.position;
+            inputDown = (t.phase == TouchPhase.Began);
+            inputUp = (t.phase == TouchPhase.Ended || t.phase == TouchPhase.Canceled);
+            inputHeld = (t.phase == TouchPhase.Moved || t.phase == TouchPhase.Stationary);
+        }
+        else
+        {
+            inputPos = Input.mousePosition;
+            inputDown = Input.GetMouseButtonDown(0);
+            inputUp = Input.GetMouseButtonUp(0);
+            inputHeld = Input.GetMouseButton(0);
         }
 
-#if UNITY_EDITOR
-        if (Input.GetMouseButtonDown(0))
-            TryPick(Input.mousePosition);
-
-        if (Input.GetMouseButton(0) && dragging)
-            Drag(Input.mousePosition);
-
-        if (Input.GetMouseButtonUp(0))
-            Drop();
-#endif
+        if (inputDown) TryPick(inputPos);
+        else if (inputUp && dragging) Drop(inputPos);
+        else if (inputHeld && dragging) Drag(inputPos);
     }
 
     void TryPick(Vector3 screenPos)
     {
-        if (TutorialManager.Instance != null)
-        {
-            TutorialManager.Instance.HideTutorial();
-        }
-
         Ray ray = cam.ScreenPointToRay(screenPos);
         RaycastHit hit;
 
@@ -68,176 +64,167 @@ public class DragObject : MonoBehaviour
             if (hit.transform == transform)
             {
                 dragging = true;
-
                 startPosition = transform.position;
+                zDepth = dragZOffset;
 
-                zDepth = cam.WorldToScreenPoint(transform.position).z;
+                Vector3 objectScreenPos = cam.WorldToScreenPoint(transform.position);
+                screenGrabOffset = (Vector2)objectScreenPos - (Vector2)screenPos;
 
                 startScreenPos = screenPos;
                 startTime = Time.time;
 
-                Vector3 world = cam.ScreenToWorldPoint(new Vector3(screenPos.x, screenPos.y, zDepth));
-                offset = transform.position - world;
+                if (TutorialManager.Instance != null) TutorialManager.Instance.HideTutorial();
+                Debug.Log($"<color=yellow>[DragObject]</color> <b>PICK:</b> '{gameObject.name}' | StartPos: {startPosition} | ScreenGrabOffset: {screenGrabOffset}");
             }
         }
     }
 
     void Drag(Vector3 screenPos)
     {
-        // Sürükleme başladığında (eşik geçildiğinde) tutorial gizle
-        if (Vector2.Distance(screenPos, startScreenPos) > 10f)
-        {
-             // Tutorial gizleme zaten TryPick'te var ama hareket edince de emin olalım
-        }
+        Vector2 targetScreenPos = (Vector2)screenPos + screenGrabOffset;
+        Ray ray = cam.ScreenPointToRay(targetScreenPos);
+        Plane dragPlane = new Plane(Vector3.forward, new Vector3(0, 0, zDepth));
+        
+        float enter;
+        if (!dragPlane.Raycast(ray, out enter)) return;
 
-        Vector3 world = cam.ScreenToWorldPoint(new Vector3(screenPos.x, screenPos.y, zDepth));
-        Vector3 desiredPos = world + offset;
-
+        Vector3 desiredPos = ray.GetPoint(enter);
         DragObject[] allObjects = FindObjectsOfType<DragObject>();
 
         Vector3 currentPos = transform.position;
+        currentPos.z = zDepth;
+        
+        // Mesafe farkına göre adım sayısını belirle
         Vector3 moveDir = desiredPos - currentPos;
-        float expectedDistance = moveDir.magnitude;
+        float dist = moveDir.magnitude;
+        int steps = Mathf.Max(1, Mathf.CeilToInt(dist / 0.04f)); 
 
-        // Objeye hızlıca fareyi çeksek bile objenin içinden (tunneling) geçmemesi için adım adım hareket simülasyonu
-        int steps = Mathf.CeilToInt(expectedDistance / 0.1f);
-        if (steps > 0)
+        // Sahnedeki collision mesafesini koddan kısıtlayalım (Inspector'da 1.0 kalmış olabilir)
+        float activeCollisionDist = Mathf.Min(collisionDistance, 0.75f);
+
+        Vector3 stepVec = moveDir / steps;
+        for (int s = 0; s < steps; s++)
         {
-            Vector3 stepVec = moveDir / steps;
+            currentPos += stepVec;
 
-            for (int s = 0; s < steps; s++)
-            {
-                currentPos += stepVec;
-
-                // Her adımda diğer objelerle çarpışmayı (overlap) çöz
-                for (int i = 0; i < 2; i++) 
-                {
-                    foreach (DragObject obj in allObjects)
-                    {
-                        if (obj == this) continue;
-
-                        Vector2 myPos2D = new Vector2(currentPos.x, currentPos.y);
-                        Vector2 otherPos2D = new Vector2(obj.transform.position.x, obj.transform.position.y);
-
-                        float dist = Vector2.Distance(myPos2D, otherPos2D);
-
-                        if (dist < collisionDistance)
-                        {
-                            Vector2 pushDir = (myPos2D - otherPos2D).normalized;
-                            if (pushDir == Vector2.zero) pushDir = Vector2.up;
-
-                            // İtme miktarını uygulayarak etrafından kaymasını sağla
-                            Vector2 resolvedPos2D = otherPos2D + pushDir * collisionDistance;
-                            currentPos.x = resolvedPos2D.x;
-                            currentPos.y = resolvedPos2D.y;
-                        }
-                    }
-                }
-            }
-        }
-
-        transform.position = new Vector3(currentPos.x, currentPos.y, desiredPos.z);
-    }
-
-    void Drop()
-    {
-        dragging = false;
-
-        float screenDist = Vector2.Distance(Input.mousePosition, startScreenPos);
-        float duration = Time.time - startTime;
-
-        // Debug log ekleyelim ki sorunu anlayalım
-        // Debug.Log($"Drop - Dist: {screenDist}, Duration: {duration}, Dragging: {dragging}");
-
-        if (screenDist < 50f && duration < 0.5f)
-        {
-            transform.position = startPosition; // Konumu olduğu gibi kalsın
-
-            GridSpawner spawner = FindObjectOfType<GridSpawner>();
-            if (spawner != null)
-            {
-                // Debug.Log($"Level Type: {spawner.CurrentLevelType}");
-                if (spawner.CurrentLevelType == LevelData.LevelType.Rotation)
-                {
-                    ObjectRotator rotator = GetComponent<ObjectRotator>();
-                    if (rotator == null) rotator = GetComponentInChildren<ObjectRotator>();
-
-                    if (rotator != null)
-                    {
-                        rotator.RotateObject();
-                    }
-                    else
-                    {
-                        Debug.LogWarning("ObjectRotator bulunamadı!");
-                    }
-                }
-            }
-            return; // Sürükleme fonksiyonlarını çalıştırma
-        }
-
-
-
-        GameObject[] grids = GameObject.FindGameObjectsWithTag("Grid");
-
-        float closestDistance = Mathf.Infinity;
-        Transform closestGrid = null;
-
-        foreach (GameObject grid in grids)
-        {
-            float dist = Vector3.Distance(transform.position, grid.transform.position);
-
-            if (dist < closestDistance)
-            {
-                closestDistance = dist;
-                closestGrid = grid.transform;
-            }
-        }
-
-        if (closestGrid != null)
-        {
-            // O grid'de başka bir top var mı diye kontrol edelim
-            DragObject[] allObjects = FindObjectsOfType<DragObject>();
-            bool isOccupied = false;
+            // --- GÖRSEL ÇARPIŞMA (PERSPEKTİF) ---
+            Vector3 screenP = cam.WorldToScreenPoint(currentPos);
+            Ray projRay = cam.ScreenPointToRay(screenP);
 
             foreach (DragObject obj in allObjects)
             {
-                if (obj == this) continue;
+                if (obj == this || !obj.gameObject.activeInHierarchy) continue;
                 
-                // Başka bir objenin X, Y kordinatları o grid ile aynıysa o grid doludur
-                float distToGrid = Vector2.Distance(
-                    new Vector2(obj.transform.position.x, obj.transform.position.y), 
-                    new Vector2(closestGrid.position.x, closestGrid.position.y)
-                );
-
-                if (distToGrid < 0.1f)
+                Plane gridPlane = new Plane(Vector3.forward, new Vector3(0, 0, obj.transform.position.z));
+                if (gridPlane.Raycast(projRay, out float pEnter))
                 {
-                    isOccupied = true;
+                    Vector3 virtualGroundPos = projRay.GetPoint(pEnter);
+                    Vector2 other2D = new Vector2(obj.transform.position.x, obj.transform.position.y);
+                    Vector2 myVirtual2D = new Vector2(virtualGroundPos.x, virtualGroundPos.y);
+                    
+                    float d = Vector2.Distance(myVirtual2D, other2D);
+                    if (d < activeCollisionDist)
+                    {
+                        Vector2 pushDir = (myVirtual2D - other2D).normalized;
+                        if (pushDir == Vector2.zero) pushDir = Random.insideUnitCircle.normalized;
+                        
+                        // İtmeyi biraz yumuşatalım (Dampening)
+                        float pushPower = (activeCollisionDist - d) * 0.6f; 
+                        Vector2 push = pushDir * pushPower;
+                        
+                        currentPos.x += push.x;
+                        currentPos.y += push.y;
+                        
+                        if (s == steps - 1) // Sadece son adımda detaylı log yazalım (kalabalığı önlemek için)
+                            Debug.Log($"<color=cyan>[DragObject]</color> <b>COLLISION:</b> {obj.name}({obj.GetInstanceID()}) | Mesafe: {d:F2} | Push: {push:F3}");
+                    }
+                }
+            }
+        }
+        
+        transform.position = new Vector3(currentPos.x, currentPos.y, zDepth);
+    }
+
+    void Drop(Vector3 finalScreenPos)
+    {
+        dragging = false;
+        GridSpawner spawner = FindObjectOfType<GridSpawner>();
+
+        float screenDist = Vector2.Distance(finalScreenPos, startScreenPos);
+        float duration = Time.time - startTime;
+
+        Debug.Log($"<color=white>[DragObject]</color> <b>DROP:</b> '{gameObject.name}' | ScreenMove: {screenDist:F1} | Duration: {duration:F2}s");
+
+        // Klik Algılama (Rotation)
+        if (screenDist < 40f && duration < 0.4f)
+        {
+            Debug.Log("<color=white>[DragObject]</color> -> Rotation Tetiklendi (Click detected).");
+            transform.position = startPosition;
+            if (spawner != null && spawner.CurrentLevelType == LevelData.LevelType.Rotation)
+            {
+                ObjectRotator rotator = GetComponent<ObjectRotator>() ?? GetComponentInChildren<ObjectRotator>();
+                if (rotator != null) rotator.RotateObject();
+            }
+            return;
+        }
+
+        // En yakın gridi bul
+        Ray ray = cam.ScreenPointToRay(finalScreenPos);
+        RaycastHit[] hits = Physics.RaycastAll(ray);
+        Transform targetGrid = null;
+        float minGridDist = float.MaxValue;
+
+        foreach (var hit in hits)
+        {
+            if (hit.transform.CompareTag("Grid"))
+            {
+                if (hit.distance < minGridDist)
+                {
+                    minGridDist = hit.distance;
+                    targetGrid = hit.transform;
+                }
+            }
+        }
+
+        if (targetGrid != null)
+        {
+            Debug.Log($"<color=green>[DragObject]</color> -> Hedef Grid Bulundu: {targetGrid.name} (Dist: {minGridDist:F2})");
+            
+            // Doluluk Kontrolü
+            DragObject[] all = FindObjectsOfType<DragObject>();
+            bool isFull = false;
+            foreach (var o in all)
+            {
+                if (o == this) continue;
+                
+                float d = Vector2.Distance(new Vector2(o.transform.position.x, o.transform.position.y), 
+                                         new Vector2(targetGrid.position.x, targetGrid.position.y));
+
+                if (d < 0.25f)
+                {
+                    isFull = true;
+                    Debug.LogWarning($"<color=red>[DragObject]</color> -> DROP FAIL: '{targetGrid.name}' dolu! Engelleyen: {o.name}");
                     break;
                 }
             }
 
-            if (closestDistance < snapDistance && !isOccupied)
+            if (!isFull)
             {
-                // Boş ve yakınsa oraya oturt
-                transform.position = new Vector3(
-                    closestGrid.position.x,
-                    closestGrid.position.y,
-                    transform.position.z
-                );
+                float oz = (spawner != null) ? -spawner.objectOffset : -0.3f;
+                transform.SetParent(targetGrid.parent, true);
+                transform.localPosition = new Vector3(targetGrid.localPosition.x, targetGrid.localPosition.y, oz);
+                transform.localRotation = Quaternion.Euler(0, 0, transform.localEulerAngles.z);
 
-                // Bırakıldıktan sonra simetriği olup olmadığını kontrol et
-                LiquidTransfer transfer = GetComponentInChildren<LiquidTransfer>();
-                if (transfer != null) transfer.CheckSymmetry();
+                Debug.Log("<color=green>[DragObject]</color> -> Yerleştirme Başarılı.");
+
+                LiquidTransfer lt = GetComponentInChildren<LiquidTransfer>();
+                if (lt != null) lt.CheckSymmetry();
             }
-            else
-            {
-                // Dolu bir yere veya uzağa bırakıldıysa geri dön
-                transform.position = startPosition;
-            }
+            else transform.position = startPosition;
         }
         else
         {
-            // grid bulunamadıysa geri dön
+            Debug.LogWarning("<color=red>[DragObject]</color> -> DROP FAIL: Altında Grid yok!");
             transform.position = startPosition;
         }
     }

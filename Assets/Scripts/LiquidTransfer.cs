@@ -154,16 +154,19 @@ public class LiquidTransfer : MonoBehaviour
     // ── Ortak Konum/Yön Kontrolü ────────────────────────────────
     bool IsAdjacentFaceToFace(LiquidTransfer other)
     {
-        float dist  = Vector3.Distance(transform.position, other.transform.position);
-        float diffX = Mathf.Abs(transform.position.x - other.transform.position.x);
-        float diffY = Mathf.Abs(transform.position.y - other.transform.position.y);
+        Vector3 myPos = transform.position;
+        Vector3 otherPos = other.transform.position;
+
+        float dist  = Vector3.Distance(myPos, otherPos);
+        float diffX = Mathf.Abs(myPos.x - otherPos.x);
+        float diffY = Mathf.Abs(myPos.y - otherPos.y);
         bool aligned = diffX < 0.1f || diffY < 0.1f;
 
         if (dist >= maxAdjacencyDistance || dist <= 0.1f || !aligned) return false;
 
-        Vector3 dirToOther    = (other.transform.position - transform.position).normalized;
-        Vector3 myFace        = new Vector3(transform.up.x, transform.up.y, 0).normalized;
-        Vector3 otherFace     = new Vector3(other.transform.up.x, other.transform.up.y, 0).normalized;
+        Vector3 dirToOther = (otherPos - myPos).normalized;
+        Vector3 myFace = new Vector3(transform.up.x, transform.up.y, 0).normalized;
+        Vector3 otherFace = new Vector3(other.transform.up.x, other.transform.up.y, 0).normalized;
 
         return Vector3.Dot(myFace, dirToOther) > 0.9f &&
                Vector3.Dot(otherFace, -dirToOther) > 0.9f;

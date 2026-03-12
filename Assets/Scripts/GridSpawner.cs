@@ -569,11 +569,10 @@ public class GridSpawner : MonoBehaviour
         LevelData level = levels[currentLevelIndex];
         float gridSize  = gridPrefab.transform.localScale.x;
         
-        bool isCustom = level.customGridPositions != null && level.customGridPositions.Count > 0;
         float minX = 0, maxX = level.gridX - 1;
         float minY = 0, maxY = level.gridY - 1;
 
-        if (isCustom)
+        if (level.customGridPositions != null && level.customGridPositions.Count > 0)
         {
             minX = minY = float.MaxValue;
             maxX = maxY = float.MinValue;
