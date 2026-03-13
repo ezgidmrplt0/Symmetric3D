@@ -12,7 +12,7 @@ public class CubeRotator : MonoBehaviour
 
     [Header("Ayarlar")]
     public float swipeThreshold = 50f;
-    public float rotationDuration = 0.4f;
+    public float rotationDuration = 0.5f;
 
     void Update()
     {
@@ -53,42 +53,68 @@ public class CubeRotator : MonoBehaviour
 
             if (diff.magnitude > swipeThreshold)
             {
-                RotateCube(diff);
+                RotateCube(diff, startTouchPos);
             }
         }
     }
 
-    void RotateCube(Vector2 swipeDelta)
+    void RotateCube(Vector2 swipeDelta, Vector2 startPoint)
     {
         // Yön bul
         bool horizontal = Mathf.Abs(swipeDelta.x) > Mathf.Abs(swipeDelta.y);
+        float screenHeightFactor = startPoint.y / Screen.height;
 
         Vector3 rotAxis = Vector3.zero;
 
         if (horizontal)
         {
-            if (swipeDelta.x > 0) rotAxis = Vector3.down; // Sağa swipe, sola döner (arka görünür)
-            else rotAxis = Vector3.up; 
+            // Ekranın alt yarısında mı? (0.0 - 1.0 arası, 0 alt kısımdır)
+            bool isLowerScreen = screenHeightFactor < 0.4f;
+
+            if (isLowerScreen)
+            {
+                // Z-Ekseni rotasyonu (Direksiyon gibi dönme)
+                // Sağa swipe -> Saat yönü dönsün istiyoruz
+                if (swipeDelta.x > 0) rotAxis = Vector3.forward;
+                else rotAxis = Vector3.back;
+                
+                Debug.Log($"<color=orange>[CubeRotator]</color> Z-Axis Rotation (Lower Screen: {screenHeightFactor:F2})");
+            }
+            else
+            {
+                // Y-Ekseni rotasyonu (Normal sağ-sol çevirme)
+                if (swipeDelta.x > 0) rotAxis = Vector3.down; 
+                else rotAxis = Vector3.up;
+                
+                Debug.Log($"<color=cyan>[CubeRotator]</color> Y-Axis Rotation (Upper Screen: {screenHeightFactor:F2})");
+            }
         }
         else
         {
-            if (swipeDelta.y > 0) rotAxis = Vector3.right; // Yukarı swipe, aşağı döner (alt görünür)
+            // X-Ekseni rotasyonu (Yukarı-aşağı devirme)
+            if (swipeDelta.y > 0) rotAxis = Vector3.right; 
             else rotAxis = Vector3.left;
         }
 
         isAnimating = true;
 
-        transform.DOLocalRotate(transform.localEulerAngles + (rotAxis * 90f), rotationDuration, RotateMode.Fast)
-            .SetEase(Ease.OutBack)
+        // --- DÜNYA/KAMERA ALANINDA ROTASYON ---
+        // Hedef rotasyonu mevcut rotasyonun SOLUNDAN çarparak ekliyoruz.
+        // Bu sayede rotasyon "Dünya/Parent" koordinatlarında (Kameraya göre) uygulanır.
+        // Yerel koordinat kilitlenmesi (gimbal lock veya yön karmaşası) önlenmiş olur.
+        Quaternion targetRot = Quaternion.Euler(rotAxis * 90f) * transform.localRotation;
+
+        transform.DOLocalRotateQuaternion(targetRot, rotationDuration)
+            .SetEase(Ease.InOutCubic)
             .OnComplete(() => {
                 isAnimating = false;
                 
-                // Rotasyonu tam 90 derecelerde kalacak şekilde sınırla
-                Vector3 finalRot = transform.localEulerAngles;
-                finalRot.x = Mathf.Round(finalRot.x / 90f) * 90f;
-                finalRot.y = Mathf.Round(finalRot.y / 90f) * 90f;
-                finalRot.z = Mathf.Round(finalRot.z / 90f) * 90f;
-                transform.localEulerAngles = finalRot;
+                // Rotasyonu tam 90 derecelerde kalacak şekilde temizle
+                Vector3 finalEuler = transform.localEulerAngles;
+                finalEuler.x = Mathf.Round(finalEuler.x / 90f) * 90f;
+                finalEuler.y = Mathf.Round(finalEuler.y / 90f) * 90f;
+                finalEuler.z = Mathf.Round(finalEuler.z / 90f) * 90f;
+                transform.localEulerAngles = finalEuler;
             });
     }
 }
