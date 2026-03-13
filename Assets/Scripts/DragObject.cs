@@ -201,8 +201,7 @@ public class DragObject : MonoBehaviour
             {
                 if (o == this) continue;
                 
-                float d = Vector2.Distance(new Vector2(o.transform.position.x, o.transform.position.y), 
-                                         new Vector2(targetGrid.position.x, targetGrid.position.y));
+                float d = Vector3.Distance(o.transform.position, targetGrid.position);
 
                 if (d < 0.25f)
                 {
@@ -215,14 +214,20 @@ public class DragObject : MonoBehaviour
             if (!isFull)
             {
                 float oz = (spawner != null) ? -spawner.objectOffset : -0.3f;
+                
+                // --- ROTASYON KORUMA ---
+                // Yeni parent'a (yüzeye) geçerken mevcut yerel Z dönüşünü (bakış yönünü) korumalıyız.
+                float preservedZ = transform.localEulerAngles.z;
+                
                 transform.SetParent(targetGrid.parent, true);
                 
-                // Rotasyonu gridin local rotation'ına ve kendi z'sine uydur
+                // Pozisyonu grid'in merkezine oturt
                 transform.localPosition = new Vector3(targetGrid.localPosition.x, targetGrid.localPosition.y, oz);
-                // Grid'in yukarı baktığı yön, nesnenin baktığı yönle uyuşmalıdır.
-                transform.localRotation = Quaternion.Euler(0, 0, transform.localEulerAngles.z);
+                
+                // Rotasyonu: Gridin (yüzeyin) düzleminde kalacak şekilde sadece kendi Z'sini koru
+                transform.localRotation = Quaternion.Euler(0, 0, preservedZ);
 
-                Debug.Log("<color=green>[DragObject]</color> -> Yerleştirme Başarılı.");
+                Debug.Log("<color=green>[DragObject]</color> -> Yerleştirme Başarılı (Bakış Yönü Korundu).");
 
                 LiquidTransfer lt = GetComponentInChildren<LiquidTransfer>();
                 if (lt != null) lt.CheckSymmetry();

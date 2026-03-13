@@ -449,13 +449,20 @@ public class GridSpawner : MonoBehaviour
 
             float targetDistance = Mathf.Max(8.5f, cubeRadius * 4.5f) * aspectMultiplier;
             
+            // Küpü zeminden (arka plandan) uzaklaştıralım (Negatif Z)
+            // Z ekseninde öne çekmek, arkadaki zeminle çakışmayı önler
+            float zShift = -cubeRadius * 1.5f; 
+            pivotRoot.transform.localPosition = new Vector3(0, 0, zShift);
+
             // Eğer ortografik ise boyutu ayarla
             if (cam.orthographic) {
                 cam.DOOrthoSize(targetDistance * 0.85f, 0.6f).SetEase(Ease.OutCubic);
             }
             
-            Vector3 camTarget = transform.position - cam.transform.forward * targetDistance;
-            camTarget.y += cameraVerticalOffset;
+            // Kamera hedefi küpün yeni merkezi olsun
+            Vector3 cubeCenter = pivotRoot.transform.position; 
+            Vector3 camTarget = cubeCenter - cam.transform.forward * targetDistance;
+            camTarget.y += cameraVerticalOffset; // Mevcut vertikal offseti koru
             cam.transform.DOMove(camTarget, 0.6f).SetEase(Ease.OutCubic);
         }
     }
@@ -949,8 +956,13 @@ public class GridSpawner : MonoBehaviour
             // Bu da up vektörlerinin birbirine zıt olması demektir (Biri Up diğeri Down gibi).
             if (Vector3.Dot(myFace, -otherFace) < 0.9f)
             {
-                // Debug.Log($"[GridSpawner] {a.name} ve {b.name} uyumlu ama yönleri zıt değil! FAIL adayı.");
-                return false;
+                // 3D Küp modunda parçalar yer değiştirebileceği için yön şimdilik tutmasa da fail demeyelim
+                GridSpawner spawner = FindObjectOfType<GridSpawner>();
+                bool is3D = spawner != null && spawner.levels != null && 
+                            spawner.currentLevelIndex < spawner.levels.Count && 
+                            spawner.levels[spawner.currentLevelIndex].is3DCube;
+
+                if (!is3D) return false;
             }
         }
 

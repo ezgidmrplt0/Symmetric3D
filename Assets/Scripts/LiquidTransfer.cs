@@ -157,19 +157,20 @@ public class LiquidTransfer : MonoBehaviour
         Vector3 myPos = transform.position;
         Vector3 otherPos = other.transform.position;
 
-        float dist  = Vector3.Distance(myPos, otherPos);
-        float diffX = Mathf.Abs(myPos.x - otherPos.x);
-        float diffY = Mathf.Abs(myPos.y - otherPos.y);
-        bool aligned = diffX < 0.1f || diffY < 0.1f;
-
-        if (dist >= maxAdjacencyDistance || dist <= 0.1f || !aligned) return false;
+        float dist = Vector3.Distance(myPos, otherPos);
+        
+        // Ekrana/Düzleme göre hizalı mı? (En az iki eksende yakın olmalı ya da 3D'de 1 birim mesafe)
+        // Küp üzerinde komşular arası mesafe yaklaşık 'spacing + gridSize' kadardır.
+        if (dist >= maxAdjacencyDistance || dist <= 0.1f) return false;
 
         Vector3 dirToOther = (otherPos - myPos).normalized;
-        Vector3 myFace = new Vector3(transform.up.x, transform.up.y, 0).normalized;
-        Vector3 otherFace = new Vector3(other.transform.up.x, other.transform.up.y, 0).normalized;
+        Vector3 myFace = transform.up;
+        Vector3 otherFace = other.transform.up;
 
-        return Vector3.Dot(myFace, dirToOther) > 0.9f &&
-               Vector3.Dot(otherFace, -dirToOther) > 0.9f;
+        // Benim baktığım yönde 'öteki' var mı? 
+        // Ve 'öteki' bana mı bakıyor?
+        return Vector3.Dot(myFace, dirToOther) > 0.8f &&
+               Vector3.Dot(otherFace, -dirToOther) > 0.8f;
     }
 
     // ── ColorMix Transfer ────────────────────────────────────────
