@@ -1,4 +1,5 @@
 using UnityEngine;
+using DG.Tweening;
 
 public class DragObject : MonoBehaviour
 {
@@ -19,6 +20,10 @@ public class DragObject : MonoBehaviour
     [Header("Çarpışma (Collision)")]
     [Tooltip("Görsel izdüşüm üzerinden diğer objelere ne kadar yaklaşabileceğini belirler.")]
     public float collisionDistance = 0.5f;
+
+    [Header("Yüzey Geçişi (Wrap-around)")]
+    public float wrapThreshold = 1.2f; // Kaza ile dönmeyi önlemek için biraz daha genişlettik (1.0 -> 1.2)
+    private bool wrapInProgress = false;
 
     void Start()
     {
@@ -63,6 +68,22 @@ public class DragObject : MonoBehaviour
         {
             if (hit.transform == transform || hit.transform.IsChildOf(transform))
             {
+                // --- 3D YÜZEY KİLİDİ (FACING CAMERA CHECK) ---
+                if (transform.parent != null && transform.parent.name.StartsWith("Face_"))
+                {
+                    float dot = Vector3.Dot(transform.parent.forward, cam.transform.forward);
+                    
+                    // Mutlak değer (Abs) kullanıyoruz. 
+                    // Yüzey bize tam bakıyorsa bu değer 1.0 veya -1.0 olur.
+                    // Eğer yüzey yan duruyorsa bu değer 0'a yakın olur.
+                    // 0.4'ten küçükse parça kilitli kalır.
+                    if (Mathf.Abs(dot) < 0.4f) 
+                    {
+                        Debug.Log($"<color=red>[DragObject]</color> <b>LOCKED:</b> '{gameObject.name}' yan yüzeyde (Hassasiyet: {Mathf.Abs(dot):F2}).");
+                        return;
+                    }
+                }
+
                 dragging = true;
                 startPosition = transform.position;
 
@@ -114,7 +135,6 @@ public class DragObject : MonoBehaviour
                 Vector3 otherScreenP = cam.WorldToScreenPoint(obj.transform.position);
 
                 // Ekranda (X-Y) aynı düzlemde çakışıyorlar mı (piksel/ekran birimi cinsinden)
-                // Piksel mesafesini dünya mesafesine tahmini çevirmek veya doğrudan dünya koordinatlarını kullanmak:
                 // Basitlik için: Eğer aynı grid yüzeyinde değillerse çarpışmasınlar bile.
                 // Küpte farklı yüzlerdeki objeler birbirini itmeye çalışmasın. Aynı Parent'a sahiplerse:
                 if (obj.transform.parent != transform.parent && transform.parent != null) continue;
@@ -147,6 +167,130 @@ public class DragObject : MonoBehaviour
         
         // Son pozisyonu atama (Z ekseninin serbest kalması 3D'de önemlidir)
         transform.position = currentPos;
+
+        // --- YÜZEY GEÇİŞİ (WRAP-AROUND) ---
+        CheckWrapAround();
+    }
+
+    void CheckWrapAround()
+    {
+        if (wrapInProgress) return;
+        
+        GridSpawner spawner = FindObjectOfType<GridSpawner>();
+        if (spawner == null || !spawner.levels[spawner.currentLevelIndex].is3DCube) return;
+
+        CubeRotator rotator = spawner.GetComponentInChildren<CubeRotator>();
+        if (rotator == null || rotator.IsRotating) return;
+
+        // --- SADECE KENDİ GRİDİMİZDEYSE DÖNMEYİ DURDUR ---
+        Ray ray = cam.ScreenPointToRay(Input.mousePosition);
+        if (Input.touchCount > 0) ray = cam.ScreenPointToRay(Input.GetTouch(0).position);
+        
+        RaycastHit[] hits = Physics.RaycastAll(ray, 30f);
+        foreach (var h in hits)
+        {
+            // Sadece AKTİF yüzeyimizdeki bir GRİD hücresine çarparsak dönmeyi engelle.
+            if (h.transform.CompareTag("Grid") && h.transform.parent == transform.parent)
+            {
+                return; // Kendi alanımızdayız, rotasyon yok.
+            }
+        }
+
+        // --- DOMİNANT EKSEN KONTROLÜ VE YÖN DÜZELTME ---
+        Vector3 localPos = transform.localPosition;
+        float absX = Mathf.Abs(localPos.x);
+        float absY = Mathf.Abs(localPos.y);
+        float threshold = 0.8f; 
+        Vector3 rotAxis = Vector3.zero;
+
+        if (absX > absY) // Yatay hareket (Sağ-Sol) daha baskın
+        {
+            if (absX > threshold)
+            {
+                // Sağa çekince Sağ yüz gelsin (-Y rotasyon), Sola çekince Sol yüz gelsin (+Y rotasyon)
+                rotAxis = (localPos.x > 0) ? Vector3.down : Vector3.up;
+            }
+        }
+        else // Dikey hareket (Yukarı-Aşağı) daha baskın
+        {
+            if (absY > threshold)
+            {
+                // Yukarı çekince Üst yüz gelsin (+X rotasyon), Aşağı çekince Alt yüz gelsin (-X rotasyon)
+                rotAxis = (localPos.y > 0) ? Vector3.right : Vector3.left;
+            }
+        }
+
+        if (rotAxis != Vector3.zero)
+        {
+            StartCoroutine(WrapAroundCoroutine(rotator, rotAxis));
+        }
+    }
+
+    System.Collections.IEnumerator WrapAroundCoroutine(CubeRotator rotator, Vector3 axis)
+    {
+        wrapInProgress = true;
+        
+        // Rotasyon sırasında parçayı biraz havaya kaldıralım (Görsel geri bildirim)
+        transform.DOLocalMoveZ(-0.4f, 0.2f);
+        
+        rotator.Rotate90(axis);
+        
+        // Obje henüz arkaya gitmeden yeni yüzeyi yakalayalım
+        yield return new WaitForSeconds(rotator.rotationDuration * 0.3f);
+
+        FindAndAttachToNewFace();
+
+        yield return new WaitForSeconds(rotator.rotationDuration * 0.7f);
+        wrapInProgress = false;
+    }
+
+    void FindAndAttachToNewFace()
+    {
+        // Kameradan objeye doğru bir ray atarak yeni yüzeydeki gridi bulalım
+        Ray ray = new Ray(cam.transform.position, (transform.position - cam.transform.position).normalized);
+        RaycastHit[] hits = Physics.RaycastAll(ray, 30f);
+        
+        Transform bestGrid = null;
+        float minAngle = float.MaxValue;
+
+        foreach (var hit in hits)
+        {
+            if (hit.transform.CompareTag("Grid"))
+            {
+                // Kameraya en dik (en çok bize bakan) gridi seçelim
+                float angle = Vector3.Angle(-cam.transform.forward, hit.transform.forward);
+                if (angle < minAngle)
+                {
+                    minAngle = angle;
+                    bestGrid = hit.transform;
+                }
+            }
+        }
+
+        if (bestGrid != null && bestGrid.parent != transform.parent)
+        {
+            float preservedZ = transform.localEulerAngles.z;
+            transform.SetParent(bestGrid.parent, true);
+            
+            GridSpawner spawner = FindObjectOfType<GridSpawner>();
+            float oz = (spawner != null) ? -spawner.objectOffset * 0.2f : -0.1f;
+            
+            // --- SNAPPING (MIKNATIS ETKİSİ) ---
+            // Parçayı yeni yüzeydeki gridin tam üstüne yumuşakça taşıyoruz
+            Vector3 targetLocal = new Vector3(bestGrid.localPosition.x, bestGrid.localPosition.y, oz);
+            transform.DOLocalMove(targetLocal, 0.2f).SetEase(Ease.OutCubic);
+            
+            transform.localRotation = Quaternion.Euler(0, 0, preservedZ);
+            
+            // Drag derinliğini (zDepth) güncelle (Kritik: Yüzey mesafesi değişmiş olabilir)
+            Vector3 objectScreenPos = cam.WorldToScreenPoint(transform.position);
+            zDepth = objectScreenPos.z + dragZOffset;
+            
+            // Sürükleme ofsetini (parmak altındaki konum) sıfırla ki obje zıplamasın
+            screenGrabOffset = Vector2.zero; 
+
+            Debug.Log($"<color=cyan>[DragObject]</color> <b>SNAPPED</b> to {bestGrid.parent.name}");
+        }
     }
 
     void Drop(Vector3 finalScreenPos)
@@ -192,6 +336,19 @@ public class DragObject : MonoBehaviour
 
         if (targetGrid != null)
         {
+            // --- AKTİF YÜZEY KONTROLÜ (DROP) ---
+            // Sadece kameraya bakan yüzeye yerleştirmeye izin ver
+            if (targetGrid.parent != null && targetGrid.parent.name.StartsWith("Face_"))
+            {
+                float dot = Vector3.Dot(targetGrid.parent.forward, cam.transform.forward);
+                if (Mathf.Abs(dot) < 0.6f) // Yan yüzdeyse (eğikse) drop iptal
+                {
+                    Debug.LogWarning("<color=red>[DragObject]</color> -> DROP FAIL: Sadece aktif yüze yerleştirilebilir!");
+                    transform.position = startPosition;
+                    return;
+                }
+            }
+
             Debug.Log($"<color=green>[DragObject]</color> -> Hedef Grid Bulundu: {targetGrid.name} (Dist: {minGridDist:F2})");
             
             // Doluluk Kontrolü
@@ -232,12 +389,17 @@ public class DragObject : MonoBehaviour
                 LiquidTransfer lt = GetComponentInChildren<LiquidTransfer>();
                 if (lt != null) lt.CheckSymmetry();
             }
-            else transform.position = startPosition;
+            else 
+            {
+                Debug.LogWarning("<color=red>[DragObject]</color> -> DROP FAIL: Hedef dolu!");
+                transform.DOMove(startPosition, 0.4f).SetEase(Ease.OutBack);
+            }
         }
         else
         {
-            Debug.LogWarning("<color=red>[DragObject]</color> -> DROP FAIL: Altında Grid yok!");
-            transform.position = startPosition;
+            Debug.LogWarning("<color=red>[DragObject]</color> -> DROP FAIL: Alakasız yer!");
+            // Alakasız bir yere bırakıldığında yumuşakça eski yerine dönsün
+            transform.DOMove(startPosition, 0.4f).SetEase(Ease.OutBack);
         }
     }
 }

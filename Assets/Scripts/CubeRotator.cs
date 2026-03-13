@@ -12,7 +12,8 @@ public class CubeRotator : MonoBehaviour
 
     [Header("Ayarlar")]
     public float swipeThreshold = 50f;
-    public float rotationDuration = 0.5f;
+    public float rotationDuration = 1.2f;
+    public bool IsRotating => isAnimating;
 
     void Update()
     {
@@ -110,6 +111,25 @@ public class CubeRotator : MonoBehaviour
                 isAnimating = false;
                 
                 // Rotasyonu tam 90 derecelerde kalacak şekilde temizle
+                Vector3 finalEuler = transform.localEulerAngles;
+                finalEuler.x = Mathf.Round(finalEuler.x / 90f) * 90f;
+                finalEuler.y = Mathf.Round(finalEuler.y / 90f) * 90f;
+                finalEuler.z = Mathf.Round(finalEuler.z / 90f) * 90f;
+                transform.localEulerAngles = finalEuler;
+            });
+    }
+    
+    public void Rotate90(Vector3 axis)
+    {
+        if (isAnimating) return;
+        
+        isAnimating = true;
+        Quaternion targetRot = Quaternion.Euler(axis * 90f) * transform.localRotation;
+        
+        transform.DOLocalRotateQuaternion(targetRot, rotationDuration)
+            .SetEase(Ease.InOutCubic)
+            .OnComplete(() => {
+                isAnimating = false;
                 Vector3 finalEuler = transform.localEulerAngles;
                 finalEuler.x = Mathf.Round(finalEuler.x / 90f) * 90f;
                 finalEuler.y = Mathf.Round(finalEuler.y / 90f) * 90f;

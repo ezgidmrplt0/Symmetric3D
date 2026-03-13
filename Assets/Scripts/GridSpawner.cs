@@ -34,7 +34,7 @@ public class GridSpawner : MonoBehaviour
     private List<GameObject> activeFrameSegments = new List<GameObject>();
 
     // Kolaylık property'leri
-    private List<LevelData> levels => sequence != null ? sequence.levels : null;
+    public List<LevelData> levels => sequence != null ? sequence.levels : null;
 
     public LevelData.LevelType CurrentLevelType
     {
@@ -280,7 +280,7 @@ public class GridSpawner : MonoBehaviour
         GameObject pivotRoot = new GameObject("CubePivotRoot");
         pivotRoot.transform.SetParent(transform);
         pivotRoot.transform.localPosition = Vector3.zero;
-        pivotRoot.transform.localRotation = Quaternion.Euler(15f, 0f, 0f);
+        pivotRoot.transform.localRotation = Quaternion.Euler(8f, 0f, 0f); // Daha az eğik (15 -> 8), sıvıları görmek daha kolay
         activeSpawnedObjects.Add(pivotRoot);
 
         GameObject cubeRoot = new GameObject("CubeRoot");
@@ -319,7 +319,8 @@ public class GridSpawner : MonoBehaviour
         Renderer coreRend = coreCube.GetComponent<Renderer>();
         if (coreRend != null) {
             coreRend.material = new Material(Shader.Find("Standard"));
-            coreRend.material.color = new Color(0.12f, 0.12f, 0.12f); // Koyu iskelet
+            coreRend.material.color = new Color(0.1f, 0.1f, 0.11f); // Daha koyu, tok bir metalik siyah
+            coreRend.material.SetFloat("_Glossiness", 0.5f);
         }
 
         Vector3[] faceRots = {
@@ -381,7 +382,9 @@ public class GridSpawner : MonoBehaviour
                 }
             }
 
-            // 3D Küp modunda temiz ve rubik küpümsü bir his için çerçeveleri artık oluşturmuyoruz. CoreCube o işi yapıyor.
+            // 3D Küp modunda kenarların havada kalmaması için çerçeveleri her yüzeye ekliyoruz.
+            // is3DCube flag'ini (gizli parametre gibi) kullanarak köşelerden taşmamasını sağlayacağız.
+            SpawnCleanFrameSegmentsLocal(occupied, cellTotalSize, gridSize, offsetFX, offsetFY, facePivot.transform, true);
         }
 
         // Parçalar
@@ -406,10 +409,12 @@ public class GridSpawner : MonoBehaviour
             float offsetPX = (pMinX + pMaxX) * (gridSize + spacing) / 2f;
             float offsetPY = (pMinY + pMaxY) * (gridSize + spacing) / 2f;
 
+            // 3D modunda parçaları yüzeye tam gömüyoruz.
+            float localOffset = objectOffset * 0.2f; 
             Vector3 localPos = new Vector3(
                 piece.gridPosition.x * (gridSize + spacing) - offsetPX,
                 piece.gridPosition.y * (gridSize + spacing) - offsetPY,
-                -objectOffset
+                -localOffset
             );
 
             GameObject newObj = Instantiate(objectPrefab, facePivot);
@@ -661,7 +666,7 @@ public class GridSpawner : MonoBehaviour
         activeFrameSegments.Add(seg);
     }
 
-    void SpawnCleanFrameSegmentsLocal(HashSet<Vector2Int> occupied, float step, float gridSize, float offsetX, float offsetY, Transform parentTarget)
+    void SpawnCleanFrameSegmentsLocal(HashSet<Vector2Int> occupied, float step, float gridSize, float offsetX, float offsetY, Transform parentTarget, bool is3DCube = false)
     {
         float t = frameThickness;
         float edge = gridSize / 2f + framePadding;
@@ -680,33 +685,49 @@ public class GridSpawner : MonoBehaviour
             if (!up)
             {
                 float len = step;
-                if (!left) len += t; if (!right) len += t; 
+                if (!is3DCube) {
+                    if (!left) len += t; if (!right) len += t; 
+                }
                 float xOffset = 0;
-                if (!left && right) xOffset = -t / 2f; if (!right && left) xOffset = t / 2f;  
+                if (!is3DCube) {
+                    if (!left && right) xOffset = -t / 2f; if (!right && left) xOffset = t / 2f;
+                }
                 SpawnCustomLocalSegment(center + new Vector3(xOffset, edge + t / 2f, 0), new Vector3(len, t, t), parentTarget);
             }
             if (!down)
             {
                 float len = step;
-                if (!left) len += t; if (!right) len += t; 
+                if (!is3DCube) {
+                    if (!left) len += t; if (!right) len += t; 
+                }
                 float xOffset = 0;
-                if (!left && right) xOffset = -t / 2f; if (!right && left) xOffset = t / 2f;
+                if (!is3DCube) {
+                    if (!left && right) xOffset = -t / 2f; if (!right && left) xOffset = t / 2f;
+                }
                 SpawnCustomLocalSegment(center + new Vector3(xOffset, -edge - t / 2f, 0), new Vector3(len, t, t), parentTarget);
             }
             if (!left)
             {
                 float len = step;
-                if (!up) len += t; if (!down) len += t; 
+                if (!is3DCube) {
+                    if (!up) len += t; if (!down) len += t; 
+                }
                 float yOffset = 0;
-                if (!down && up) yOffset = -t / 2f; if (!up && down) yOffset = t / 2f;
+                if (!is3DCube) {
+                    if (!down && up) yOffset = -t / 2f; if (!up && down) yOffset = t / 2f;
+                }
                 SpawnCustomLocalSegment(center + new Vector3(-edge - t / 2f, yOffset, 0), new Vector3(t, len, t), parentTarget);
             }
             if (!right)
             {
                 float len = step;
-                if (!up) len += t; if (!down) len += t; 
+                if (!is3DCube) {
+                    if (!up) len += t; if (!down) len += t; 
+                }
                 float yOffset = 0;
-                if (!down && up) yOffset = -t / 2f; if (!up && down) yOffset = t / 2f;
+                if (!is3DCube) {
+                    if (!down && up) yOffset = -t / 2f; if (!up && down) yOffset = t / 2f;
+                }
                 SpawnCustomLocalSegment(center + new Vector3(edge + t / 2f, yOffset, 0), new Vector3(t, len, t), parentTarget);
             }
         }
