@@ -14,7 +14,7 @@ public class DragObject : MonoBehaviour
     [Header("Ayarlar")]
     [Header("Görsel (Drag)")]
     [Tooltip("Sürüklerken objenin kameraya ne kadar yaklaşacağını belirler.")]
-    public float dragZOffset = -0.8f;
+    public float dragZOffset = -0.05f; // Screen space'de kameraya yaklaşma payı
     
     [Header("Çarpışma (Collision)")]
     [Tooltip("Görsel izdüşüm üzerinden diğer objelere ne kadar yaklaşabileceğini belirler.")]
@@ -61,13 +61,14 @@ public class DragObject : MonoBehaviour
 
         if (Physics.Raycast(ray, out hit))
         {
-            if (hit.transform == transform)
+            if (hit.transform == transform || hit.transform.IsChildOf(transform))
             {
                 dragging = true;
                 startPosition = transform.position;
-                zDepth = dragZOffset;
 
                 Vector3 objectScreenPos = cam.WorldToScreenPoint(transform.position);
+                zDepth = objectScreenPos.z + dragZOffset; // Screen space Z'si (kameraya göre mesafe)
+
                 screenGrabOffset = (Vector2)objectScreenPos - (Vector2)screenPos;
 
                 startScreenPos = screenPos;
@@ -82,19 +83,14 @@ public class DragObject : MonoBehaviour
     void Drag(Vector3 screenPos)
     {
         Vector2 targetScreenPos = (Vector2)screenPos + screenGrabOffset;
-        Ray ray = cam.ScreenPointToRay(targetScreenPos);
-        Plane dragPlane = new Plane(Vector3.forward, new Vector3(0, 0, zDepth));
-        
-        float enter;
-        if (!dragPlane.Raycast(ray, out enter)) return;
+        Vector3 rayPoint = new Vector3(targetScreenPos.x, targetScreenPos.y, zDepth);
+        Vector3 desiredPos = cam.ScreenToWorldPoint(rayPoint);
 
-        Vector3 desiredPos = ray.GetPoint(enter);
         DragObject[] allObjects = FindObjectsOfType<DragObject>();
 
+        // currentPos kameranın düzlemine hizalanacak
         Vector3 currentPos = transform.position;
-        currentPos.z = zDepth;
-        
-        // Mesafe farkına göre adım sayısını belirle
+        // Kamera önüne ne kadar çıkacağına bak
         Vector3 moveDir = desiredPos - currentPos;
         float dist = moveDir.magnitude;
         int steps = Mathf.Max(1, Mathf.CeilToInt(dist / 0.04f)); 
@@ -115,34 +111,42 @@ public class DragObject : MonoBehaviour
             {
                 if (obj == this || !obj.gameObject.activeInHierarchy) continue;
                 
-                Plane gridPlane = new Plane(Vector3.forward, new Vector3(0, 0, obj.transform.position.z));
-                if (gridPlane.Raycast(projRay, out float pEnter))
+                Vector3 otherScreenP = cam.WorldToScreenPoint(obj.transform.position);
+
+                // Ekranda (X-Y) aynı düzlemde çakışıyorlar mı (piksel/ekran birimi cinsinden)
+                // Piksel mesafesini dünya mesafesine tahmini çevirmek veya doğrudan dünya koordinatlarını kullanmak:
+                // Basitlik için: Eğer aynı grid yüzeyinde değillerse çarpışmasınlar bile.
+                // Küpte farklı yüzlerdeki objeler birbirini itmeye çalışmasın. Aynı Parent'a sahiplerse:
+                if (obj.transform.parent != transform.parent && transform.parent != null) continue;
+
+                Vector2 other2D = new Vector2(obj.transform.position.x, obj.transform.position.y);
+                Vector2 myVirtual2D = new Vector2(currentPos.x, currentPos.y);
+                
+                // 3D uzaklık kontrolü yapabiliriz
+                float d = Vector3.Distance(currentPos, obj.transform.position);
+
+                if (d < activeCollisionDist)
                 {
-                    Vector3 virtualGroundPos = projRay.GetPoint(pEnter);
-                    Vector2 other2D = new Vector2(obj.transform.position.x, obj.transform.position.y);
-                    Vector2 myVirtual2D = new Vector2(virtualGroundPos.x, virtualGroundPos.y);
+                    Vector3 pushDir = (currentPos - obj.transform.position).normalized;
+                    if (pushDir == Vector3.zero) pushDir = Random.onUnitSphere;
                     
-                    float d = Vector2.Distance(myVirtual2D, other2D);
-                    if (d < activeCollisionDist)
-                    {
-                        Vector2 pushDir = (myVirtual2D - other2D).normalized;
-                        if (pushDir == Vector2.zero) pushDir = Random.insideUnitCircle.normalized;
-                        
-                        // İtmeyi biraz yumuşatalım (Dampening)
-                        float pushPower = (activeCollisionDist - d) * 0.6f; 
-                        Vector2 push = pushDir * pushPower;
-                        
-                        currentPos.x += push.x;
-                        currentPos.y += push.y;
-                        
-                        if (s == steps - 1) // Sadece son adımda detaylı log yazalım (kalabalığı önlemek için)
-                            Debug.Log($"<color=cyan>[DragObject]</color> <b>COLLISION:</b> {obj.name}({obj.GetInstanceID()}) | Mesafe: {d:F2} | Push: {push:F3}");
-                    }
+                    // İtmeyi Z eksenine yansıtma (Drag sırasında zDepth'de kalmak istiyoruz)
+                    pushDir.z = 0;
+                    pushDir.Normalize();
+
+                    float pushPower = (activeCollisionDist - d) * 0.6f; 
+                    Vector3 push = pushDir * pushPower;
+                    
+                    currentPos += push;
+                    
+                    if (s == steps - 1) 
+                        Debug.Log($"<color=cyan>[DragObject]</color> <b>COLLISION 3D:</b> {obj.name} | Mesafe: {d:F2} | Push: {push:F3}");
                 }
             }
         }
         
-        transform.position = new Vector3(currentPos.x, currentPos.y, zDepth);
+        // Son pozisyonu atama (Z ekseninin serbest kalması 3D'de önemlidir)
+        transform.position = currentPos;
     }
 
     void Drop(Vector3 finalScreenPos)
@@ -212,7 +216,10 @@ public class DragObject : MonoBehaviour
             {
                 float oz = (spawner != null) ? -spawner.objectOffset : -0.3f;
                 transform.SetParent(targetGrid.parent, true);
+                
+                // Rotasyonu gridin local rotation'ına ve kendi z'sine uydur
                 transform.localPosition = new Vector3(targetGrid.localPosition.x, targetGrid.localPosition.y, oz);
+                // Grid'in yukarı baktığı yön, nesnenin baktığı yönle uyuşmalıdır.
                 transform.localRotation = Quaternion.Euler(0, 0, transform.localEulerAngles.z);
 
                 Debug.Log("<color=green>[DragObject]</color> -> Yerleştirme Başarılı.");

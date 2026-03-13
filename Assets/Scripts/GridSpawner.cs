@@ -166,6 +166,13 @@ public class GridSpawner : MonoBehaviour
         }
 
         float gridSize = gridPrefab.transform.localScale.x;
+
+        if (level.is3DCube && level.cubeFaces != null && level.cubeFaces.Length == 6)
+        {
+            Spawn3DCubeLevel(level, gridSize);
+            return;
+        }
+
         bool isCustom = level.customGridPositions != null && level.customGridPositions.Count > 0;
 
         float minX = 0, maxX = level.gridX - 1;
@@ -265,6 +272,192 @@ public class GridSpawner : MonoBehaviour
 
         // Çerçeve ve Kamera Ayarla (Artık otomatik coroutine ile)
         StartCoroutine(AdjustViewportCoroutine(level, minX, maxX, minY, maxY, gridSize));
+    }
+
+    void Spawn3DCubeLevel(LevelData level, float gridSize)
+    {
+        // Yamukluk (Y ekseni) olmadan, sadece 3D derinliği verecek simetrik hafif yukarı bakış açısı
+        GameObject pivotRoot = new GameObject("CubePivotRoot");
+        pivotRoot.transform.SetParent(transform);
+        pivotRoot.transform.localPosition = Vector3.zero;
+        pivotRoot.transform.localRotation = Quaternion.Euler(15f, 0f, 0f);
+        activeSpawnedObjects.Add(pivotRoot);
+
+        GameObject cubeRoot = new GameObject("CubeRoot");
+        cubeRoot.transform.SetParent(pivotRoot.transform);
+        cubeRoot.transform.localPosition = Vector3.zero;
+        cubeRoot.transform.localRotation = Quaternion.identity;
+
+        cubeRoot.AddComponent<CubeRotator>(); // Animasyon rotasyonu sağlar
+
+        // Küpün en geniş yüzeyinden yarıçapı hesapla
+        float maxDim = 0;
+        foreach(var f in level.cubeFaces) {
+            if(!f.isActive) continue;
+            if(f.gridX > maxDim) maxDim = f.gridX;
+            if(f.gridY > maxDim) maxDim = f.gridY;
+        }
+        
+        float cellTotalSize = gridSize + spacing;
+        
+        // Toplam görsel boyutu doğru hesapla ki köşeler kusursuz birleşsin
+        float visualWidth = (maxDim - 1) * cellTotalSize + gridSize;
+        float gridDepth = gridPrefab.transform.localScale.z;
+        
+        // Yüzeylerin birbiri içine girmemesi için radius'u et kalınlığı (gridDepth) kadar dışarı itiyoruz
+        float cubeRadius = (visualWidth / 2f) + (gridDepth / 2f);
+
+        // İçine siyah boşlukları kapatan bir Core (İskelet) ekleyelim
+        GameObject coreCube = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        coreCube.transform.SetParent(cubeRoot.transform, false);
+        
+        // Siyah çekirdek, iç kısımdaki boşluğu tam olarak doldurmalı (Z-Fighting olmasın diye sadece %1 ufaltıyoruz)
+        float coreSize = visualWidth - 0.05f;
+        if (coreSize < 0.1f) coreSize = visualWidth * 0.9f;
+
+        coreCube.transform.localScale = new Vector3(coreSize, coreSize, coreSize);
+        Renderer coreRend = coreCube.GetComponent<Renderer>();
+        if (coreRend != null) {
+            coreRend.material = new Material(Shader.Find("Standard"));
+            coreRend.material.color = new Color(0.12f, 0.12f, 0.12f); // Koyu iskelet
+        }
+
+        Vector3[] faceRots = {
+            new Vector3(0, 0, 0),       // Front
+            new Vector3(0, 180, 0),     // Back
+            new Vector3(0, -90, 0),     // Right
+            new Vector3(0, 90, 0),      // Left
+            new Vector3(90, 0, 0),      // Top
+            new Vector3(-90, 0, 0)      // Bottom
+        };
+        Vector3[] faceDirs = { Vector3.back, Vector3.forward, Vector3.right, Vector3.left, Vector3.up, Vector3.down };
+
+        Dictionary<int, LinkedObjectGroup> groups = new Dictionary<int, LinkedObjectGroup>();
+
+        for (int i = 0; i < 6; i++)
+        {
+            var faceData = level.cubeFaces[i];
+            if (!faceData.isActive) continue;
+
+            GameObject facePivot = new GameObject($"Face_{i}");
+            facePivot.transform.SetParent(cubeRoot.transform);
+            facePivot.transform.localPosition = faceDirs[i] * cubeRadius;
+            facePivot.transform.localRotation = Quaternion.Euler(faceRots[i]);
+
+            float fMinX = 0, fMaxX = faceData.gridX - 1;
+            float fMinY = 0, fMaxY = faceData.gridY - 1;
+
+            bool isFaceCustom = faceData.customGridPositions != null && faceData.customGridPositions.Count > 0;
+            if (isFaceCustom) {
+                fMinX = fMinY = float.MaxValue; fMaxX = fMaxY = float.MinValue;
+                foreach (var pos in faceData.customGridPositions) {
+                    if (pos.x < fMinX) fMinX = pos.x; if (pos.x > fMaxX) fMaxX = pos.x;
+                    if (pos.y < fMinY) fMinY = pos.y; if (pos.y > fMaxY) fMaxY = pos.y;
+                }
+            }
+
+            float offsetFX = (fMinX + fMaxX) * (gridSize + spacing) / 2f;
+            float offsetFY = (fMinY + fMaxY) * (gridSize + spacing) / 2f;
+
+            HashSet<Vector2Int> occupied = new HashSet<Vector2Int>();
+            
+            if (isFaceCustom) {
+                foreach (var pos in faceData.customGridPositions) {
+                    Vector3 worldPos = new Vector3(pos.x * (gridSize + spacing) - offsetFX, pos.y * (gridSize + spacing) - offsetFY, 0);
+                    GameObject gridObj = Instantiate(gridPrefab, facePivot.transform);
+                    gridObj.transform.localPosition = worldPos;
+                    activeSpawnedObjects.Add(gridObj);
+                    occupied.Add(pos);
+                }
+            } else {
+                for (int x = 0; x < faceData.gridX; x++) {
+                    for (int y = 0; y < faceData.gridY; y++) {
+                        Vector3 wPos = new Vector3(x * (gridSize + spacing) - offsetFX, y * (gridSize + spacing) - offsetFY, 0);
+                        GameObject gridObj = Instantiate(gridPrefab, facePivot.transform);
+                        gridObj.transform.localPosition = wPos;
+                        activeSpawnedObjects.Add(gridObj);
+                        occupied.Add(new Vector2Int(x, y));
+                    }
+                }
+            }
+
+            // 3D Küp modunda temiz ve rubik küpümsü bir his için çerçeveleri artık oluşturmuyoruz. CoreCube o işi yapıyor.
+        }
+
+        // Parçalar
+        foreach (var piece in level.pieces)
+        {
+            int fIdx = piece.faceIndex;
+            if (fIdx < 0 || fIdx > 5 || !level.cubeFaces[fIdx].isActive) continue;
+            
+            Transform facePivot = cubeRoot.transform.Find($"Face_{fIdx}");
+            if (facePivot == null) continue;
+
+            float pMinX=0, pMaxX=level.cubeFaces[fIdx].gridX-1;
+            float pMinY=0, pMaxY=level.cubeFaces[fIdx].gridY-1;
+            bool isFaceCustom = level.cubeFaces[fIdx].customGridPositions != null && level.cubeFaces[fIdx].customGridPositions.Count > 0;
+            if (isFaceCustom) {
+                pMinX=pMinY=float.MaxValue; pMaxX=pMaxY=float.MinValue;
+                foreach (var pos in level.cubeFaces[fIdx].customGridPositions) {
+                    if (pos.x<pMinX) pMinX=pos.x; if (pos.x>pMaxX) pMaxX=pos.x;
+                    if (pos.y<pMinY) pMinY=pos.y; if (pos.y>pMaxY) pMaxY=pos.y;
+                }
+            }
+            float offsetPX = (pMinX + pMaxX) * (gridSize + spacing) / 2f;
+            float offsetPY = (pMinY + pMaxY) * (gridSize + spacing) / 2f;
+
+            Vector3 localPos = new Vector3(
+                piece.gridPosition.x * (gridSize + spacing) - offsetPX,
+                piece.gridPosition.y * (gridSize + spacing) - offsetPY,
+                -objectOffset
+            );
+
+            GameObject newObj = Instantiate(objectPrefab, facePivot);
+            newObj.transform.localPosition = localPos;
+            newObj.transform.localRotation = Quaternion.Euler(0, 0, piece.rotationZ);
+            activeSpawnedObjects.Add(newObj);
+
+            if (piece.linkId > 0)
+            {
+                if (!groups.ContainsKey(piece.linkId))
+                {
+                    GameObject groupObj = new GameObject("LinkedGroup_" + piece.linkId);
+                    groupObj.transform.parent = cubeRoot.transform;
+                    groupObj.transform.localPosition = Vector3.zero;
+                    groupObj.transform.localRotation = Quaternion.identity;
+                    LinkedObjectGroup log = groupObj.AddComponent<LinkedObjectGroup>();
+                    groups[piece.linkId] = log;
+                    activeSpawnedObjects.Add(groupObj);
+                }
+                newObj.transform.SetParent(groups[piece.linkId].transform, true);
+            }
+
+            LiquidTransfer lt = newObj.GetComponentInChildren<LiquidTransfer>();
+            if (lt != null) { lt.liquidColor = piece.liquidColor; lt.currentSlices = piece.currentSlices; lt.isShadowTrigger = piece.isShadowTrigger; }
+        }
+
+        foreach (var kvp in groups) kvp.Value.InitGroup();
+
+        // 3D için sabit uzak bir kamera pozisyonu
+        Camera cam = mainCamera != null ? mainCamera : Camera.main;
+        if (cam != null)
+        {
+            float screenRatio = (float)Screen.width / (float)Screen.height;
+            float targetRatio = 0.56f; // Standart telefon portrait oranı
+            float aspectMultiplier = targetRatio / screenRatio;
+            if (aspectMultiplier < 1f) aspectMultiplier = 1f; // Tablette daralmamasını engelle
+
+            float targetDistance = Mathf.Max(8.5f, cubeRadius * 4.5f) * aspectMultiplier;
+            
+            // Eğer ortografik ise boyutu ayarla
+            if (cam.orthographic) {
+                cam.DOOrthoSize(targetDistance * 0.85f, 0.6f).SetEase(Ease.OutCubic);
+            }
+            
+            Vector3 camTarget = transform.position - cam.transform.forward * targetDistance;
+            camTarget.y += cameraVerticalOffset;
+            cam.transform.DOMove(camTarget, 0.6f).SetEase(Ease.OutCubic);
+        }
     }
 
     IEnumerator AdjustViewportCoroutine(LevelData level, float minX, float maxX, float minY, float maxY, float gridSize)
@@ -461,6 +654,74 @@ public class GridSpawner : MonoBehaviour
         activeFrameSegments.Add(seg);
     }
 
+    void SpawnCleanFrameSegmentsLocal(HashSet<Vector2Int> occupied, float step, float gridSize, float offsetX, float offsetY, Transform parentTarget)
+    {
+        float t = frameThickness;
+        float edge = gridSize / 2f + framePadding;
+
+        foreach (var pos in occupied)
+        {
+            Vector3 center = new Vector3(pos.x * step - offsetX, pos.y * step - offsetY, 0);
+
+            float length = step;
+
+            bool left = occupied.Contains(pos + Vector2Int.left);
+            bool right = occupied.Contains(pos + Vector2Int.right);
+            bool up = occupied.Contains(pos + Vector2Int.up);
+            bool down = occupied.Contains(pos + Vector2Int.down);
+
+            if (!up)
+            {
+                float len = step;
+                if (!left) len += t; if (!right) len += t; 
+                float xOffset = 0;
+                if (!left && right) xOffset = -t / 2f; if (!right && left) xOffset = t / 2f;  
+                SpawnCustomLocalSegment(center + new Vector3(xOffset, edge + t / 2f, 0), new Vector3(len, t, t), parentTarget);
+            }
+            if (!down)
+            {
+                float len = step;
+                if (!left) len += t; if (!right) len += t; 
+                float xOffset = 0;
+                if (!left && right) xOffset = -t / 2f; if (!right && left) xOffset = t / 2f;
+                SpawnCustomLocalSegment(center + new Vector3(xOffset, -edge - t / 2f, 0), new Vector3(len, t, t), parentTarget);
+            }
+            if (!left)
+            {
+                float len = step;
+                if (!up) len += t; if (!down) len += t; 
+                float yOffset = 0;
+                if (!down && up) yOffset = -t / 2f; if (!up && down) yOffset = t / 2f;
+                SpawnCustomLocalSegment(center + new Vector3(-edge - t / 2f, yOffset, 0), new Vector3(t, len, t), parentTarget);
+            }
+            if (!right)
+            {
+                float len = step;
+                if (!up) len += t; if (!down) len += t; 
+                float yOffset = 0;
+                if (!down && up) yOffset = -t / 2f; if (!up && down) yOffset = t / 2f;
+                SpawnCustomLocalSegment(center + new Vector3(edge + t / 2f, yOffset, 0), new Vector3(t, len, t), parentTarget);
+            }
+        }
+    }
+
+    void SpawnCustomLocalSegment(Vector3 localPos, Vector3 scale, Transform parentTarget)
+    {
+        GameObject seg = null;
+        if (frameSegmentPrefab != null) seg = Instantiate(frameSegmentPrefab, parentTarget);
+        else {
+            seg = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            seg.transform.SetParent(parentTarget, false);
+            Destroy(seg.GetComponent<BoxCollider>());
+        }
+
+        seg.transform.localPosition = localPos;
+        seg.transform.localRotation = Quaternion.identity;
+        seg.transform.localScale = scale;
+        activeFrameSegments.Add(seg);
+        activeSpawnedObjects.Add(seg);
+    }
+
     public bool HasPendingShadows()
     {
         LiquidTransfer[] all = FindObjectsOfType<LiquidTransfer>();
@@ -473,77 +734,52 @@ public class GridSpawner : MonoBehaviour
     {
         if (levels == null || levels.Count == 0 || currentLevelIndex >= levels.Count) return;
 
-        LevelData level = levels[currentLevelIndex];
-        float gridSize = gridPrefab.transform.localScale.x;
-
-        // 1. Tüm geçerli grid pozisyonlarını listele
-        List<Vector2Int> allPositions = new List<Vector2Int>();
-        if (level.customGridPositions != null && level.customGridPositions.Count > 0)
+        // 1. Sahnedeki tüm grid'leri topla
+        List<Transform> validGrids = new List<Transform>();
+        foreach (Transform t in transform.GetComponentsInChildren<Transform>())
         {
-            allPositions.AddRange(level.customGridPositions);
-        }
-        else
-        {
-            for (int x = 0; x < level.gridX; x++)
-                for (int y = 0; y < level.gridY; y++)
-                    allPositions.Add(new Vector2Int(x, y));
+            if (t.name.Contains("Grid") || t.CompareTag("Grid")) // Prefab ismine veya tag'e göre
+            {
+                // Grid parent'ının BoxCollider'ını vs. almamak için
+                // Genelde grid prefab'ı direkt ekliyoruz.
+                if (t.gameObject != this.gameObject && !t.name.Contains("Face_"))
+                    validGrids.Add(t);
+            }
         }
 
         // 2. Dolu pozisyonları filtrele
         DragObject[] existing = FindObjectsOfType<DragObject>();
-        List<Vector2Int> occupied = new List<Vector2Int>();
-        // Bu biraz kaba bir hesaplama ama grid sistemine göre yuvarlayabiliriz
-        // Alternatif: Her DragObject'in bir gridPos tutması daha sağlıklı olurdu.
-        // Ama şimdilik dünya pozisyonundan geri dönüş yapalım.
-        
-        // offsetX/offsetY hesaplamayı tekrar yapalım (GetWorldPosition içindeki gibi)
-        float minX = 0, maxX = level.gridX - 1;
-        float minY = 0, maxY = level.gridY - 1;
-        bool isCustom = level.customGridPositions != null && level.customGridPositions.Count > 0;
-        if (isCustom)
-        {
-            minX = minY = float.MaxValue;
-            maxX = maxY = float.MinValue;
-            foreach (var pos in level.customGridPositions)
-            {
-                if (pos.x < minX) minX = pos.x;
-                if (pos.x > maxX) maxX = pos.x;
-                if (pos.y < minY) minY = pos.y;
-                if (pos.y > maxY) maxY = pos.y;
-            }
-        }
-        float offsetX = (minX + maxX) * (gridSize + spacing) / 2f;
-        float offsetY = (minY + maxY) * (gridSize + spacing) / 2f;
+        List<Transform> emptyGrids = new List<Transform>(validGrids);
 
         foreach (var obj in existing)
         {
-            Vector3 localPos = obj.transform.position - transform.position;
-            int x = Mathf.RoundToInt((localPos.x + offsetX) / (gridSize + spacing));
-            int y = Mathf.RoundToInt((localPos.y + offsetY) / (gridSize + spacing));
-            occupied.Add(new Vector2Int(x, y));
+            Transform nearest = null;
+            float minDist = 0.4f;
+            foreach (var g in validGrids)
+            {
+                float dist = Vector3.Distance(obj.transform.position, g.position);
+                if (dist < minDist) { minDist = dist; nearest = g; }
+            }
+            if (nearest != null) emptyGrids.Remove(nearest);
         }
 
-        List<Vector2Int> emptyPositions = new List<Vector2Int>();
-        foreach (var p in allPositions)
-            if (!occupied.Contains(p)) emptyPositions.Add(p);
-
-        if (emptyPositions.Count == 0)
+        if (emptyGrids.Count == 0)
         {
             Debug.LogWarning("Shadow için boş yer bulunamadı!");
             return;
         }
 
         // 3. Rastgele bir yer seç
-        Vector2Int spawnGridPos = emptyPositions[Random.Range(0, emptyPositions.Count)];
-        Vector3 spawnWorldPos = GetWorldPosition(spawnGridPos);
+        Transform targetGrid = emptyGrids[Random.Range(0, emptyGrids.Count)];
 
-        // 4. Spawn et
-        // Shadow trigger yukarı bakıyorsa (0), shadow aşağı (180) baksın? 
-        // Ya da trigger nereye bakıyorsa onun tam tersine baksın ki eşleşebilsinler.
-        float triggerRot = trigger.transform.rotation.eulerAngles.z;
+        // 4. Spawn et (Trigger nereye bakıyorsa gölge zıttına baksın)
+        float triggerRot = trigger.transform.localRotation.eulerAngles.z;
         float shadowRot = (triggerRot + 180f) % 360f;
 
-        GameObject shadowObj = Instantiate(objectPrefab, spawnWorldPos, Quaternion.Euler(0, 0, shadowRot), transform);
+        GameObject shadowObj = Instantiate(objectPrefab, targetGrid.parent);
+        shadowObj.transform.localPosition = new Vector3(targetGrid.localPosition.x, targetGrid.localPosition.y, -objectOffset);
+        shadowObj.transform.localRotation = Quaternion.Euler(0, 0, shadowRot);
+        
         activeSpawnedObjects.Add(shadowObj);
 
         // Görsel efekt: Ölçeklenerek gelsin

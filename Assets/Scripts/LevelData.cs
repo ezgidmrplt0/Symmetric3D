@@ -32,11 +32,28 @@ public class LevelData : ScriptableObject
     [Tooltip("Eğer bu liste boş değilse, grid X/Y yerine bu koordinatlar kullanılır.")]
     public List<Vector2Int> customGridPositions = new List<Vector2Int>();
 
+    // ── 3D Küp (Çoklu Yüz) ───────────────────────────────────────
+    [Header("3D Küp (Rubik/Palet) Ayarları")]
+    public bool is3DCube = false; // Aktifse GridSpawner 3 boyutlu bir yapı çizer
+    
+    [System.Serializable]
+    public class FaceData {
+        public bool isActive = false;
+        public int gridX = 3;
+        public int gridY = 3;
+        public List<Vector2Int> customGridPositions = new List<Vector2Int>();
+    }
+    
+    // 0=Ön, 1=Arka, 2=Sağ, 3=Sol, 4=Üst, 5=Alt
+    public FaceData[] cubeFaces = new FaceData[6]; 
+
+
     // ── Parçalar ────────────────────────────────────────────────
     [System.Serializable]
     public class PieceData
     {
         public Vector2Int gridPosition;
+        public int faceIndex = 0; // Hangi yüzde (0-5)
         public Color liquidColor = Color.white;
         public int currentSlices = 1;
         public float rotationZ = 0f;

@@ -16,6 +16,8 @@ public class LevelDesignerWindow : EditorWindow
 
 
     private bool isGridEditMode = false;
+    private int currentFaceIndex = 0;
+    private string[] faceNames = { "Ön", "Arka", "Sağ", "Sol", "Üst", "Alt" };
 
     private Vector2 scrollPos;
 
@@ -38,8 +40,12 @@ public class LevelDesignerWindow : EditorWindow
         currentLevel = (LevelData)EditorGUILayout.ObjectField("Düzenlenen Level", currentLevel, typeof(LevelData), false);
         if (EditorGUI.EndChangeCheck() && currentLevel != null)
         {
-            gridX = currentLevel.gridX;
-            gridY = currentLevel.gridY;
+            InitCubeFacesIfNeeded(currentLevel);
+            if (!currentLevel.is3DCube)
+            {
+                gridX = currentLevel.gridX;
+                gridY = currentLevel.gridY;
+            }
         }
 
         GUILayout.Space(6);
@@ -105,18 +111,68 @@ public class LevelDesignerWindow : EditorWindow
 
         GUILayout.Space(6);
 
-        // ── 2. BÖLÜM: Grid Boyutu ────────────────────────────────
-        DrawSectionHeader("📐 Grid Boyutu");
+        // ── 2. BÖLÜM: Grid Boyutu ve 3D ────────────────────────────────
+        DrawSectionHeader("📐 Grid Boyutu ve 3D Mod");
 
         EditorGUI.BeginChangeCheck();
-        gridX = EditorGUILayout.IntSlider("Genişlik (X)", gridX, 1, 10);
-        gridY = EditorGUILayout.IntSlider("Yükseklik (Y)", gridY, 1, 10);
+        bool newIs3D = EditorGUILayout.Toggle("3D Küp Modu?", currentLevel.is3DCube);
         if (EditorGUI.EndChangeCheck())
         {
-            Undo.RecordObject(currentLevel, "Grid Boyutu Değiştir");
-            currentLevel.gridX = gridX;
-            currentLevel.gridY = gridY;
+            Undo.RecordObject(currentLevel, "3D Mode Değiştir");
+            currentLevel.is3DCube = newIs3D;
             EditorUtility.SetDirty(currentLevel);
+        }
+
+        GUILayout.Space(4);
+
+        if (currentLevel.is3DCube)
+        {
+            currentFaceIndex = GUILayout.Toolbar(currentFaceIndex, faceNames, GUILayout.Height(30));
+            GUILayout.Space(4);
+
+            LevelData.FaceData activeFace = currentLevel.cubeFaces[currentFaceIndex];
+            
+            EditorGUI.BeginChangeCheck();
+            bool faceActive = EditorGUILayout.Toggle("Yüzey Aktif mi?", activeFace.isActive);
+            if (EditorGUI.EndChangeCheck())
+            {
+                Undo.RecordObject(currentLevel, "Yüzey Aktifliği Değiştir");
+                activeFace.isActive = faceActive;
+                EditorUtility.SetDirty(currentLevel);
+            }
+
+            if (activeFace.isActive)
+            {
+                EditorGUI.BeginChangeCheck();
+                gridX = EditorGUILayout.IntSlider("Genişlik (X)", activeFace.gridX, 1, 10);
+                gridY = EditorGUILayout.IntSlider("Yükseklik (Y)", activeFace.gridY, 1, 10);
+                if (EditorGUI.EndChangeCheck())
+                {
+                    Undo.RecordObject(currentLevel, "Yüzey Grid Boyutu Değiştir");
+                    activeFace.gridX = gridX;
+                    activeFace.gridY = gridY;
+                    EditorUtility.SetDirty(currentLevel);
+                }
+            }
+            else
+            {
+                EditorGUILayout.HelpBox("Bu yüzey pasif durumda. Parça eklenemez.", MessageType.Warning);
+                EditorGUILayout.EndScrollView();
+                return;
+            }
+        }
+        else
+        {
+            EditorGUI.BeginChangeCheck();
+            gridX = EditorGUILayout.IntSlider("Genişlik (X)", currentLevel.gridX, 1, 10);
+            gridY = EditorGUILayout.IntSlider("Yükseklik (Y)", currentLevel.gridY, 1, 10);
+            if (EditorGUI.EndChangeCheck())
+            {
+                Undo.RecordObject(currentLevel, "Grid Boyutu Değiştir");
+                currentLevel.gridX = gridX;
+                currentLevel.gridY = gridY;
+                EditorUtility.SetDirty(currentLevel);
+            }
         }
 
         GUILayout.Space(6);
@@ -266,6 +322,8 @@ public class LevelDesignerWindow : EditorWindow
 
     void DrawGrid()
     {
+        var targetCustomGrid = currentLevel.is3DCube ? currentLevel.cubeFaces[currentFaceIndex].customGridPositions : currentLevel.customGridPositions;
+
         for (int y = gridY - 1; y >= 0; y--)
         {
             EditorGUILayout.BeginHorizontal();
@@ -274,7 +332,7 @@ public class LevelDesignerWindow : EditorWindow
             for (int x = 0; x < gridX; x++)
             {
                 Vector2Int pos = new Vector2Int(x, y);
-                bool isCellActive = currentLevel.customGridPositions.Count == 0 || currentLevel.customGridPositions.Contains(pos);
+                bool isCellActive = targetCustomGrid.Count == 0 || targetCustomGrid.Contains(pos);
                 LevelData.PieceData piece = GetPieceAt(x, y);
 
                 string buttonText = "";
@@ -339,21 +397,21 @@ public class LevelDesignerWindow : EditorWindow
                     {
                         Undo.RecordObject(currentLevel, "Grid Hücresi Tıkla");
                         
-                        if (currentLevel.customGridPositions.Count == 0)
+                        if (targetCustomGrid.Count == 0)
                         {
                             for (int gx = 0; gx < gridX; gx++)
                                 for (int gy = 0; gy < gridY; gy++)
-                                    currentLevel.customGridPositions.Add(new Vector2Int(gx, gy));
+                                    targetCustomGrid.Add(new Vector2Int(gx, gy));
                         }
 
-                        if (currentLevel.customGridPositions.Contains(pos))
+                        if (targetCustomGrid.Contains(pos))
                         {
-                            currentLevel.customGridPositions.Remove(pos);
+                            targetCustomGrid.Remove(pos);
                             if (piece != null) currentLevel.pieces.Remove(piece);
                         }
                         else
                         {
-                            currentLevel.customGridPositions.Add(pos);
+                            targetCustomGrid.Add(pos);
                         }
                         EditorUtility.SetDirty(currentLevel);
                     }
@@ -365,6 +423,7 @@ public class LevelDesignerWindow : EditorWindow
                             if (piece == null)
                             {
                                 piece = new LevelData.PieceData { gridPosition = new Vector2Int(x, y) };
+                                if (currentLevel.is3DCube) piece.faceIndex = currentFaceIndex;
                                 piece.liquidColor   = brushColor;
                                 piece.currentSlices = brushSlices;
                                 piece.rotationZ     = brushRotationZ;
@@ -385,6 +444,7 @@ public class LevelDesignerWindow : EditorWindow
                                 piece.rotationZ     = brushRotationZ;
                                 piece.isShadowTrigger = brushIsShadowTrigger;
                                 piece.linkId        = brushLinkId;
+                                if (currentLevel.is3DCube) piece.faceIndex = currentFaceIndex;
                             }
                             EditorUtility.SetDirty(currentLevel);
                         }
@@ -400,8 +460,13 @@ public class LevelDesignerWindow : EditorWindow
         }
     }
 
-    LevelData.PieceData GetPieceAt(int x, int y) =>
-        currentLevel.pieces.Find(p => p.gridPosition.x == x && p.gridPosition.y == y);
+    LevelData.PieceData GetPieceAt(int x, int y) 
+    {
+        if (currentLevel.is3DCube)
+            return currentLevel.pieces.Find(p => p.faceIndex == currentFaceIndex && p.gridPosition.x == x && p.gridPosition.y == y);
+        else
+            return currentLevel.pieces.Find(p => p.gridPosition.x == x && p.gridPosition.y == y);
+    }
 
     void DrawColorPreset(string label, Color color)
     {
@@ -423,12 +488,29 @@ public class LevelDesignerWindow : EditorWindow
             LevelData newLevel = ScriptableObject.CreateInstance<LevelData>();
             newLevel.gridX = gridX;
             newLevel.gridY = gridY;
+            InitCubeFacesIfNeeded(newLevel);
 
             AssetDatabase.CreateAsset(newLevel, path);
             newLevel.levelDisplayName = newLevel.name;
             AssetDatabase.SaveAssets();
             currentLevel = newLevel;
             EditorGUIUtility.PingObject(newLevel);
+        }
+    }
+
+    void InitCubeFacesIfNeeded(LevelData level)
+    {
+        if (level.cubeFaces == null || level.cubeFaces.Length != 6)
+        {
+            level.cubeFaces = new LevelData.FaceData[6];
+            for (int i = 0; i < 6; i++) level.cubeFaces[i] = new LevelData.FaceData();
+        }
+        else
+        {
+            for (int i = 0; i < 6; i++)
+            {
+                if (level.cubeFaces[i] == null) level.cubeFaces[i] = new LevelData.FaceData();
+            }
         }
     }
 
