@@ -26,7 +26,6 @@ public class DragObject : MonoBehaviour
 
     [Header("Yüzey Geçişi (Wrap-around)")]
     public float wrapThreshold = 1.2f; 
-    private bool wrapInProgress = false;
     private float wrapCooldown = 0f; 
 
     void Start()
@@ -83,11 +82,12 @@ public class DragObject : MonoBehaviour
                 // --- 3D YÜZEY KİLİDİ (SADECE ÖN YÜZ AKTİF) ---
                 if (transform.parent != null && transform.parent.name.StartsWith("Face_"))
                 {
-                    // Kameraya bakan yüzeyin normali ile kamera bakış yönü paralel olmalı (Dot > 0.7)
+                    // Dot product'ın mutlak değerini kontrol edelim (Back-face zaten raycast ile elenir)
+                    // 0.45 eşiği (approx 63 derece) oldukça güvenli bir ön yüzey seçimi sağlar.
                     float dot = Vector3.Dot(transform.parent.forward, cam.transform.forward);
-                    if (dot < 0.7f) 
+                    if (Mathf.Abs(dot) < 0.45f) 
                     {
-                        Debug.Log($"<color=gray>[DragObject]</color> Pick Denied: Yan yüzey ({dot:F2})");
+                        Debug.Log($"<color=gray>[DragObject]</color> Pick Denied: Yan yüzey (|dot|={Mathf.Abs(dot):F2})");
                         return;
                     }
                 }
@@ -99,6 +99,7 @@ public class DragObject : MonoBehaviour
                 
                 startScreenPos = screenPos;
                 startTime = Time.time;
+                wrapCooldown = 0.2f; // Picking anlık dönmeyi engellemek için kısa bir başlangıç cooldown'ı
 
                 // Küpten kopar → Dünya uzayında bağımsız kalsın
                 transform.SetParent(null, true);
@@ -168,16 +169,25 @@ public class DragObject : MonoBehaviour
             Vector2 screenCenter = new Vector2(Screen.width * 0.5f, Screen.height * 0.5f);
             Vector2 offset = (Vector2)screenPos - screenCenter;
 
-            // Ekranın %28'i kadarlık bir "Güvenli Bölge" (Safe Zone) tanımlıyoruz
+            // Ekranın %28/%22'si bir merkez boşluk bırakır
             float hThreshold = Screen.width * 0.28f; 
             float vThreshold = Screen.height * 0.22f;
 
             Vector3 rotAxis = Vector3.zero;
+            float screenHeightFactor = screenPos.y / Screen.height;
             
-            // Yatay kontrol baskın (Önce sağ-sol)
+            // Yatay kontrol
             if (Mathf.Abs(offset.x) > hThreshold)
             {
-                rotAxis = offset.x > 0 ? Vector3.down : Vector3.up; 
+                // CubeRotator ile aynı mantık: Ekranın alt %40'ında ise Z-Ekseni (Rolling)
+                if (screenHeightFactor < 0.4f)
+                {
+                    rotAxis = offset.x > 0 ? Vector3.forward : Vector3.back;
+                }
+                else
+                {
+                    rotAxis = offset.x > 0 ? Vector3.down : Vector3.up; 
+                }
             }
             else if (Mathf.Abs(offset.y) > vThreshold)
             {
@@ -191,9 +201,8 @@ public class DragObject : MonoBehaviour
                 if (rotator != null && !rotator.IsRotating)
                 {
                     rotator.Rotate90(rotAxis);
-                    // Cooldown'ı animasyon süresinden biraz az tutarsak kesintisiz döner gibi hissettirir
-                    wrapCooldown = rotator.rotationDuration * 0.75f; 
-                    Debug.Log($"<color=orange>[DragObject]</color> Edge Rotation Triggered: {rotAxis} | Offset: {offset}");
+                    wrapCooldown = rotator.rotationDuration * 0.8f; 
+                    Debug.Log($"<color=orange>[DragObject]</color> Continuous Rotation Axis: {rotAxis} (HeightFactor: {screenHeightFactor:F2})");
                 }
             }
         }
@@ -232,11 +241,12 @@ public class DragObject : MonoBehaviour
 
         if (targetGrid != null)
         {
-            // Sadece kameraya tam bakan (Öndeki) yüzeye izin ver
+            // Eşik değerini biraz daha esnetiyoruz (0.7 -> 0.45) 
+            // Çünkü eğik açılarda 0.88 gibi değerler gelebiliyor.
             float dot = Vector3.Dot(targetGrid.parent.forward, cam.transform.forward);
-            if (dot < 0.7f) // Öndeki yüzeyin dot product'ı 1.0'a yakındır
+            if (Mathf.Abs(dot) < 0.45f) 
             {
-                Debug.Log($"<color=gray>[DragObject]</color> Drop Denied: Yan yüzey ({dot:F2})");
+                Debug.Log($"<color=gray>[DragObject]</color> Drop Denied: Yan yüzey (|dot|={Mathf.Abs(dot):F2})");
                 targetGrid = null;
             }
         }
@@ -266,14 +276,21 @@ public class DragObject : MonoBehaviour
                 // -baseOffset içe gömüyordu, -baseOffset * 1.2f (veya daha fazlası) dışarı çeker.
                 float oz = is3D ? -baseOffset * 1.3f : -baseOffset;
                 
-                float preservedZ = transform.localEulerAngles.z;
-                
+                // --- YÖN VE HİZALAMA FIX ---
+                // Parçayı yeni yüzeye bağla (Dünya rotasyonunu koru)
                 transform.SetParent(targetGrid.parent, true);
-                transform.DOLocalMove(new Vector3(targetGrid.localPosition.x, targetGrid.localPosition.y, oz), 0.25f).SetEase(Ease.OutCubic);
-                transform.localRotation = Quaternion.Euler(0, 0, preservedZ);
 
-                LiquidTransfer lt = GetComponentInChildren<LiquidTransfer>();
-                if (lt != null) lt.CheckSymmetry();
+                // Local Z rotasyonunu en yakın 90 dereceye yuvarla
+                // Bu sayede parça görsel olarak bırakıldığı "diklikte" kalır ama grid'e oturur.
+                Vector3 currentLocalEuler = transform.localEulerAngles;
+                float snappedZ = Mathf.Round(currentLocalEuler.z / 90f) * 90f;
+                
+                transform.DOLocalMove(new Vector3(targetGrid.localPosition.x, targetGrid.localPosition.y, oz), 0.25f).SetEase(Ease.OutCubic);
+                transform.DOLocalRotate(new Vector3(0, 0, snappedZ), 0.15f).SetEase(Ease.OutBack).OnComplete(() => {
+                    LiquidTransfer lt = GetComponentInChildren<LiquidTransfer>();
+                    if (lt != null) lt.CheckSymmetry();
+                });
+
                 return;
             }
         }

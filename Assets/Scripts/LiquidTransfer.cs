@@ -9,7 +9,7 @@ public class LiquidTransfer : MonoBehaviour
     public Color liquidColor = Color.white;
     public float fillAmount = 0f; 
     public float transferDuration = 0.5f;
-    public float maxAdjacencyDistance = 1.5f; // Sadece 1 grid (yaklaşık 1.4 birim) mesafeye izin verir
+    public float maxAdjacencyDistance = 1.8f; // 3D'de köşe komşuları için biraz daha esnek (1.5 -> 1.8)
 
     [Header("Dilim (Slice) Ayarları")]
     public int currentSlices = 1;
@@ -168,9 +168,17 @@ public class LiquidTransfer : MonoBehaviour
         Vector3 otherFace = other.transform.up;
 
         // Benim baktığım yönde 'öteki' var mı? 
-        // Ve 'öteki' bana mı bakıyor?
-        return Vector3.Dot(myFace, dirToOther) > 0.8f &&
-               Vector3.Dot(otherFace, -dirToOther) > 0.8f;
+        // 3D küpte köşe komşuları ~45 derece açı yaptığı için 
+        // dot threshold'u (cos 45 = 0.707) değerinden biraz daha düşük (0.6) tutulmalı.
+        bool dot1 = Vector3.Dot(myFace, dirToOther) > 0.6f;
+        bool dot2 = Vector3.Dot(otherFace, -dirToOther) > 0.6f;
+
+        if (dot1 && dot2)
+        {
+            Debug.Log($"<color=cyan>[LiquidTransfer]</color> Adjacency MATCH: {gameObject.name} -> {other.gameObject.name} | Dist: {dist:F2}");
+        }
+
+        return dot1 && dot2;
     }
 
     // ── ColorMix Transfer ────────────────────────────────────────
