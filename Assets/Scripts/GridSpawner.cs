@@ -409,8 +409,9 @@ public class GridSpawner : MonoBehaviour
             float offsetPX = (pMinX + pMaxX) * (gridSize + spacing) / 2f;
             float offsetPY = (pMinY + pMaxY) * (gridSize + spacing) / 2f;
 
-            // 3D modunda parçaları yüzeye tam gömüyoruz.
-            float localOffset = objectOffset * 0.2f; 
+            // 3D modunda parçaları yüzeyin üzerine çıkarıyoruz (Gömülü kalmaması için).
+            // DragObject.cs içindeki yeni -baseOffset * 1.3f mantığıyla eşleşmeli.
+            float localOffset = objectOffset * 1.3f; 
             Vector3 localPos = new Vector3(
                 piece.gridPosition.x * (gridSize + spacing) - offsetPX,
                 piece.gridPosition.y * (gridSize + spacing) - offsetPY,

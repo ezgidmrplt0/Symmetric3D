@@ -15,49 +15,76 @@ public class CubeRotator : MonoBehaviour
     public float rotationDuration = 1.2f;
     public bool IsRotating => isAnimating;
 
+    private int activeFingerId = -1;
+
     void Update()
     {
         if (isAnimating) return;
 
-        // Ekrana basıldığında DragObject ile çakışmaması için basit bir kontrol:
-        // Raycast atarak "CubeRotator" boşluğuna mı tıklandığını anlayabiliriz, 
-        // ancak daha basit (hypercasual tarzı): sürükleme çok başlarsa cube döner, yavaşsa parça kayar.
-        // Biz swipe detection (kaydırma) yapalım.
-
-        if (Input.GetMouseButtonDown(0))
+        if (Input.touchCount > 0)
         {
-            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-            // Küp üzerinde bir DragObject (sıvı veya parça) yoksa döndür
-            // Hypercasual'da genellikle ekranın dış kısımlarından (veya boşluktan) sürüklenince döner.
-            bool hitDragObject = false;
-            if (Physics.Raycast(ray, out RaycastHit hit))
+            for (int i = 0; i < Input.touchCount; i++)
             {
-                if (hit.transform.GetComponentInParent<DragObject>() != null)
+                Touch t = Input.GetTouch(i);
+                if (t.phase == TouchPhase.Began && !isDragging)
                 {
-                    hitDragObject = true;
+                    if (TryStartRotation(t.position)) activeFingerId = t.fingerId;
+                }
+                else if (isDragging && activeFingerId == t.fingerId)
+                {
+                    if (t.phase == TouchPhase.Ended || t.phase == TouchPhase.Canceled)
+                    {
+                        EndRotation(t.position);
+                        activeFingerId = -1;
+                    }
                 }
             }
-
-            if (!hitDragObject)
-            {
-                startTouchPos = Input.mousePosition;
-                startRotation = transform.rotation;
-                isDragging = true;
-            }
         }
-        else if (Input.GetMouseButtonUp(0) && isDragging)
+        else
         {
-            isDragging = false;
-            
-            Vector2 endTouchPos = Input.mousePosition;
-            Vector2 diff = endTouchPos - startTouchPos;
-
-            if (diff.magnitude > swipeThreshold)
-            {
-                RotateCube(diff, startTouchPos);
-            }
+            if (Input.GetMouseButtonDown(0)) TryStartRotation(Input.mousePosition);
+            else if (Input.GetMouseButtonUp(0) && isDragging) EndRotation(Input.mousePosition);
         }
     }
+
+    bool TryStartRotation(Vector2 screenPos)
+    {
+        Ray ray = Camera.main.ScreenPointToRay(screenPos);
+        bool hitDragObject = false;
+
+        if (Physics.Raycast(ray, out RaycastHit hit))
+        {
+            DragObject dragComp = hit.transform.GetComponentInParent<DragObject>();
+            if (dragComp != null)
+            {
+                Transform face = dragComp.transform.parent;
+                if (face != null && face.name.StartsWith("Face_"))
+                {
+                    float dot = Vector3.Dot(face.forward, Camera.main.transform.forward);
+                    if (Mathf.Abs(dot) >= 0.4f) hitDragObject = true;
+                }
+                else hitDragObject = true;
+            }
+        }
+
+        if (!hitDragObject)
+        {
+            startTouchPos = screenPos;
+            startRotation = transform.rotation;
+            isDragging = true;
+            return true;
+        }
+        return false;
+    }
+
+    void EndRotation(Vector2 screenPos)
+    {
+        isDragging = false;
+        Vector2 diff = screenPos - startTouchPos;
+        if (diff.magnitude > swipeThreshold) RotateCube(diff, startTouchPos);
+    }
+
+    // ... (RotateCube and Rotate90 remain same)
 
     void RotateCube(Vector2 swipeDelta, Vector2 startPoint)
     {
@@ -125,6 +152,7 @@ public class CubeRotator : MonoBehaviour
         
         isAnimating = true;
         Quaternion targetRot = Quaternion.Euler(axis * 90f) * transform.localRotation;
+        Debug.Log($"[ROTATE] axis={axis} | euler={transform.localEulerAngles:F0} → {targetRot.eulerAngles:F0}");
         
         transform.DOLocalRotateQuaternion(targetRot, rotationDuration)
             .SetEase(Ease.InOutCubic)
