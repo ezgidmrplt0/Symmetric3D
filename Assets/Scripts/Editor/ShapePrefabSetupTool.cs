@@ -39,6 +39,38 @@ public class ShapePrefabSetupTool : EditorWindow
         if (GUILayout.Button("Setup Prism Prefab (Smart Bounds)", GUILayout.Height(30))) SetupPrism(prismPrefab);
     }
 
+    /// <summary>
+    /// Mesh'in sharedMesh.bounds'unu (mesh-local) root objesinin local uzayına dönüştürür.
+    /// Mesh child'ı farklı scale/offset'e sahip olsa bile marker'lar doğru konuma gelir.
+    /// </summary>
+    private Bounds GetRootLocalBounds(MeshFilter mf, Transform root)
+    {
+        Bounds meshB = mf.sharedMesh.bounds;
+        // 8 köşeyi mesh-local → dünya → root-local'a çevir, AABB al
+        Vector3 mn = Vector3.positiveInfinity;
+        Vector3 mx = Vector3.negativeInfinity;
+        Vector3[] corners = new Vector3[8]
+        {
+            new Vector3(meshB.min.x, meshB.min.y, meshB.min.z),
+            new Vector3(meshB.max.x, meshB.min.y, meshB.min.z),
+            new Vector3(meshB.min.x, meshB.max.y, meshB.min.z),
+            new Vector3(meshB.max.x, meshB.max.y, meshB.min.z),
+            new Vector3(meshB.min.x, meshB.min.y, meshB.max.z),
+            new Vector3(meshB.max.x, meshB.min.y, meshB.max.z),
+            new Vector3(meshB.min.x, meshB.max.y, meshB.max.z),
+            new Vector3(meshB.max.x, meshB.max.y, meshB.max.z),
+        };
+        foreach (var c in corners)
+        {
+            Vector3 rootLocal = root.InverseTransformPoint(mf.transform.TransformPoint(c));
+            mn = Vector3.Min(mn, rootLocal);
+            mx = Vector3.Max(mx, rootLocal);
+        }
+        Bounds b = new Bounds();
+        b.SetMinMax(mn, mx);
+        return b;
+    }
+
     private void SetupCube(GameObject prefab)
     {
         if (prefab == null) return;
@@ -46,18 +78,18 @@ public class ShapePrefabSetupTool : EditorWindow
         GameObject root = PrefabUtility.LoadPrefabContents(path);
         MeshFilter mf = root.GetComponentInChildren<MeshFilter>();
         if (mf == null) { Debug.LogError("Mesh bulunamadı!"); PrefabUtility.UnloadPrefabContents(root); return; }
-        
-        Bounds b = mf.sharedMesh.bounds;
+
+        Bounds b = GetRootLocalBounds(mf, root.transform);
         ShapeDefinition def = root.GetComponent<ShapeDefinition>() ?? root.AddComponent<ShapeDefinition>();
         ClearOldMarkers(root);
 
-        // 6 Side Setup
-        CreateMarker(root.transform, "Marker_Front",  new Vector3(b.center.x, b.center.y, b.min.z), new Vector3(0, 0, 0),    new Vector2(b.size.x, b.size.y));
-        CreateMarker(root.transform, "Marker_Back",   new Vector3(b.center.x, b.center.y, b.max.z), new Vector3(0, 180, 0),  new Vector2(b.size.x, b.size.y));
-        CreateMarker(root.transform, "Marker_Right",  new Vector3(b.max.x, b.center.y, b.center.z), new Vector3(0, -90, 0),  new Vector2(b.size.z, b.size.y));
-        CreateMarker(root.transform, "Marker_Left",   new Vector3(b.min.x, b.center.y, b.center.z), new Vector3(0, 90, 0),   new Vector2(b.size.z, b.size.y));
-        CreateMarker(root.transform, "Marker_Top",    new Vector3(b.center.x, b.max.y, b.center.z), new Vector3(90, 0, 0),   new Vector2(b.size.x, b.size.z));
-        CreateMarker(root.transform, "Marker_Bottom", new Vector3(b.center.x, b.min.y, b.center.z), new Vector3(-90, 0, 0),  new Vector2(b.size.x, b.size.z));
+        // 6 Side Setup — tüm koordinatlar root-local uzayında
+        CreateMarker(root.transform, "Marker_Front",  new Vector3(b.center.x, b.center.y, b.min.z), Quaternion.Euler(0, 0, 0),    new Vector2(b.size.x, b.size.y));
+        CreateMarker(root.transform, "Marker_Back",   new Vector3(b.center.x, b.center.y, b.max.z), Quaternion.Euler(0, 180, 0),  new Vector2(b.size.x, b.size.y));
+        CreateMarker(root.transform, "Marker_Right",  new Vector3(b.max.x, b.center.y, b.center.z), Quaternion.Euler(0, -90, 0),  new Vector2(b.size.z, b.size.y));
+        CreateMarker(root.transform, "Marker_Left",   new Vector3(b.min.x, b.center.y, b.center.z), Quaternion.Euler(0, 90, 0),   new Vector2(b.size.z, b.size.y));
+        CreateMarker(root.transform, "Marker_Top",    new Vector3(b.center.x, b.max.y, b.center.z), Quaternion.Euler(90, 0, 0),   new Vector2(b.size.x, b.size.z));
+        CreateMarker(root.transform, "Marker_Bottom", new Vector3(b.center.x, b.min.y, b.center.z), Quaternion.Euler(-90, 0, 0),  new Vector2(b.size.x, b.size.z));
 
         def.RefreshFaces();
         PrefabUtility.SaveAsPrefabAsset(root, path);
@@ -72,26 +104,35 @@ public class ShapePrefabSetupTool : EditorWindow
         GameObject root = PrefabUtility.LoadPrefabContents(path);
         MeshFilter mf = root.GetComponentInChildren<MeshFilter>();
         if (mf == null) { Debug.LogError("Mesh bulunamadı!"); PrefabUtility.UnloadPrefabContents(root); return; }
-        
-        Bounds b = mf.sharedMesh.bounds;
+
+        Bounds b = GetRootLocalBounds(mf, root.transform);
         ShapeDefinition def = root.GetComponent<ShapeDefinition>() ?? root.AddComponent<ShapeDefinition>();
         ClearOldMarkers(root);
 
-        // Pro Yöntem: Bounds boyutlarını kullanarak yüzeyleri ölçekleme
-        var mFront = CreateMarker(root.transform, "Marker_FrontTriangle", new Vector3(b.center.x, b.center.y, b.min.z), new Vector3(0, 0, 0), new Vector2(b.size.x, b.size.y));
+        var mFront = CreateMarker(root.transform, "Marker_FrontTriangle", new Vector3(b.center.x, b.center.y, b.min.z), Quaternion.Euler(0, 0, 0), new Vector2(b.size.x, b.size.y));
         mFront.surfaceType = ShapeFaceMarker.FaceSurfaceType.Triangle;
 
-        var mBack = CreateMarker(root.transform, "Marker_BackTriangle", new Vector3(b.center.x, b.center.y, b.max.z), new Vector3(0, 180, 0), new Vector2(b.size.x, b.size.y));
+        var mBack = CreateMarker(root.transform, "Marker_BackTriangle", new Vector3(b.center.x, b.center.y, b.max.z), Quaternion.Euler(0, 180, 0), new Vector2(b.size.x, b.size.y));
         mBack.surfaceType = ShapeFaceMarker.FaceSurfaceType.Triangle;
 
-        CreateMarker(root.transform, "Marker_BottomRect", new Vector3(b.center.x, b.min.y, b.center.z), new Vector3(-90, 0, 0), new Vector2(b.size.x, b.size.z));
+        CreateMarker(root.transform, "Marker_BottomRect", new Vector3(b.center.x, b.min.y, b.center.z), Quaternion.Euler(-90, 0, 0), new Vector2(b.size.x, b.size.z));
 
-        // Yan eğimli yüzeyler (Yarım genişlik ve yükseklik kullanarak yüzeyin ORTASINA tam oturtuyoruz)
+        // Yan eğimli yüzeyler — LookRotation ile doğru normal + root-local bounds'a göre gerçek merkez
         float sideWidth = Mathf.Sqrt(Mathf.Pow(b.size.x * 0.5f, 2) + Mathf.Pow(b.size.y, 2));
-        float angle = Mathf.Atan2(b.size.y, b.size.x * 0.5f) * Mathf.Rad2Deg;
 
-        CreateMarker(root.transform, "Marker_LeftRect",  new Vector3(b.min.x * 0.5f, b.center.y, b.center.z), new Vector3(90 - angle, 90, 0),  new Vector2(b.size.z, sideWidth)); 
-        CreateMarker(root.transform, "Marker_RightRect", new Vector3(b.max.x * 0.5f, b.center.y, b.center.z), new Vector3(90 - angle, -90, 0), new Vector2(b.size.z, sideWidth));
+        // Sol yüz: b.min.x'ten b.center.x'e yukarı çıkan eğim
+        Vector3 leftSlantDir  = new Vector3(b.center.x - b.min.x, b.size.y, 0f).normalized;
+        Vector3 leftOutward   = Vector3.Cross(Vector3.forward, leftSlantDir).normalized;
+        Vector3 leftCenter    = new Vector3((b.min.x + b.center.x) * 0.5f, b.center.y, b.center.z);
+        Quaternion leftRot    = Quaternion.LookRotation(-leftOutward, leftSlantDir);
+        CreateMarker(root.transform, "Marker_LeftRect", leftCenter, leftRot, new Vector2(b.size.z, sideWidth));
+
+        // Sağ yüz: b.max.x'ten b.center.x'e yukarı çıkan eğim
+        Vector3 rightSlantDir = new Vector3(b.center.x - b.max.x, b.size.y, 0f).normalized;
+        Vector3 rightOutward  = Vector3.Cross(rightSlantDir, Vector3.forward).normalized;
+        Vector3 rightCenter   = new Vector3((b.max.x + b.center.x) * 0.5f, b.center.y, b.center.z);
+        Quaternion rightRot   = Quaternion.LookRotation(-rightOutward, rightSlantDir);
+        CreateMarker(root.transform, "Marker_RightRect", rightCenter, rightRot, new Vector2(b.size.z, sideWidth));
 
         def.RefreshFaces();
         PrefabUtility.SaveAsPrefabAsset(root, path);
@@ -106,13 +147,13 @@ public class ShapePrefabSetupTool : EditorWindow
         foreach (GameObject g in toLog) DestroyImmediate(g);
     }
 
-    private ShapeFaceMarker CreateMarker(Transform parent, string name, Vector3 localPos, Vector3 localRot, Vector2 scale)
+    private ShapeFaceMarker CreateMarker(Transform parent, string name, Vector3 localPos, Quaternion localRot, Vector2 scale)
     {
         GameObject markerObj = GameObject.CreatePrimitive(PrimitiveType.Quad);
         markerObj.name = name;
         markerObj.transform.SetParent(parent);
         markerObj.transform.localPosition = localPos;
-        markerObj.transform.localRotation = Quaternion.Euler(localRot);
+        markerObj.transform.localRotation = localRot;
         markerObj.transform.localScale = new Vector3(scale.x, scale.y, 1f);
 
         // Gereksiz collider'ı temizle

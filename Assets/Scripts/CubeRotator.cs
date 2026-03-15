@@ -15,6 +15,10 @@ public class CubeRotator : MonoBehaviour
     public float rotationDuration = 1.2f;
     public bool IsRotating => isAnimating;
 
+    [Header("Shape")]
+    [Tooltip("Prizma için true yapın: Z-ekseni roll'u devre dışı kalır, yatay swipe her zaman Y döndürür.")]
+    public bool isPrism = false;
+
     private int activeFingerId = -1;
 
     void Update()
@@ -57,13 +61,22 @@ public class CubeRotator : MonoBehaviour
             DragObject dragComp = hit.transform.GetComponentInParent<DragObject>();
             if (dragComp != null)
             {
+                // Marker ismine değil ShapeFaceMarker bileşenine göre kontrol et.
+                // (Eski: "Face_" prefix, Yeni: "Marker_FrontTriangle" vb.)
                 Transform face = dragComp.transform.parent;
-                if (face != null && face.name.StartsWith("Face_"))
+                ShapeFaceMarker faceMarker = face != null ? face.GetComponent<ShapeFaceMarker>() : null;
+
+                if (faceMarker != null)
                 {
+                    // Yalnızca kameraya dönük yüzlerdeki parçalar sürüklenebilir/bloklayabilir
                     float dot = Vector3.Dot(face.forward, Camera.main.transform.forward);
                     if (Mathf.Abs(dot) >= 0.4f) hitDragObject = true;
                 }
-                else hitDragObject = true;
+                else
+                {
+                    // Flat2D veya marker dışı parent — direkt blokla
+                    hitDragObject = true;
+                }
             }
         }
 
@@ -96,25 +109,23 @@ public class CubeRotator : MonoBehaviour
 
         if (horizontal)
         {
-            // Ekranın alt yarısında mı? (0.0 - 1.0 arası, 0 alt kısımdır)
+            // Prizmada Z-roll (direksiyon gibi dönme) anlamsız; her zaman Y-ekseni kullan.
+            // Küpte ekranın alt %40'ında Z-ekseni (rolling) kullanılır.
             bool isLowerScreen = screenHeightFactor < 0.4f;
 
-            if (isLowerScreen)
+            if (!isPrism && isLowerScreen)
             {
-                // Z-Ekseni rotasyonu (Direksiyon gibi dönme)
-                // Sağa swipe -> Saat yönü dönsün istiyoruz
+                // Z-Ekseni rotasyonu (Direksiyon gibi dönme) — sadece küp
                 if (swipeDelta.x > 0) rotAxis = Vector3.forward;
                 else rotAxis = Vector3.back;
-                
                 Debug.Log($"<color=orange>[CubeRotator]</color> Z-Axis Rotation (Lower Screen: {screenHeightFactor:F2})");
             }
             else
             {
                 // Y-Ekseni rotasyonu (Normal sağ-sol çevirme)
-                if (swipeDelta.x > 0) rotAxis = Vector3.down; 
+                if (swipeDelta.x > 0) rotAxis = Vector3.down;
                 else rotAxis = Vector3.up;
-                
-                Debug.Log($"<color=cyan>[CubeRotator]</color> Y-Axis Rotation (Upper Screen: {screenHeightFactor:F2})");
+                Debug.Log($"<color=cyan>[CubeRotator]</color> Y-Axis Rotation (Upper Screen: {screenHeightFactor:F2}, isPrism: {isPrism})");
             }
         }
         else

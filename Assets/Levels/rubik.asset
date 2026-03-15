@@ -18,58 +18,55 @@ MonoBehaviour:
   gridX: 3
   gridY: 3
   customGridPositions: []
-  shapePrefab: {fileID: 50145709238587834, guid: f52ce685393b0cd44b2ef209df48c8e9, type: 3}
+  shapePrefab: {fileID: 1217424872966981867, guid: 48074df0d09288e459c997b0a1e3643e, type: 3}
   shapeFaces:
-  - faceId: FrontTriangle
-    surfaceType: 1
-    isActive: 1
-    gridX: 3
-    gridY: 3
-    customGridPositions: []
-  - faceId: BackTriangle
-    surfaceType: 1
-    isActive: 1
-    gridX: 3
-    gridY: 3
-    customGridPositions: []
-  - faceId: BottomRect
+  - faceId: Front
     surfaceType: 0
     isActive: 1
     gridX: 3
     gridY: 3
     customGridPositions: []
-  - faceId: LeftRect
+  - faceId: Back
     surfaceType: 0
     isActive: 1
     gridX: 3
     gridY: 3
     customGridPositions: []
-  - faceId: RightRect
+  - faceId: Right
     surfaceType: 0
     isActive: 1
     gridX: 3
     gridY: 3
-    customGridPositions:
-    - {x: 0, y: 0}
-    - {x: 0, y: 1}
-    - {x: 1, y: 0}
-    - {x: 1, y: 1}
-    - {x: 1, y: 2}
-    - {x: 2, y: 0}
-    - {x: 2, y: 1}
-    - {x: 2, y: 2}
-    - {x: 0, y: 2}
+    customGridPositions: []
+  - faceId: Left
+    surfaceType: 0
+    isActive: 1
+    gridX: 3
+    gridY: 3
+    customGridPositions: []
+  - faceId: Top
+    surfaceType: 0
+    isActive: 1
+    gridX: 3
+    gridY: 3
+    customGridPositions: []
+  - faceId: Bottom
+    surfaceType: 0
+    isActive: 1
+    gridX: 3
+    gridY: 3
+    customGridPositions: []
   pieces:
-  - gridPosition: {x: 1, y: 2}
-    faceIndex: 5
-    liquidColor: {r: 0.8, g: 0.1, b: 0.1, a: 1}
+  - gridPosition: {x: 0, y: 1}
+    faceIndex: 0
+    liquidColor: {r: 1, g: 0, b: 0, a: 1}
     currentSlices: 2
     rotationZ: 0
     isShadowTrigger: 0
     linkId: 0
   - gridPosition: {x: 2, y: 0}
-    faceIndex: 5
-    liquidColor: {r: 0.8, g: 0.1, b: 0.1, a: 1}
+    faceIndex: 0
+    liquidColor: {r: 1, g: 0, b: 0, a: 1}
     currentSlices: 2
     rotationZ: 180
     isShadowTrigger: 0

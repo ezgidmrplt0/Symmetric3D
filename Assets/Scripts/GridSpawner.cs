@@ -483,6 +483,7 @@ public class GridSpawner : MonoBehaviour
             return;
         }
 
+        // 1. Prefab'ı spawn et
         GameObject shapeRoot = Instantiate(level.shapePrefab, transform);
         shapeRoot.name = "SpawnedShapeRoot";
         shapeRoot.transform.localPosition = Vector3.zero;
@@ -495,10 +496,36 @@ public class GridSpawner : MonoBehaviour
             Debug.LogWarning("Spawn edilen shape prefabında ShapeDefinition yok.");
             return;
         }
-
         def.RefreshFaces();
         spawnedFaceRoots.Clear();
 
+        // 2. Mesh'in gerçek geometrik merkezini bul (sadece prefab mesh'i; henüz grid/piece yok)
+        //    MeshFilter üzerinden local bounds → world center: pivot kaymasından bağımsız, saf geometri.
+        Vector3 meshCenter = shapeRoot.transform.position; // fallback
+        MeshFilter mf = shapeRoot.GetComponentInChildren<MeshFilter>();
+        if (mf != null)
+            meshCenter = mf.transform.TransformPoint(mf.sharedMesh.bounds.center);
+
+        // 3. Pivot'u mesh merkezine koy; shapeRoot'u altına parent'la
+        //    Böylece CubeRotator pivot etrafında dönerken obje kendi merkezinde döner.
+        GameObject shapePivot = new GameObject("ShapePivotRoot");
+        shapePivot.transform.SetParent(transform);
+        shapePivot.transform.position = meshCenter;
+        shapePivot.transform.localRotation = Quaternion.identity;
+        activeSpawnedObjects.Add(shapePivot);
+
+        shapeRoot.transform.SetParent(shapePivot.transform, true); // worldPositionStays=true
+
+        // 4. CubeRotator pivot'a ekle (shapeRoot'a değil) — döner pivot, shapeRoot onunla döner
+        CubeRotator rotator = shapePivot.AddComponent<CubeRotator>();
+
+        // Prizma mı? — dönme eksenlerini buna göre ayarla
+        bool hasTri = false;
+        for (int fi = 0; fi < def.FaceCount; fi++)
+            if (def.GetFace(fi)?.surfaceType == ShapeFaceMarker.FaceSurfaceType.Triangle) { hasTri = true; break; }
+        rotator.isPrism = hasTri;
+
+        // 5. Grid ve parçaları spawn et
         float step = gridSize + spacing;
 
         for (int i = 0; i < def.FaceCount; i++)
@@ -511,22 +538,26 @@ public class GridSpawner : MonoBehaviour
             if (!faceData.isActive) continue;
 
             spawnedFaceRoots[i] = marker.transform;
-
             SpawnFaceGrid(level, marker, faceData, gridSize, step);
         }
 
         SpawnShapePieces(level, def, gridSize, step);
-        AdjustShapeCamera(shapeRoot.transform, def, gridSize);
+        AdjustShapeCamera(shapePivot.transform, def, gridSize);
     }
 
     void SpawnFaceGrid(LevelData level, ShapeFaceMarker marker, LevelData.FaceLayoutData faceData, float gridSize, float step)
     {
         int gx = faceData.gridX;
-        int gy = faceData.gridY;
+        // FIX 3: Üçgen yüzlerde gridY her zaman gridX'e eşit olmalı (cellsInThisRow = gx - y formülü bunu gerektirir)
+        int gy = (marker.surfaceType == ShapeFaceMarker.FaceSurfaceType.Triangle) ? gx : faceData.gridY;
 
-        // Marker'ın yerel uzayı -0.5 ile 0.5 arasındadır (Quad mesh yapısı)
-        float stepX = 1f / gx;
-        float stepY = 1f / gy;
+        // Marker'ın yerel uzayı -0.5 ile 0.5 arasındadır (Quad mesh yapısı).
+        // Üçgen yüzlerde areaScale ile grid'i biraz küçültüp merkeze çekiyoruz —
+        // böylece hücreler diagonal kenara dayanmak yerine içeride kalır.
+        bool isTriangle = marker.surfaceType == ShapeFaceMarker.FaceSurfaceType.Triangle;
+        float areaScale = isTriangle ? 0.82f : 1.0f;
+        float stepX = areaScale / gx;
+        float stepY = areaScale / gy;
         float startX = -0.5f;
         float startY = -0.5f;
 
@@ -538,12 +569,12 @@ public class GridSpawner : MonoBehaviour
             {
                 // --- PRO PIRAMIT MERKEZLEME (Row-Based Centering) ---
                 float xOffset = 0;
-                if (marker.surfaceType == ShapeFaceMarker.FaceSurfaceType.Triangle)
+                if (isTriangle)
                 {
-                    // Bu satırda kaç tane hücre olması gerektiğini bul (Örn: Alt=3, Orta=2, Tepe=1)
-                    int cellsInThisRow = gx - y;
-                    
-                    if (x >= cellsInThisRow) continue;
+                    // FIX 3: Clamp ile negatife düşmeyi engelle
+                    int cellsInThisRow = Mathf.Max(0, gx - y);
+
+                    if (cellsInThisRow == 0 || x >= cellsInThisRow) continue;
 
                     // Satırı tam merkeze almak için gereken kaydırma:
                     // (ToplamGenişlik - SatırGenişliği) / 2
@@ -562,8 +593,11 @@ public class GridSpawner : MonoBehaviour
                 gridObj.transform.localPosition = localPos;
                 gridObj.transform.localRotation = Quaternion.identity;
 
-                // DÜZELTME: Ölçek daha da düşürüldü (Daha zarif görüntü için 0.7f)
-                gridObj.transform.localScale = new Vector3(stepX * 0.7f, stepY * 0.7f, 0.05f);
+                // Üçgen yüzlerde diagonal kenara taşmayı önlemek için scale küçültüldü.
+                // Matematiksel sınır: hücre yarı-genişliği < stepX/4 (= 0.083 for gx=3).
+                // 0.7 * stepX/2 = 0.117 → taşar; 0.45 * stepX/2 = 0.075 → güvenli.
+                float gridVisualScale = (marker.surfaceType == ShapeFaceMarker.FaceSurfaceType.Triangle) ? 0.8f : 0.7f;
+                gridObj.transform.localScale = new Vector3(stepX * gridVisualScale, stepY * gridVisualScale, 0.05f);
 
                 activeSpawnedObjects.Add(gridObj);
                 occupied.Add(new Vector2Int(x, y));
@@ -587,34 +621,56 @@ public class GridSpawner : MonoBehaviour
             if (!faceData.isActive) continue;
 
             // Marker'ın yerel uzayı
-            float stepX = 1f / faceData.gridX;
-            float stepY = 1f / faceData.gridY;
+            // FIX 3: Üçgen yüzlerde gridY = gridX olarak zorla
+            bool isTriFace = marker.surfaceType == ShapeFaceMarker.FaceSurfaceType.Triangle;
+            int effectiveGridY = isTriFace ? faceData.gridX : faceData.gridY;
+            // SpawnFaceGrid ile aynı areaScale kullan; piece pozisyonları grid hücreleriyle hizalı kalır
+            float triAreaScale = isTriFace ? 0.82f : 1.0f;
+            float stepX = triAreaScale / faceData.gridX;
+            float stepY = triAreaScale / effectiveGridY;
             float startX = -0.5f;
             float startY = -0.5f;
 
             // --- PRO PIRAMIT MERKEZLEME (Pieces) ---
             float xOffset = 0;
-            if (marker.surfaceType == ShapeFaceMarker.FaceSurfaceType.Triangle)
+            if (isTriFace)
             {
-                int gy = faceData.gridY;
-                int cellsInThisRow = faceData.gridX - piece.gridPosition.y;
+                // FIX 3: Clamp ile negatife düşmeyi engelle
+                int cellsInThisRow = Mathf.Max(0, faceData.gridX - piece.gridPosition.y);
                 float rowWidth = cellsInThisRow * stepX;
                 xOffset = (1.0f - rowWidth) * 0.5f;
             }
 
+            // Z burada placeholder; gerçek offset scale hesabından sonra aşağıda set edilir
             Vector3 localPos = new Vector3(
                 startX + (piece.gridPosition.x + 0.5f) * stepX + xOffset,
                 startY + (piece.gridPosition.y + 0.5f) * stepY,
-                -(objectOffset + marker.surfaceOffset)
+                0f
             );
 
             GameObject newObj = Instantiate(objectPrefab, marker.transform);
             newObj.transform.localPosition = localPos;
             newObj.transform.localRotation = Quaternion.Euler(0, 0, piece.rotationZ);
-            
-            // --- PIECE SCALE (Daha Küçük ve Zarif) ---
-            float pieceScale = (1f / faceData.gridX) * 0.45f;
-            newObj.transform.localScale = Vector3.one * pieceScale;
+
+            // Piece scale: hücrenin %72'sini doldur (2D grid mantığıyla tutarlı).
+            // Eğik yüzlerde marker asimetrik scale'e sahip (b.size.z × sideWidth);
+            // her eksen için local scale ayrı hesaplanır, piece dünyada kare görünür.
+            {
+                Vector3 ws = marker.transform.lossyScale;
+                // triAreaScale kullanarak gerçek hücre boyutunu baz al
+                float cellWorldW = (triAreaScale / faceData.gridX) * Mathf.Abs(ws.x);
+                float cellWorldH = (triAreaScale / effectiveGridY) * Mathf.Abs(ws.y);
+                float worldSize  = Mathf.Min(cellWorldW, cellWorldH) * 0.72f;
+                newObj.transform.localScale = new Vector3(
+                    worldSize / Mathf.Abs(ws.x),
+                    worldSize / Mathf.Abs(ws.y),
+                    worldSize
+                );
+
+                // Z offset: parça boyutuna orantılı — parçalar yüzeye yakın durur
+                float zOff = worldSize * 0.5f + marker.surfaceOffset;
+                newObj.transform.localPosition = new Vector3(localPos.x, localPos.y, -zOff);
+            }
 
             activeSpawnedObjects.Add(newObj);
 
@@ -682,7 +738,7 @@ public class GridSpawner : MonoBehaviour
             target.y += cameraVerticalOffset;
 
             float maxSize = Mathf.Max(b.size.x, b.size.y, b.size.z);
-            float distance = Mathf.Max(6f, maxSize * 2.2f);
+            float distance = Mathf.Max(4f, maxSize * 1.6f);
 
             Vector3 camPos = target - cam.transform.forward * distance;
             cam.transform.DOMove(camPos, 0.6f).SetEase(Ease.OutCubic);

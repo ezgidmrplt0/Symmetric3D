@@ -13,6 +13,8 @@ public class DragObject : MonoBehaviour
     private Transform startParent;
     private Vector2 startScreenPos;
     private float startTime;
+    private float cachedWorldSize;   // lossyScale.x before unparenting
+    private float cachedLocalRotZ;   // localEulerAngles.z before unparenting
 
     [Header("Ayarlar")]
     [Header("Görsel (Drag)")]
@@ -80,12 +82,13 @@ public class DragObject : MonoBehaviour
                 DOTween.Kill(transform);
                 
                 // --- 3D YÜZEY KİLİDİ (SADECE ÖN YÜZ AKTİF) ---
-                if (transform.parent != null && (transform.parent.name.StartsWith("Face_") || transform.parent.GetComponent<ShapeFaceMarker>() != null))
+                // ShapeFaceMarker bileşenine bakarak 3D yüzey kontrolü yap (isim bağımsız)
+                ShapeFaceMarker parentMarker = transform.parent != null
+                    ? transform.parent.GetComponent<ShapeFaceMarker>() : null;
+                if (parentMarker != null)
                 {
-                    // Dot product'ın mutlak değerini kontrol edelim (Back-face zaten raycast ile elenir)
-                    // 0.45 eşiği (approx 63 derece) oldukça güvenli bir ön yüzey seçimi sağlar.
                     float dot = Vector3.Dot(transform.parent.forward, cam.transform.forward);
-                    if (Mathf.Abs(dot) < 0.45f) 
+                    if (Mathf.Abs(dot) < 0.45f)
                     {
                         Debug.Log($"<color=gray>[DragObject]</color> Pick Denied: Yan yüzey (|dot|={Mathf.Abs(dot):F2})");
                         return;
@@ -102,6 +105,8 @@ public class DragObject : MonoBehaviour
                 wrapCooldown = 0.2f; // Picking anlık dönmeyi engellemek için kısa bir başlangıç cooldown'ı
 
                 // Küpten kopar → Dünya uzayında bağımsız kalsın
+                cachedWorldSize = transform.lossyScale.x;
+                cachedLocalRotZ = transform.localEulerAngles.z;
                 transform.SetParent(null, true);
 
                 Vector3 objectScreenPos = cam.WorldToScreenPoint(transform.position);
@@ -176,34 +181,29 @@ public class DragObject : MonoBehaviour
             Vector3 rotAxis = Vector3.zero;
             float screenHeightFactor = screenPos.y / Screen.height;
             
-            // Yatay kontrol
+            GridSpawner spawner = FindObjectOfType<GridSpawner>();
+            CubeRotator rotator = spawner?.GetComponentInChildren<CubeRotator>();
+            bool isPrism = rotator != null && rotator.isPrism;
+
+            // Yatay kontrol — CubeRotator ile aynı mantık
             if (Mathf.Abs(offset.x) > hThreshold)
             {
-                // CubeRotator ile aynı mantık: Ekranın alt %40'ında ise Z-Ekseni (Rolling)
-                if (screenHeightFactor < 0.4f)
-                {
+                // Prizmada Z-roll yok; küpte ekranın alt %40'ında Z kullanılır
+                if (!isPrism && screenHeightFactor < 0.4f)
                     rotAxis = offset.x > 0 ? Vector3.forward : Vector3.back;
-                }
                 else
-                {
-                    rotAxis = offset.x > 0 ? Vector3.down : Vector3.up; 
-                }
+                    rotAxis = offset.x > 0 ? Vector3.down : Vector3.up;
             }
             else if (Mathf.Abs(offset.y) > vThreshold)
             {
                 rotAxis = offset.y > 0 ? Vector3.right : Vector3.left;
             }
 
-            if (rotAxis != Vector3.zero)
+            if (rotAxis != Vector3.zero && rotator != null && !rotator.IsRotating)
             {
-                GridSpawner spawner = FindObjectOfType<GridSpawner>();
-                CubeRotator rotator = spawner?.GetComponentInChildren<CubeRotator>();
-                if (rotator != null && !rotator.IsRotating)
-                {
-                    rotator.Rotate90(rotAxis);
-                    wrapCooldown = rotator.rotationDuration * 0.8f; 
-                    Debug.Log($"<color=orange>[DragObject]</color> Continuous Rotation Axis: {rotAxis} (HeightFactor: {screenHeightFactor:F2})");
-                }
+                rotator.Rotate90(rotAxis);
+                wrapCooldown = rotator.rotationDuration * 0.8f;
+                Debug.Log($"<color=orange>[DragObject]</color> Continuous Rotation Axis: {rotAxis} (HeightFactor: {screenHeightFactor:F2})");
             }
         }
     }
@@ -241,14 +241,17 @@ public class DragObject : MonoBehaviour
 
         if (targetGrid != null)
         {
-            // Eşik değerini biraz daha esnetiyoruz (0.7 -> 0.45) 
-            // Çünkü eğik açılarda 0.88 gibi değerler gelebiliyor.
-            // targetGrid.parent marker objesidir
-            float dot = Vector3.Dot(targetGrid.parent.forward, cam.transform.forward);
-            if (Mathf.Abs(dot) < 0.45f) 
+            // Hedef grid'in parent'ı bir ShapeFaceMarker ise yüzey açısını kontrol et
+            ShapeFaceMarker dropMarker = targetGrid.parent != null
+                ? targetGrid.parent.GetComponent<ShapeFaceMarker>() : null;
+            if (dropMarker != null)
             {
-                Debug.Log($"<color=gray>[DragObject]</color> Drop Denied: Yan yüzey (|dot|={Mathf.Abs(dot):F2})");
-                targetGrid = null;
+                float dot = Vector3.Dot(targetGrid.parent.forward, cam.transform.forward);
+                if (Mathf.Abs(dot) < 0.45f)
+                {
+                    Debug.Log($"<color=gray>[DragObject]</color> Drop Denied: Yan yüzey (|dot|={Mathf.Abs(dot):F2})");
+                    targetGrid = null;
+                }
             }
         }
 
@@ -269,23 +272,38 @@ public class DragObject : MonoBehaviour
             if (!isFull)
             {
                 // --- DERİNLİK FIX (GRID ÜSTÜNDE DURMA) ---
-                float baseOffset = (spawner != null) ? spawner.objectOffset : 0.3f;
                 bool is3D = (spawner != null && spawner.levels != null && spawner.levels[spawner.currentLevelIndex].boardMode == LevelData.BoardMode.Shape3D);
-                
-                // 3D modunda grid kalınlığı ve parça yüksekliğini dengelemek için 
-                // GridSpawner'ın kullandığı mantığın tersini (daha dışarıda) kullanmalıyız. 
-                // -baseOffset içe gömüyordu, -baseOffset * 1.2f (veya daha fazlası) dışarı çeker.
-                float oz = is3D ? -baseOffset * 1.3f : -baseOffset;
-                
+
+                float oz;
+                ShapeFaceMarker dropFaceMarker = targetGrid.parent?.GetComponent<ShapeFaceMarker>();
+                float surfaceOff = dropFaceMarker?.surfaceOffset ?? 0.01f;
+                if (is3D)
+                {
+                    // cachedWorldSize = lossyScale.x iken parça bağımsızdı → doğru dünya boyutu
+                    oz = -(cachedWorldSize * 0.5f + surfaceOff);
+                }
+                else
+                {
+                    oz = -((spawner != null) ? spawner.objectOffset : 0.3f);
+                }
+
                 // --- YÖN VE HİZALAMA FIX ---
                 // Parçayı yeni yüzeye bağla (Dünya rotasyonunu koru)
                 transform.SetParent(targetGrid.parent, true);
 
-                // Local Z rotasyonunu en yakın 90 dereceye yuvarla
-                // Bu sayede parça görsel olarak bırakıldığı "diklikte" kalır ama grid'e oturur.
-                Vector3 currentLocalEuler = transform.localEulerAngles;
-                float snappedZ = Mathf.Round(currentLocalEuler.z / 90f) * 90f;
-                
+                // Marker'ın lossyScale'i unreliable olabilir (rotasyonlu+non-uniform parent);
+                // cachedWorldSize kullanarak local scale'i elle düzelt.
+                if (is3D)
+                {
+                    Vector3 ws = targetGrid.parent != null ? targetGrid.parent.lossyScale : Vector3.one;
+                    float sx = Mathf.Abs(ws.x) > 0.001f ? cachedWorldSize / Mathf.Abs(ws.x) : transform.localScale.x;
+                    float sy = Mathf.Abs(ws.y) > 0.001f ? cachedWorldSize / Mathf.Abs(ws.y) : transform.localScale.y;
+                    transform.localScale = new Vector3(sx, sy, transform.localScale.z);
+                }
+
+                // Parçanın orijinal Z rotasyonunu (pick anındaki) en yakın 90°'e yuvarla
+                float snappedZ = Mathf.Round(cachedLocalRotZ / 90f) * 90f;
+
                 transform.DOLocalMove(new Vector3(targetGrid.localPosition.x, targetGrid.localPosition.y, oz), 0.25f).SetEase(Ease.OutCubic);
                 transform.DOLocalRotate(new Vector3(0, 0, snappedZ), 0.15f).SetEase(Ease.OutBack).OnComplete(() => {
                     LiquidTransfer lt = GetComponentInChildren<LiquidTransfer>();
