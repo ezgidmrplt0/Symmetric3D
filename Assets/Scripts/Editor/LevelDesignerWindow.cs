@@ -17,7 +17,6 @@ public class LevelDesignerWindow : EditorWindow
 
     private bool isGridEditMode = false;
     private int currentFaceIndex = 0;
-    private string[] faceNames = { "Ön", "Arka", "Sağ", "Sol", "Üst", "Alt" };
 
     private Vector2 scrollPos;
 
@@ -40,8 +39,7 @@ public class LevelDesignerWindow : EditorWindow
         currentLevel = (LevelData)EditorGUILayout.ObjectField("Düzenlenen Level", currentLevel, typeof(LevelData), false);
         if (EditorGUI.EndChangeCheck() && currentLevel != null)
         {
-            InitCubeFacesIfNeeded(currentLevel);
-            if (!currentLevel.is3DCube)
+            if (currentLevel.boardMode == LevelData.BoardMode.Flat2D)
             {
                 gridX = currentLevel.gridX;
                 gridY = currentLevel.gridY;
@@ -111,54 +109,91 @@ public class LevelDesignerWindow : EditorWindow
 
         GUILayout.Space(6);
 
-        // ── 2. BÖLÜM: Grid Boyutu ve 3D ────────────────────────────────
-        DrawSectionHeader("📐 Grid Boyutu ve 3D Mod");
+        // ── 2. BÖLÜM: Grid Boyutu ve Shape ────────────────────────────────
+        DrawSectionHeader("📐 Grid Boyutu ve Shape Modu");
 
         EditorGUI.BeginChangeCheck();
-        bool newIs3D = EditorGUILayout.Toggle("3D Küp Modu?", currentLevel.is3DCube);
+        LevelData.BoardMode newMode = (LevelData.BoardMode)EditorGUILayout.EnumPopup("Board Mode", currentLevel.boardMode);
         if (EditorGUI.EndChangeCheck())
         {
-            Undo.RecordObject(currentLevel, "3D Mode Değiştir");
-            currentLevel.is3DCube = newIs3D;
+            Undo.RecordObject(currentLevel, "Board Mode Değiştir");
+            currentLevel.boardMode = newMode;
             EditorUtility.SetDirty(currentLevel);
         }
 
         GUILayout.Space(4);
 
-        if (currentLevel.is3DCube)
+        if (currentLevel.boardMode == LevelData.BoardMode.Shape3D)
         {
-            currentFaceIndex = GUILayout.Toolbar(currentFaceIndex, faceNames, GUILayout.Height(30));
-            GUILayout.Space(4);
-
-            LevelData.FaceData activeFace = currentLevel.cubeFaces[currentFaceIndex];
-            
             EditorGUI.BeginChangeCheck();
-            bool faceActive = EditorGUILayout.Toggle("Yüzey Aktif mi?", activeFace.isActive);
+            GameObject newPrefab = (GameObject)EditorGUILayout.ObjectField("Shape Prefab", currentLevel.shapePrefab, typeof(GameObject), false);
             if (EditorGUI.EndChangeCheck())
             {
-                Undo.RecordObject(currentLevel, "Yüzey Aktifliği Değiştir");
-                activeFace.isActive = faceActive;
+                Undo.RecordObject(currentLevel, "Shape Prefab Değiştir");
+                currentLevel.shapePrefab = newPrefab;
+                currentLevel.SyncShapeFacesFromPrefab();
                 EditorUtility.SetDirty(currentLevel);
             }
 
-            if (activeFace.isActive)
+            if (currentLevel.shapePrefab != null)
             {
-                EditorGUI.BeginChangeCheck();
-                gridX = EditorGUILayout.IntSlider("Genişlik (X)", activeFace.gridX, 1, 10);
-                gridY = EditorGUILayout.IntSlider("Yükseklik (Y)", activeFace.gridY, 1, 10);
-                if (EditorGUI.EndChangeCheck())
+                if (GUILayout.Button("🔄 Prefab'dan Yüzeyleri Senkronize Et"))
                 {
-                    Undo.RecordObject(currentLevel, "Yüzey Grid Boyutu Değiştir");
-                    activeFace.gridX = gridX;
-                    activeFace.gridY = gridY;
-                    EditorUtility.SetDirty(currentLevel);
+                    Undo.RecordObject(currentLevel, "Sync Faces");
+                    currentLevel.SyncShapeFacesFromPrefab();
+                }
+
+                if (currentLevel.shapeFaces.Count > 0)
+                {
+                    string[] faceNames = new string[currentLevel.shapeFaces.Count];
+                    for (int i = 0; i < faceNames.Length; i++) faceNames[i] = currentLevel.shapeFaces[i].faceId;
+
+                    currentFaceIndex = GUILayout.Toolbar(currentFaceIndex, faceNames, GUILayout.Height(30));
+                    GUILayout.Space(4);
+
+                    if (currentFaceIndex >= currentLevel.shapeFaces.Count) currentFaceIndex = 0;
+
+                    LevelData.FaceLayoutData activeFace = currentLevel.shapeFaces[currentFaceIndex];
+                    
+                    EditorGUI.BeginChangeCheck();
+                    bool faceActive = EditorGUILayout.Toggle("Yüzey Aktif mi?", activeFace.isActive);
+                    ShapeFaceMarker.FaceSurfaceType surfaceType = (ShapeFaceMarker.FaceSurfaceType)EditorGUILayout.EnumPopup("Yüzey Tipi", activeFace.surfaceType);
+                    if (EditorGUI.EndChangeCheck())
+                    {
+                        Undo.RecordObject(currentLevel, "Yüzey Ayarlarını Değiştir");
+                        activeFace.isActive = faceActive;
+                        activeFace.surfaceType = surfaceType;
+                        EditorUtility.SetDirty(currentLevel);
+                    }
+
+                    if (activeFace.isActive)
+                    {
+                        EditorGUI.BeginChangeCheck();
+                        gridX = EditorGUILayout.IntSlider("Genişlik (X)", activeFace.gridX, 1, 10);
+                        gridY = EditorGUILayout.IntSlider("Yükseklik (Y)", activeFace.gridY, 1, 10);
+                        if (EditorGUI.EndChangeCheck())
+                        {
+                            Undo.RecordObject(currentLevel, "Yüzey Grid Boyutu Değiştir");
+                            activeFace.gridX = gridX;
+                            activeFace.gridY = gridY;
+                            EditorUtility.SetDirty(currentLevel);
+                        }
+                    }
+                    else
+                    {
+                        EditorGUILayout.HelpBox("Bu yüzey pasif durumda. Parça eklenemez.", MessageType.Warning);
+                        EditorGUILayout.EndScrollView();
+                        return;
+                    }
+                }
+                else
+                {
+                    EditorGUILayout.HelpBox("Prefab üzerinde yüzey bulunamadı. ShapeDefinition eklediğinizden emin olun.", MessageType.Warning);
                 }
             }
             else
             {
-                EditorGUILayout.HelpBox("Bu yüzey pasif durumda. Parça eklenemez.", MessageType.Warning);
-                EditorGUILayout.EndScrollView();
-                return;
+                EditorGUILayout.HelpBox("Lütfen bir Shape Prefab atayın.", MessageType.Info);
             }
         }
         else
@@ -322,7 +357,9 @@ public class LevelDesignerWindow : EditorWindow
 
     void DrawGrid()
     {
-        var targetCustomGrid = currentLevel.is3DCube ? currentLevel.cubeFaces[currentFaceIndex].customGridPositions : currentLevel.customGridPositions;
+        var targetCustomGrid = currentLevel.boardMode == LevelData.BoardMode.Shape3D 
+            ? (currentLevel.shapeFaces.Count > currentFaceIndex ? currentLevel.shapeFaces[currentFaceIndex].customGridPositions : new System.Collections.Generic.List<Vector2Int>()) 
+            : currentLevel.customGridPositions;
 
         for (int y = gridY - 1; y >= 0; y--)
         {
@@ -332,6 +369,26 @@ public class LevelDesignerWindow : EditorWindow
             for (int x = 0; x < gridX; x++)
             {
                 Vector2Int pos = new Vector2Int(x, y);
+                
+                // --- PRO TRIANGLE UI LAYOUT (Centered Pyramid) ---
+                bool isVisualCellDisabled = false;
+                float uiXOffset = 0;
+
+                if (currentLevel.boardMode == LevelData.BoardMode.Shape3D && currentLevel.shapeFaces.Count > currentFaceIndex)
+                {
+                    var face = currentLevel.shapeFaces[currentFaceIndex];
+                    if (face.surfaceType == ShapeFaceMarker.FaceSurfaceType.Triangle)
+                    {
+                        int cellsInThisRow = gridX - y; // Y=2 -> 1, Y=1 -> 2, Y=0 -> 3
+                        if (x >= cellsInThisRow) isVisualCellDisabled = true;
+                    }
+                }
+
+                if (isVisualCellDisabled)
+                {
+                    continue; // Gizli hücreleri tamamen atla
+                }
+
                 bool isCellActive = targetCustomGrid.Count == 0 || targetCustomGrid.Contains(pos);
                 LevelData.PieceData piece = GetPieceAt(x, y);
 
@@ -417,35 +474,23 @@ public class LevelDesignerWindow : EditorWindow
                     }
                     else if (isCellActive)
                     {
-                        if (e.button == 0) 
+                        if (e.button == 0) // Left click
                         {
                             Undo.RecordObject(currentLevel, "Parça Ekle/Güncelle");
                             if (piece == null)
                             {
                                 piece = new LevelData.PieceData { gridPosition = new Vector2Int(x, y) };
-                                if (currentLevel.is3DCube) piece.faceIndex = currentFaceIndex;
-                                piece.liquidColor   = brushColor;
-                                piece.currentSlices = brushSlices;
-                                piece.rotationZ     = brushRotationZ;
-                                piece.isShadowTrigger = brushIsShadowTrigger;
-                                piece.linkId        = brushLinkId;
+                                if (currentLevel.boardMode == LevelData.BoardMode.Shape3D) piece.faceIndex = currentFaceIndex;
                                 currentLevel.pieces.Add(piece);
                             }
-                            else
-                            {
-                                brushColor = piece.liquidColor;
-                                brushSlices = piece.currentSlices;
-                                brushRotationZ = piece.rotationZ;
-                                brushIsShadowTrigger = piece.isShadowTrigger;
-                                brushLinkId = piece.linkId;
 
-                                piece.liquidColor   = brushColor;
-                                piece.currentSlices = brushSlices;
-                                piece.rotationZ     = brushRotationZ;
-                                piece.isShadowTrigger = brushIsShadowTrigger;
-                                piece.linkId        = brushLinkId;
-                                if (currentLevel.is3DCube) piece.faceIndex = currentFaceIndex;
-                            }
+                            piece.liquidColor = brushColor;
+                            piece.currentSlices = brushSlices;
+                            piece.rotationZ = brushRotationZ;
+                            piece.isShadowTrigger = brushIsShadowTrigger;
+                            piece.linkId = brushLinkId;
+                            if (currentLevel.boardMode == LevelData.BoardMode.Shape3D) piece.faceIndex = currentFaceIndex;
+
                             EditorUtility.SetDirty(currentLevel);
                         }
                     }
@@ -462,7 +507,7 @@ public class LevelDesignerWindow : EditorWindow
 
     LevelData.PieceData GetPieceAt(int x, int y) 
     {
-        if (currentLevel.is3DCube)
+        if (currentLevel.boardMode == LevelData.BoardMode.Shape3D)
             return currentLevel.pieces.Find(p => p.faceIndex == currentFaceIndex && p.gridPosition.x == x && p.gridPosition.y == y);
         else
             return currentLevel.pieces.Find(p => p.gridPosition.x == x && p.gridPosition.y == y);
@@ -488,7 +533,6 @@ public class LevelDesignerWindow : EditorWindow
             LevelData newLevel = ScriptableObject.CreateInstance<LevelData>();
             newLevel.gridX = gridX;
             newLevel.gridY = gridY;
-            InitCubeFacesIfNeeded(newLevel);
 
             AssetDatabase.CreateAsset(newLevel, path);
             newLevel.levelDisplayName = newLevel.name;
@@ -498,21 +542,6 @@ public class LevelDesignerWindow : EditorWindow
         }
     }
 
-    void InitCubeFacesIfNeeded(LevelData level)
-    {
-        if (level.cubeFaces == null || level.cubeFaces.Length != 6)
-        {
-            level.cubeFaces = new LevelData.FaceData[6];
-            for (int i = 0; i < 6; i++) level.cubeFaces[i] = new LevelData.FaceData();
-        }
-        else
-        {
-            for (int i = 0; i < 6; i++)
-            {
-                if (level.cubeFaces[i] == null) level.cubeFaces[i] = new LevelData.FaceData();
-            }
-        }
-    }
 
     private int[] GetAvailableSlices(LevelData.LevelType type)
     {

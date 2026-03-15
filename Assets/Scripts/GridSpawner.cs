@@ -32,6 +32,7 @@ public class GridSpawner : MonoBehaviour
 
     private List<GameObject> activeSpawnedObjects = new List<GameObject>();
     private List<GameObject> activeFrameSegments = new List<GameObject>();
+    private Dictionary<int, Transform> spawnedFaceRoots = new Dictionary<int, Transform>();
 
     // Kolaylık property'leri
     public List<LevelData> levels => sequence != null ? sequence.levels : null;
@@ -167,9 +168,9 @@ public class GridSpawner : MonoBehaviour
 
         float gridSize = gridPrefab.transform.localScale.x;
 
-        if (level.is3DCube && level.cubeFaces != null && level.cubeFaces.Length == 6)
+        if (level.boardMode == LevelData.BoardMode.Shape3D)
         {
-            Spawn3DCubeLevel(level, gridSize);
+            SpawnShapeLevel(level, gridSize);
             return;
         }
 
@@ -292,7 +293,7 @@ public class GridSpawner : MonoBehaviour
 
         // Küpün en geniş yüzeyinden yarıçapı hesapla
         float maxDim = 0;
-        foreach(var f in level.cubeFaces) {
+        foreach(var f in level.shapeFaces) { // LevelData structure changed, but keeping this for compatibility or updating to shapeFaces
             if(!f.isActive) continue;
             if(f.gridX > maxDim) maxDim = f.gridX;
             if(f.gridY > maxDim) maxDim = f.gridY;
@@ -337,7 +338,8 @@ public class GridSpawner : MonoBehaviour
 
         for (int i = 0; i < 6; i++)
         {
-            var faceData = level.cubeFaces[i];
+            if (i >= level.shapeFaces.Count) break;
+            var faceData = level.shapeFaces[i];
             if (!faceData.isActive) continue;
 
             GameObject facePivot = new GameObject($"Face_{i}");
@@ -391,17 +393,17 @@ public class GridSpawner : MonoBehaviour
         foreach (var piece in level.pieces)
         {
             int fIdx = piece.faceIndex;
-            if (fIdx < 0 || fIdx > 5 || !level.cubeFaces[fIdx].isActive) continue;
+            if (fIdx < 0 || fIdx >= level.shapeFaces.Count || !level.shapeFaces[fIdx].isActive) continue;
             
             Transform facePivot = cubeRoot.transform.Find($"Face_{fIdx}");
             if (facePivot == null) continue;
 
-            float pMinX=0, pMaxX=level.cubeFaces[fIdx].gridX-1;
-            float pMinY=0, pMaxY=level.cubeFaces[fIdx].gridY-1;
-            bool isFaceCustom = level.cubeFaces[fIdx].customGridPositions != null && level.cubeFaces[fIdx].customGridPositions.Count > 0;
+            float pMinX=0, pMaxX=level.shapeFaces[fIdx].gridX-1;
+            float pMinY=0, pMaxY=level.shapeFaces[fIdx].gridY-1;
+            bool isFaceCustom = level.shapeFaces[fIdx].customGridPositions != null && level.shapeFaces[fIdx].customGridPositions.Count > 0;
             if (isFaceCustom) {
                 pMinX=pMinY=float.MaxValue; pMaxX=pMaxY=float.MinValue;
-                foreach (var pos in level.cubeFaces[fIdx].customGridPositions) {
+                foreach (var pos in level.shapeFaces[fIdx].customGridPositions) {
                     if (pos.x<pMinX) pMinX=pos.x; if (pos.x>pMaxX) pMaxX=pos.x;
                     if (pos.y<pMinY) pMinY=pos.y; if (pos.y>pMaxY) pMaxY=pos.y;
                 }
@@ -470,6 +472,220 @@ public class GridSpawner : MonoBehaviour
             Vector3 camTarget = cubeCenter - cam.transform.forward * targetDistance;
             camTarget.y += cameraVerticalOffset; // Mevcut vertikal offseti koru
             cam.transform.DOMove(camTarget, 0.6f).SetEase(Ease.OutCubic);
+        }
+    }
+
+    void SpawnShapeLevel(LevelData level, float gridSize)
+    {
+        if (level.shapePrefab == null)
+        {
+            Debug.LogWarning("Shape3D level ama shapePrefab atanmamış.");
+            return;
+        }
+
+        GameObject shapeRoot = Instantiate(level.shapePrefab, transform);
+        shapeRoot.name = "SpawnedShapeRoot";
+        shapeRoot.transform.localPosition = Vector3.zero;
+        shapeRoot.transform.localRotation = Quaternion.identity;
+        activeSpawnedObjects.Add(shapeRoot);
+
+        ShapeDefinition def = shapeRoot.GetComponent<ShapeDefinition>();
+        if (def == null)
+        {
+            Debug.LogWarning("Spawn edilen shape prefabında ShapeDefinition yok.");
+            return;
+        }
+
+        def.RefreshFaces();
+        spawnedFaceRoots.Clear();
+
+        float step = gridSize + spacing;
+
+        for (int i = 0; i < def.FaceCount; i++)
+        {
+            ShapeFaceMarker marker = def.GetFace(i);
+            if (marker == null) continue;
+            if (i >= level.shapeFaces.Count) continue;
+
+            var faceData = level.shapeFaces[i];
+            if (!faceData.isActive) continue;
+
+            spawnedFaceRoots[i] = marker.transform;
+
+            SpawnFaceGrid(level, marker, faceData, gridSize, step);
+        }
+
+        SpawnShapePieces(level, def, gridSize, step);
+        AdjustShapeCamera(shapeRoot.transform, def, gridSize);
+    }
+
+    void SpawnFaceGrid(LevelData level, ShapeFaceMarker marker, LevelData.FaceLayoutData faceData, float gridSize, float step)
+    {
+        int gx = faceData.gridX;
+        int gy = faceData.gridY;
+
+        // Marker'ın yerel uzayı -0.5 ile 0.5 arasındadır (Quad mesh yapısı)
+        float stepX = 1f / gx;
+        float stepY = 1f / gy;
+        float startX = -0.5f;
+        float startY = -0.5f;
+
+        HashSet<Vector2Int> occupied = new HashSet<Vector2Int>();
+
+        for (int x = 0; x < gx; x++)
+        {
+            for (int y = 0; y < gy; y++)
+            {
+                // --- PRO PIRAMIT MERKEZLEME (Row-Based Centering) ---
+                float xOffset = 0;
+                if (marker.surfaceType == ShapeFaceMarker.FaceSurfaceType.Triangle)
+                {
+                    // Bu satırda kaç tane hücre olması gerektiğini bul (Örn: Alt=3, Orta=2, Tepe=1)
+                    int cellsInThisRow = gx - y;
+                    
+                    if (x >= cellsInThisRow) continue;
+
+                    // Satırı tam merkeze almak için gereken kaydırma:
+                    // (ToplamGenişlik - SatırGenişliği) / 2
+                    float rowWidth = cellsInThisRow * stepX;
+                    xOffset = (1.0f - rowWidth) * 0.5f;
+                }
+
+                // Yerel pozisyon
+                Vector3 localPos = new Vector3(
+                    startX + (x + 0.5f) * stepX + xOffset,
+                    startY + (y + 0.5f) * stepY,
+                    -marker.surfaceOffset
+                );
+
+                GameObject gridObj = Instantiate(gridPrefab, marker.transform);
+                gridObj.transform.localPosition = localPos;
+                gridObj.transform.localRotation = Quaternion.identity;
+
+                // DÜZELTME: Ölçek daha da düşürüldü (Daha zarif görüntü için 0.7f)
+                gridObj.transform.localScale = new Vector3(stepX * 0.7f, stepY * 0.7f, 0.05f);
+
+                activeSpawnedObjects.Add(gridObj);
+                occupied.Add(new Vector2Int(x, y));
+            }
+        }
+    }
+
+    void SpawnShapePieces(LevelData level, ShapeDefinition def, float gridSize, float step)
+    {
+        Dictionary<int, LinkedObjectGroup> groups = new Dictionary<int, LinkedObjectGroup>();
+
+        foreach (var piece in level.pieces)
+        {
+            if (piece.faceIndex < 0 || piece.faceIndex >= def.FaceCount) continue;
+
+            ShapeFaceMarker marker = def.GetFace(piece.faceIndex);
+            if (marker == null) continue;
+            if (piece.faceIndex >= level.shapeFaces.Count) continue;
+
+            var faceData = level.shapeFaces[piece.faceIndex];
+            if (!faceData.isActive) continue;
+
+            // Marker'ın yerel uzayı
+            float stepX = 1f / faceData.gridX;
+            float stepY = 1f / faceData.gridY;
+            float startX = -0.5f;
+            float startY = -0.5f;
+
+            // --- PRO PIRAMIT MERKEZLEME (Pieces) ---
+            float xOffset = 0;
+            if (marker.surfaceType == ShapeFaceMarker.FaceSurfaceType.Triangle)
+            {
+                int gy = faceData.gridY;
+                int cellsInThisRow = faceData.gridX - piece.gridPosition.y;
+                float rowWidth = cellsInThisRow * stepX;
+                xOffset = (1.0f - rowWidth) * 0.5f;
+            }
+
+            Vector3 localPos = new Vector3(
+                startX + (piece.gridPosition.x + 0.5f) * stepX + xOffset,
+                startY + (piece.gridPosition.y + 0.5f) * stepY,
+                -(objectOffset + marker.surfaceOffset)
+            );
+
+            GameObject newObj = Instantiate(objectPrefab, marker.transform);
+            newObj.transform.localPosition = localPos;
+            newObj.transform.localRotation = Quaternion.Euler(0, 0, piece.rotationZ);
+            
+            // --- PIECE SCALE (Daha Küçük ve Zarif) ---
+            float pieceScale = (1f / faceData.gridX) * 0.45f;
+            newObj.transform.localScale = Vector3.one * pieceScale;
+
+            activeSpawnedObjects.Add(newObj);
+
+            if (piece.linkId > 0)
+            {
+                if (!groups.ContainsKey(piece.linkId))
+                {
+                    GameObject groupObj = new GameObject("LinkedGroup_" + piece.linkId);
+                    groupObj.transform.SetParent(transform);
+                    groupObj.transform.position = transform.position;
+                    LinkedObjectGroup log = groupObj.AddComponent<LinkedObjectGroup>();
+                    groups[piece.linkId] = log;
+                    activeSpawnedObjects.Add(groupObj);
+                }
+
+                newObj.transform.SetParent(groups[piece.linkId].transform, true);
+            }
+
+            LiquidTransfer lt = newObj.GetComponentInChildren<LiquidTransfer>();
+            if (lt != null)
+            {
+                lt.liquidColor = piece.liquidColor;
+                lt.currentSlices = piece.currentSlices;
+                lt.isShadowTrigger = piece.isShadowTrigger;
+            }
+        }
+
+        foreach (var kvp in groups)
+            kvp.Value.InitGroup();
+    }
+
+    void AdjustShapeCamera(Transform shapeRoot, ShapeDefinition def, float gridSize)
+    {
+        Camera cam = mainCamera != null ? mainCamera : Camera.main;
+        if (cam == null) return;
+
+        Renderer[] rends = shapeRoot.GetComponentsInChildren<Renderer>();
+        if (rends == null || rends.Length == 0) return;
+
+        Bounds b = rends[0].bounds;
+        for (int i = 1; i < rends.Length; i++)
+            b.Encapsulate(rends[i].bounds);
+
+        b.Expand(cameraPadding);
+
+        if (cam.orthographic)
+        {
+            float h = b.size.y;
+            float w = b.size.x;
+            float sizeByHeight = h * 0.5f;
+            float sizeByWidth = (w * 0.5f) / cam.aspect;
+            float targetSize = Mathf.Max(sizeByHeight, sizeByWidth);
+
+            cam.DOOrthoSize(targetSize, 0.6f).SetEase(Ease.OutCubic);
+
+            Vector3 target = b.center;
+            target.y += cameraVerticalOffset;
+            target.z = cam.transform.position.z;
+
+            cam.transform.DOMove(target, 0.6f).SetEase(Ease.OutCubic);
+        }
+        else
+        {
+            Vector3 target = b.center;
+            target.y += cameraVerticalOffset;
+
+            float maxSize = Mathf.Max(b.size.x, b.size.y, b.size.z);
+            float distance = Mathf.Max(6f, maxSize * 2.2f);
+
+            Vector3 camPos = target - cam.transform.forward * distance;
+            cam.transform.DOMove(camPos, 0.6f).SetEase(Ease.OutCubic);
         }
     }
 
@@ -982,7 +1198,7 @@ public class GridSpawner : MonoBehaviour
                 GridSpawner spawner = FindObjectOfType<GridSpawner>();
                 bool is3D = spawner != null && spawner.levels != null && 
                             spawner.currentLevelIndex < spawner.levels.Count && 
-                            spawner.levels[spawner.currentLevelIndex].is3DCube;
+                            spawner.levels[spawner.currentLevelIndex].boardMode == LevelData.BoardMode.Shape3D;
 
                 if (!is3D) return false;
             }

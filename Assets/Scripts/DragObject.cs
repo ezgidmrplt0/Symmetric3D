@@ -80,7 +80,7 @@ public class DragObject : MonoBehaviour
                 DOTween.Kill(transform);
                 
                 // --- 3D YÜZEY KİLİDİ (SADECE ÖN YÜZ AKTİF) ---
-                if (transform.parent != null && transform.parent.name.StartsWith("Face_"))
+                if (transform.parent != null && (transform.parent.name.StartsWith("Face_") || transform.parent.GetComponent<ShapeFaceMarker>() != null))
                 {
                     // Dot product'ın mutlak değerini kontrol edelim (Back-face zaten raycast ile elenir)
                     // 0.45 eşiği (approx 63 derece) oldukça güvenli bir ön yüzey seçimi sağlar.
@@ -243,6 +243,7 @@ public class DragObject : MonoBehaviour
         {
             // Eşik değerini biraz daha esnetiyoruz (0.7 -> 0.45) 
             // Çünkü eğik açılarda 0.88 gibi değerler gelebiliyor.
+            // targetGrid.parent marker objesidir
             float dot = Vector3.Dot(targetGrid.parent.forward, cam.transform.forward);
             if (Mathf.Abs(dot) < 0.45f) 
             {
@@ -269,7 +270,7 @@ public class DragObject : MonoBehaviour
             {
                 // --- DERİNLİK FIX (GRID ÜSTÜNDE DURMA) ---
                 float baseOffset = (spawner != null) ? spawner.objectOffset : 0.3f;
-                bool is3D = (spawner != null && spawner.levels != null && spawner.levels[spawner.currentLevelIndex].is3DCube);
+                bool is3D = (spawner != null && spawner.levels != null && spawner.levels[spawner.currentLevelIndex].boardMode == LevelData.BoardMode.Shape3D);
                 
                 // 3D modunda grid kalınlığı ve parça yüksekliğini dengelemek için 
                 // GridSpawner'ın kullandığı mantığın tersini (daha dışarıda) kullanmalıyız. 

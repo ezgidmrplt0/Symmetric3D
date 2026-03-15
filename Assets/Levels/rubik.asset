@@ -14,35 +14,51 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   levelDisplayName: rubik
   levelType: 0
+  boardMode: 1
   gridX: 3
   gridY: 3
   customGridPositions: []
-  is3DCube: 1
-  cubeFaces:
-  - isActive: 1
+  shapePrefab: {fileID: 50145709238587834, guid: f52ce685393b0cd44b2ef209df48c8e9, type: 3}
+  shapeFaces:
+  - faceId: FrontTriangle
+    surfaceType: 1
+    isActive: 1
     gridX: 3
     gridY: 3
     customGridPositions: []
-  - isActive: 1
+  - faceId: BackTriangle
+    surfaceType: 1
+    isActive: 1
     gridX: 3
     gridY: 3
     customGridPositions: []
-  - isActive: 1
+  - faceId: BottomRect
+    surfaceType: 0
+    isActive: 1
     gridX: 3
     gridY: 3
     customGridPositions: []
-  - isActive: 1
+  - faceId: LeftRect
+    surfaceType: 0
+    isActive: 1
     gridX: 3
     gridY: 3
     customGridPositions: []
-  - isActive: 1
+  - faceId: RightRect
+    surfaceType: 0
+    isActive: 1
     gridX: 3
     gridY: 3
-    customGridPositions: []
-  - isActive: 1
-    gridX: 3
-    gridY: 3
-    customGridPositions: []
+    customGridPositions:
+    - {x: 0, y: 0}
+    - {x: 0, y: 1}
+    - {x: 1, y: 0}
+    - {x: 1, y: 1}
+    - {x: 1, y: 2}
+    - {x: 2, y: 0}
+    - {x: 2, y: 1}
+    - {x: 2, y: 2}
+    - {x: 0, y: 2}
   pieces:
   - gridPosition: {x: 1, y: 2}
     faceIndex: 5
