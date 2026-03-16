@@ -29,10 +29,12 @@ public class GridSpawner : MonoBehaviour
     public float frameThickness = 0.15f;
     public float framePadding = 0.15f;    // Grid ile çerçeve arasındaki boşluk
     public float cameraPadding = 0.8f;    // Ekran kenarlarından pay
+    public float cameraZoomFactor = 0.75f; // 1.0 = tam sığdır, küçüldükçe daha yakın
     public float cameraVerticalOffset = 0.5f; // Grid'i dikeyde kaydırmak için
 
     [Header("UI Referansları")]
     public TextMeshProUGUI levelText;
+
 
     private List<GameObject> activeSpawnedObjects = new List<GameObject>();
     private List<GameObject> activeFrameSegments = new List<GameObject>();
@@ -482,7 +484,7 @@ public class GridSpawner : MonoBehaviour
 
             // Eğer ortografik ise boyutu ayarla
             if (cam.orthographic) {
-                cam.DOOrthoSize(targetDistance * 0.85f, 0.6f).SetEase(Ease.OutCubic);
+                cam.DOOrthoSize(targetDistance * cameraZoomFactor, 0.6f).SetEase(Ease.OutCubic);
             }
             
             // Kamera hedefi küpün yeni merkezi olsun
@@ -741,7 +743,7 @@ public class GridSpawner : MonoBehaviour
             float w = b.size.x;
             float sizeByHeight = h * 0.5f;
             float sizeByWidth = (w * 0.5f) / cam.aspect;
-            float targetSize = Mathf.Max(sizeByHeight, sizeByWidth);
+            float targetSize = Mathf.Max(sizeByHeight, sizeByWidth) * cameraZoomFactor;
 
             cam.DOOrthoSize(targetSize, 0.6f).SetEase(Ease.OutCubic);
 
@@ -757,7 +759,7 @@ public class GridSpawner : MonoBehaviour
             target.y += cameraVerticalOffset;
 
             float maxSize = Mathf.Max(b.size.x, b.size.y, b.size.z);
-            float distance = Mathf.Max(4f, maxSize * 1.6f);
+            float distance = Mathf.Max(4f, maxSize * 1.6f) * cameraZoomFactor;
 
             Vector3 camPos = target - cam.transform.forward * distance;
             cam.transform.DOMove(camPos, 0.6f).SetEase(Ease.OutCubic);
@@ -866,7 +868,7 @@ public class GridSpawner : MonoBehaviour
             {
                 float sizeByHeight = h / 2f;
                 float sizeByWidth = (w / 2f) / cam.aspect;
-                float targetSize = Mathf.Max(sizeByHeight, sizeByWidth) * 0.85f; // %15 daha yakın
+                float targetSize = Mathf.Max(sizeByHeight, sizeByWidth) * cameraZoomFactor;
                 
                 cam.DOOrthoSize(targetSize, 0.6f).SetEase(Ease.OutCubic);
                 
@@ -882,12 +884,12 @@ public class GridSpawner : MonoBehaviour
                 float distByHeight = (h / 2f) / Mathf.Tan(halfFovRad);
                 float distByWidth = (w / 2f) / (Mathf.Tan(halfFovRad) * cam.aspect);
                 
-                float targetDistance = Mathf.Max(distByHeight, distByWidth);
-                
+                float targetDistance = Mathf.Max(distByHeight, distByWidth) * cameraZoomFactor;
+
                 // Kameranın bakış doğrultusunu (forward) bozmadan mesafeyi ayarla
                 Vector3 baseTarget = combinedBounds.center;
                 baseTarget.y += cameraVerticalOffset;
-                
+
                 Vector3 camTarget = baseTarget - cam.transform.forward * targetDistance;
                 cam.transform.DOMove(camTarget, 0.6f).SetEase(Ease.OutCubic);
             }

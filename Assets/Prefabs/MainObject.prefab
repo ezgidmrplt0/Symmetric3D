@@ -122,7 +122,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   dragZOffset: -0.05
   dragLift: 0.5
-  collisionDistance: 1
+  collisionDistance: 0.45
   wrapThreshold: 1.2
 --- !u!114 &213917902098604090
 MonoBehaviour:

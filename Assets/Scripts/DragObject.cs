@@ -7,8 +7,8 @@ public class DragObject : MonoBehaviour
     private bool dragging = false;
     private GridSpawner activeSpawner;
 
-    private Vector2 screenGrabOffset; 
-    private float zDepth;
+    private Plane dragPlane;
+    private Vector3 worldGrabOffset;
     private Vector3 startPosition; // World position for reference
     private Vector3 startLocalPos;
     private Transform startParent;
@@ -26,7 +26,7 @@ public class DragObject : MonoBehaviour
     public float dragLift = 0.5f;
     [Header("Çarpışma (Collision)")]
     [Tooltip("Görsel izdüşüm üzerinden diğer objelere ne kadar yaklaşabileceğini belirler.")]
-    public float collisionDistance = 0.5f;
+    public float collisionDistance = 0.25f;
 
     [Header("Yüzey Geçişi (Wrap-around)")]
     public float wrapThreshold = 1.2f; 
@@ -113,15 +113,13 @@ public class DragObject : MonoBehaviour
                 cachedLocalScale = transform.localScale;
                 transform.SetParent(null, true);
 
-                Vector3 objectScreenPos = cam.WorldToScreenPoint(transform.position);
-                
-                // --- CLIP ÖNLEME (KAMERAYA DAHA ÇOK YAKLAŞTIR) ---
-                // Sürüklerken küpün içinden geçmemesi için kameraya doğru belirgince çekiyoruz.
-                zDepth = objectScreenPos.z - 0.1f; 
-                screenGrabOffset = (Vector2)objectScreenPos - (Vector2)screenPos;
-
-                // Hafifçe kaldır (Görsel)
-                transform.DOMove(cam.ScreenToWorldPoint(new Vector3(objectScreenPos.x, objectScreenPos.y, zDepth)), 0.15f).SetEase(Ease.OutCubic);
+                // Objeyi Z'de kilitle: sürükleme sadece XY düzleminde olsun
+                dragPlane = new Plane(Vector3.forward, transform.position);
+                Ray grabRay = cam.ScreenPointToRay(screenPos);
+                if (dragPlane.Raycast(grabRay, out float grabEnter))
+                    worldGrabOffset = transform.position - grabRay.GetPoint(grabEnter);
+                else
+                    worldGrabOffset = Vector3.zero;
                 
                 if (TutorialManager.Instance != null) TutorialManager.Instance.HideTutorial();
                 Debug.Log($"<color=yellow>[DragObject]</color> PICKED: {gameObject.name}");
@@ -131,19 +129,25 @@ public class DragObject : MonoBehaviour
 
     void Drag(Vector3 screenPos)
     {
-        DOTween.Kill(transform); 
+        DOTween.Kill(transform);
 
-        Vector2 targetScreenPos = (Vector2)screenPos + screenGrabOffset;
-        Vector3 rayPoint = new Vector3(targetScreenPos.x, targetScreenPos.y, zDepth);
-        Vector3 desiredPos = cam.ScreenToWorldPoint(rayPoint);
+        // Parmak/mouse pozisyonundan dragPlane'e ışın gönder → sadece XY hareketi
+        Ray dragRay = cam.ScreenPointToRay(screenPos);
+        Vector3 desiredPos = transform.position;
+        if (dragPlane.Raycast(dragRay, out float dragEnter))
+        {
+            desiredPos = dragRay.GetPoint(dragEnter) + worldGrabOffset;
+            desiredPos.z = transform.position.z; // Z'yi kesinlikle kilitle
+        }
 
         DragObject[] allObjects = FindObjectsOfType<DragObject>();
         Vector3 currentPos = transform.position;
         Vector3 moveDir = desiredPos - currentPos;
         float dist = moveDir.magnitude;
-        int steps = Mathf.Max(1, Mathf.CeilToInt(dist / 0.04f)); 
+        int steps = Mathf.Max(1, Mathf.CeilToInt(dist / 0.04f));
 
-        float activeCollisionDist = Mathf.Min(collisionDistance, 0.75f);
+        bool is3D = activeSpawner != null &&
+                    activeSpawner.levels[activeSpawner.currentLevelIndex].boardMode == LevelData.BoardMode.Shape3D;
 
         Vector3 stepVec = moveDir / steps;
         for (int s = 0; s < steps; s++)
@@ -154,44 +158,49 @@ public class DragObject : MonoBehaviour
             foreach (DragObject obj in allObjects)
             {
                 if (obj == this || !obj.gameObject.activeInHierarchy) continue;
-                
-                // Sadece aynı yüzeydeki (parent) veya parent'sız objelerle çarpış
-                if (obj.transform.parent != startParent && startParent != null) continue;
 
-                // Mesafe kontrolü - activeCollisionDist değerini biraz daha güvenli (0.65f) tutuyoruz
+                // 3D modda sadece aynı yüzeydeki objelerle çarpış; 2D modda hepsiyle çarpış
+                if (is3D && obj.transform.parent != startParent && startParent != null) continue;
+
+                // Z sabit olduğundan düz mesafe yeterli
                 float d = Vector3.Distance(nextPos, obj.transform.position);
-                if (d < 0.65f)
+                if (d < collisionDistance)
                 {
                     collisionFound = true;
                     break;
                 }
             }
 
-            if (collisionFound) break; // Çarpışma varsa orada dur, daha ileri gitme (üzerinden atlama)
-
-            // --- SINIR KONTROLÜ (BOUNDARY CHECK) ---
-            // Objeyi taşıdığı yüzeyin (Grid/Face) sınırları içerisinde tut.
-            if (activeSpawner != null)
+            if (collisionFound)
             {
-                // Yerel pozisyonda sınır kontrolü yapmak en güvenlisidir.
-                Vector3 localNextPos = startParent != null 
-                    ? startParent.InverseTransformPoint(nextPos) 
-                    : activeSpawner.transform.InverseTransformPoint(nextPos);
-                
-                // Grid/Face'in yerel sınırları
-                // Not: Gridlerin yerel uzayda -offsetX/+offsetX ve -offsetY/+offsetY arasında olduğunu biliyoruz.
-                // GridSpawner içindeki AdjustViewportCoroutine'de hesaplanan min/max değerlerini baz alalım.
-                // Basitçe: merkezden çok uzaklaşmasını engelle.
-                float limitX = activeSpawner.levels[activeSpawner.currentLevelIndex].gridX * 0.5f;
-                float limitY = activeSpawner.levels[activeSpawner.currentLevelIndex].gridY * 0.5f;
-                
-                // 2D modunda offsetX/offsetY kullanılarak merkezlendiği için sınırları ona göre çizeriz.
-                // (GridScale+Spacing) * Count / 2 formülü yaklaşık sınırı verir.
-                float margin = 0.8f; // Çerçevenin dışına taşmaması için güvenli marj
-                if (Mathf.Abs(localNextPos.x) > limitX * margin || Mathf.Abs(localNextPos.y) > limitY * margin)
+                // Tam yön engelliyse X ve Y eksenlerinde kaymayı dene (sliding)
+                Vector3 tryX = currentPos + new Vector3(stepVec.x, 0f, 0f);
+                Vector3 tryY = currentPos + new Vector3(0f, stepVec.y, 0f);
+
+                bool blockX = false, blockY = false;
+                foreach (DragObject obj in allObjects)
                 {
-                    break; // Sınır dışına çıkıyorsa hareketi durdur
+                    if (obj == this || !obj.gameObject.activeInHierarchy) continue;
+                    if (is3D && obj.transform.parent != startParent && startParent != null) continue;
+                    if (Vector3.Distance(tryX, obj.transform.position) < collisionDistance) blockX = true;
+                    if (Vector3.Distance(tryY, obj.transform.position) < collisionDistance) blockY = true;
                 }
+
+                if (!blockX && Mathf.Abs(stepVec.x) > 0.001f) nextPos = tryX;
+                else if (!blockY && Mathf.Abs(stepVec.y) > 0.001f) nextPos = tryY;
+                else break; // Her iki yön de engelli, dur
+            }
+
+            // --- SINIR KONTROLÜ ---
+            if (activeSpawner != null && !is3D)
+            {
+                var lvl = activeSpawner.levels[activeSpawner.currentLevelIndex];
+                float gridSize = activeSpawner.gridPrefab.transform.localScale.x;
+                float step = gridSize + activeSpawner.spacing;
+                float halfX = (lvl.gridX - 1) * 0.5f * step + gridSize * 0.5f + activeSpawner.framePadding - activeSpawner.frameThickness * 0.5f;
+                float halfY = (lvl.gridY - 1) * 0.5f * step + gridSize * 0.5f + activeSpawner.framePadding - activeSpawner.frameThickness * 0.5f;
+                Vector3 lp = activeSpawner.transform.InverseTransformPoint(nextPos);
+                if (Mathf.Abs(lp.x) > halfX || Mathf.Abs(lp.y) > halfY) break;
             }
 
             currentPos = nextPos;
