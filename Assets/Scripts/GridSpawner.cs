@@ -501,12 +501,25 @@ public class GridSpawner : MonoBehaviour
         def.RefreshFaces();
         spawnedFaceRoots.Clear();
 
-        // 2. Mesh'in gerçek geometrik merkezini bul (sadece prefab mesh'i; henüz grid/piece yok)
-        //    MeshFilter üzerinden local bounds → world center: pivot kaymasından bağımsız, saf geometri.
+        // 2. Mesh'in gerçek geometrik merkezini (vertex centroid) bul.
+        //    AABB bounds.center ≠ centroid: üçgen prizma gibi asimetrik şekillerde pivot kayar.
+        //    Vertex ortalaması → dönme sırasında görsel merkez sabit kalır.
         Vector3 meshCenter = shapeRoot.transform.position; // fallback
         MeshFilter mf = shapeRoot.GetComponentInChildren<MeshFilter>();
         if (mf != null)
-            meshCenter = mf.transform.TransformPoint(mf.sharedMesh.bounds.center);
+        {
+            Vector3[] verts = mf.sharedMesh.vertices;
+            if (verts.Length > 0)
+            {
+                Vector3 sum = Vector3.zero;
+                foreach (var v in verts) sum += v;
+                meshCenter = mf.transform.TransformPoint(sum / verts.Length);
+            }
+            else
+            {
+                meshCenter = mf.transform.TransformPoint(mf.sharedMesh.bounds.center);
+            }
+        }
 
         // 3. Pivot'u mesh merkezine koy; shapeRoot'u altına parent'la
         //    Böylece CubeRotator pivot etrafında dönerken obje kendi merkezinde döner.

@@ -129,7 +129,15 @@ public class DragObject : MonoBehaviour
 
     void Drag(Vector3 screenPos)
     {
-        DOTween.Kill(transform); 
+        // Ekran dışına çıkılırsa drag'i durdur ve bırak.
+        if (screenPos.x < 0 || screenPos.x > Screen.width ||
+            screenPos.y < 0 || screenPos.y > Screen.height)
+        {
+            Drop(screenPos); // bounds dışı → ReturnToStart tetiklenir
+            return;
+        }
+
+        DOTween.Kill(transform);
 
         Vector2 targetScreenPos = (Vector2)screenPos + screenGrabOffset;
         Vector3 rayPoint = new Vector3(targetScreenPos.x, targetScreenPos.y, zDepth);
@@ -214,6 +222,16 @@ public class DragObject : MonoBehaviour
     {
         dragging = false;
         activeTouchIndex = -1;
+
+        // Ekran dışına çıkılmışsa geçersiz drop; başlangıca geri dön.
+        if (finalScreenPos.x < 0 || finalScreenPos.x > Screen.width ||
+            finalScreenPos.y < 0 || finalScreenPos.y > Screen.height)
+        {
+            Debug.LogWarning("<color=red>[DragObject]</color> DROP FAIL -> Ekran dışı konum, ReturnToStart.");
+            ReturnToStart();
+            return;
+        }
+
         GridSpawner spawner = FindObjectOfType<GridSpawner>();
 
         // En yakın gridi bul
@@ -314,8 +332,11 @@ public class DragObject : MonoBehaviour
                     }
                 }
 
-                // Parçanın orijinal Z rotasyonunu (pick anındaki) en yakın 90°'e yuvarla
-                float snappedZ = Mathf.Round(cachedLocalRotZ / 90f) * 90f;
+                // Parçanın mevcut local Z rotasyonunu (parent'a göre) en yakın 90°'e yuvarla.
+                // cachedLocalRotZ yerine SetParent sonrası okunuyor: küp/üçgen döndüyse
+                // cachedLocalRotZ bayat kalır, worldPositionStays=true ile yeniden hesaplanan
+                // localEulerAngles.z ise güncel parent'a göre doğru açıyı verir.
+                float snappedZ = Mathf.Round(transform.localEulerAngles.z / 90f) * 90f;
 
                 transform.DOLocalMove(new Vector3(targetGrid.localPosition.x, targetGrid.localPosition.y, oz), 0.25f).SetEase(Ease.OutCubic);
                 transform.DOLocalRotate(new Vector3(0, 0, snappedZ), 0.15f).SetEase(Ease.OutBack).OnComplete(() => {
@@ -339,7 +360,14 @@ public class DragObject : MonoBehaviour
         if (startParent != null)
         {
             transform.SetParent(startParent, true);
+            // Dönme animasyonu ortasında SetParent(worldPositionStays=true) parent'ın
+            // geçici lossyScale'ini kullanarak localScale'i yanlış hesaplar.
+            // cachedLocalScale'i direkt yazarak bunu önle.
+            transform.localScale = cachedLocalScale;
+            // Küp/üçgen döndüyse local rotation bozulur; cachedLocalRotZ ile geri snap'le.
+            float snappedZ = Mathf.Round(cachedLocalRotZ / 90f) * 90f;
             transform.DOLocalMove(startLocalPos, 0.4f).SetEase(Ease.OutBack);
+            transform.DOLocalRotate(new Vector3(0, 0, snappedZ), 0.25f).SetEase(Ease.OutBack);
         }
         else
         {
