@@ -1119,7 +1119,7 @@ Transform:
   m_GameObject: {fileID: 963194225}
   serializedVersion: 2
   m_LocalRotation: {x: -0.17364825, y: 0, z: 0, w: 0.9848078}
-  m_LocalPosition: {x: 0, y: -0.34, z: -11.95}
+  m_LocalPosition: {x: 0, y: 0.17, z: -10.55}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1609,6 +1609,8 @@ MonoBehaviour:
   spacing: 0.2
   objectOffset: 0.3
   frameSegmentPrefab: {fileID: 8705812165778106834, guid: 27a9482575df76f6095aaf58024fda5b, type: 3}
+  shapeCornerPrefab: {fileID: 0}
+  backgroundPlatePrefab: {fileID: 5607704547805368945, guid: c3e229a9c7edd294c840d7268bc203de, type: 3}
   mainCamera: {fileID: 963194227}
   frameThickness: 0.2
   framePadding: 0.1

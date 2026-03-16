@@ -23,10 +23,12 @@ public class GridSpawner : MonoBehaviour
     public GameObject frameSegmentPrefab;
     [Tooltip("3D şekillerin köşelerine yerleştirilecek prefab. Boş bırakılırsa frameSegmentPrefab kullanılır.")]
     public GameObject shapeCornerPrefab;
+    [Tooltip("2D levellerde grid arkasına koyulacak beyaz zemin prefabı.")]
+    public GameObject backgroundPlatePrefab;
     public Camera mainCamera;
     public float frameThickness = 0.15f;
     public float framePadding = 0.15f;    // Grid ile çerçeve arasındaki boşluk
-    public float cameraPadding = 1.2f;    // Ekran kenarlarından daha fazla pay
+    public float cameraPadding = 0.8f;    // Ekran kenarlarından pay
     public float cameraVerticalOffset = 0.5f; // Grid'i dikeyde kaydırmak için
 
     [Header("UI Referansları")]
@@ -663,7 +665,7 @@ public class GridSpawner : MonoBehaviour
                 // triAreaScale kullanarak gerçek hücre boyutunu baz al
                 float cellWorldW = (triAreaScale / faceData.gridX) * Mathf.Abs(ws.x);
                 float cellWorldH = (triAreaScale / effectiveGridY) * Mathf.Abs(ws.y);
-                float worldSize  = Mathf.Min(cellWorldW, cellWorldH) * 0.72f;
+                float worldSize  = Mathf.Min(cellWorldW, cellWorldH) * 0.55f;
                 newObj.transform.localScale = new Vector3(
                     worldSize / Mathf.Abs(ws.x),
                     worldSize / Mathf.Abs(ws.y),
@@ -800,6 +802,45 @@ public class GridSpawner : MonoBehaviour
 
         SpawnCleanFrameSegments(occupied, step, gridSize, offsetX, offsetY);
 
+        // --- GRID ARKA ZEMİNİ (MODÜLER PLAKA) ---
+        // Artık tek bir büyük dikdörtgen yerine, her hücrenin altına birer parça koyuyoruz.
+        // Bu sayede Artı, L veya çapraz gibi özel şekilli gridlerde zemin tam olarak çerçevenin içine oturur.
+        if (level.boardMode == LevelData.BoardMode.Flat2D)
+        {
+            float localPlateZ = 0.015f;
+            float plateSize = step; // Hücre boyutu + spacing kadar büyüklük Gap'leri kapatır.
+
+            foreach (var pos in occupied)
+            {
+                GameObject bgTile = null;
+                Vector3 localPos = new Vector3(pos.x * step - offsetX, pos.y * step - offsetY, localPlateZ);
+
+                if (backgroundPlatePrefab != null)
+                {
+                    bgTile = Instantiate(backgroundPlatePrefab, transform);
+                }
+                else
+                {
+                    bgTile = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                    Renderer rend = bgTile.GetComponent<Renderer>();
+                    if (rend != null) {
+                        rend.material = new Material(Shader.Find("Unlit/Color"));
+                        rend.material.color = Color.white;
+                    }
+                }
+
+                bgTile.name = $"GridBG_{pos.x}_{pos.y}";
+                bgTile.transform.localRotation = Quaternion.identity;
+                bgTile.transform.localPosition = localPos;
+                bgTile.transform.localScale = new Vector3(plateSize, plateSize, 0.01f);
+
+                // Collider sil (etkileşime girmesin)
+                if (bgTile.TryGetComponent<BoxCollider>(out var col)) Destroy(col);
+                
+                activeSpawnedObjects.Add(bgTile);
+            }
+        }
+
         // 5. Kamerayı Ayarla (Otomatik ve Merkezi)
         Camera cam = mainCamera != null ? mainCamera : Camera.main;
         if (cam != null)
@@ -815,7 +856,7 @@ public class GridSpawner : MonoBehaviour
             {
                 float sizeByHeight = h / 2f;
                 float sizeByWidth = (w / 2f) / cam.aspect;
-                float targetSize = Mathf.Max(sizeByHeight, sizeByWidth);
+                float targetSize = Mathf.Max(sizeByHeight, sizeByWidth) * 0.85f; // %15 daha yakın
                 
                 cam.DOOrthoSize(targetSize, 0.6f).SetEase(Ease.OutCubic);
                 
