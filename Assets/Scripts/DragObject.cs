@@ -13,8 +13,9 @@ public class DragObject : MonoBehaviour
     private Transform startParent;
     private Vector2 startScreenPos;
     private float startTime;
-    private float cachedWorldSize;   // lossyScale.x before unparenting
-    private float cachedLocalRotZ;   // localEulerAngles.z before unparenting
+    private float cachedWorldSize;    // lossyScale.x before unparenting
+    private float cachedLocalRotZ;    // localEulerAngles.z before unparenting
+    private Vector3 cachedLocalScale; // localScale before unparenting
 
     [Header("Ayarlar")]
     [Header("Görsel (Drag)")]
@@ -105,8 +106,9 @@ public class DragObject : MonoBehaviour
                 wrapCooldown = 0.2f; // Picking anlık dönmeyi engellemek için kısa bir başlangıç cooldown'ı
 
                 // Küpten kopar → Dünya uzayında bağımsız kalsın
-                cachedWorldSize = transform.lossyScale.x;
-                cachedLocalRotZ = transform.localEulerAngles.z;
+                cachedWorldSize  = transform.lossyScale.x;
+                cachedLocalRotZ  = transform.localEulerAngles.z;
+                cachedLocalScale = transform.localScale;
                 transform.SetParent(null, true);
 
                 Vector3 objectScreenPos = cam.WorldToScreenPoint(transform.position);
@@ -188,7 +190,6 @@ public class DragObject : MonoBehaviour
             // Yatay kontrol — CubeRotator ile aynı mantık
             if (Mathf.Abs(offset.x) > hThreshold)
             {
-                // Prizmada Z-roll yok; küpte ekranın alt %40'ında Z kullanılır
                 if (!isPrism && screenHeightFactor < 0.4f)
                     rotAxis = offset.x > 0 ? Vector3.forward : Vector3.back;
                 else
@@ -201,7 +202,8 @@ public class DragObject : MonoBehaviour
 
             if (rotAxis != Vector3.zero && rotator != null && !rotator.IsRotating)
             {
-                rotator.Rotate90(rotAxis);
+                // Açı mantığı CubeRotator.RotateByAngle içinde — prizma için otomatik ayarlanır
+                rotator.RotateByAngle(rotAxis, 90f);
                 wrapCooldown = rotator.rotationDuration * 0.8f;
                 Debug.Log($"<color=orange>[DragObject]</color> Continuous Rotation Axis: {rotAxis} (HeightFactor: {screenHeightFactor:F2})");
             }
@@ -291,14 +293,25 @@ public class DragObject : MonoBehaviour
                 // Parçayı yeni yüzeye bağla (Dünya rotasyonunu koru)
                 transform.SetParent(targetGrid.parent, true);
 
-                // Marker'ın lossyScale'i unreliable olabilir (rotasyonlu+non-uniform parent);
-                // cachedWorldSize kullanarak local scale'i elle düzelt.
+                // lossyScale döndürülmüş + non-uniform parent'ta güvenilmez.
+                // Hierarchy'deki localScale'leri çarparak gerçek etkin scale'i hesapla.
                 if (is3D)
                 {
-                    Vector3 ws = targetGrid.parent != null ? targetGrid.parent.lossyScale : Vector3.one;
-                    float sx = Mathf.Abs(ws.x) > 0.001f ? cachedWorldSize / Mathf.Abs(ws.x) : transform.localScale.x;
-                    float sy = Mathf.Abs(ws.y) > 0.001f ? cachedWorldSize / Mathf.Abs(ws.y) : transform.localScale.y;
-                    transform.localScale = new Vector3(sx, sy, transform.localScale.z);
+                    if (targetGrid.parent == startParent)
+                    {
+                        // Aynı yüzeye bırakıldı: pick anındaki orijinal scale doğrudan kullanılabilir.
+                        transform.localScale = cachedLocalScale;
+                    }
+                    else
+                    {
+                        // Farklı yüzeye bırakıldı: hierarchy walk ile rotation-independent scale hesapla.
+                        float accX = 1f, accY = 1f;
+                        Transform cur = targetGrid.parent;
+                        while (cur != null) { accX *= cur.localScale.x; accY *= cur.localScale.y; cur = cur.parent; }
+                        float sx = Mathf.Abs(accX) > 0.001f ? cachedWorldSize / Mathf.Abs(accX) : cachedLocalScale.x;
+                        float sy = Mathf.Abs(accY) > 0.001f ? cachedWorldSize / Mathf.Abs(accY) : cachedLocalScale.y;
+                        transform.localScale = new Vector3(sx, sy, cachedLocalScale.z);
+                    }
                 }
 
                 // Parçanın orijinal Z rotasyonunu (pick anındaki) en yakın 90°'e yuvarla

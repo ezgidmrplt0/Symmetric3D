@@ -21,6 +21,8 @@ public class GridSpawner : MonoBehaviour
 
     [Header("Kamera ve Çerçeve (Modüler)")]
     public GameObject frameSegmentPrefab;
+    [Tooltip("3D şekillerin köşelerine yerleştirilecek prefab. Boş bırakılırsa frameSegmentPrefab kullanılır.")]
+    public GameObject shapeCornerPrefab;
     public Camera mainCamera;
     public float frameThickness = 0.15f;
     public float framePadding = 0.15f;    // Grid ile çerçeve arasındaki boşluk
@@ -542,6 +544,7 @@ public class GridSpawner : MonoBehaviour
         }
 
         SpawnShapePieces(level, def, gridSize, step);
+        SpawnShapeCorners(shapeRoot, hasTri);
         AdjustShapeCamera(shapePivot.transform, def, gridSize);
     }
 
@@ -1021,6 +1024,94 @@ public class GridSpawner : MonoBehaviour
         seg.transform.localScale = scale;
         activeFrameSegments.Add(seg);
         activeSpawnedObjects.Add(seg);
+    }
+
+    void SpawnShapeCorners(GameObject shapeRoot, bool isPrism)
+    {
+        MeshFilter mf = shapeRoot.GetComponentInChildren<MeshFilter>();
+        if (mf == null) return;
+
+        // Mesh bounds'u shapeRoot-local uzayına çevir
+        Bounds meshB = mf.sharedMesh.bounds;
+        Vector3 mn = Vector3.positiveInfinity, mx = Vector3.negativeInfinity;
+        Vector3[] bc = {
+            new Vector3(meshB.min.x, meshB.min.y, meshB.min.z), new Vector3(meshB.max.x, meshB.min.y, meshB.min.z),
+            new Vector3(meshB.min.x, meshB.max.y, meshB.min.z), new Vector3(meshB.max.x, meshB.max.y, meshB.min.z),
+            new Vector3(meshB.min.x, meshB.min.y, meshB.max.z), new Vector3(meshB.max.x, meshB.min.y, meshB.max.z),
+            new Vector3(meshB.min.x, meshB.max.y, meshB.max.z), new Vector3(meshB.max.x, meshB.max.y, meshB.max.z),
+        };
+        foreach (var c in bc)
+        {
+            Vector3 rl = shapeRoot.transform.InverseTransformPoint(mf.transform.TransformPoint(c));
+            mn = Vector3.Min(mn, rl); mx = Vector3.Max(mx, rl);
+        }
+
+        float cx = (mn.x + mx.x) * 0.5f;
+        float t = frameThickness * 0.4f;
+
+        // Kenar çiftleri: (başlangıç, bitiş) — local uzayda
+        List<(Vector3, Vector3)> edges = new List<(Vector3, Vector3)>();
+
+        if (isPrism)
+        {
+            // Üçgen prizma: 6 köşe, 9 kenar
+            Vector3 fBL = new Vector3(mn.x, mn.y, mn.z); // ön sol-alt
+            Vector3 fBR = new Vector3(mx.x, mn.y, mn.z); // ön sağ-alt
+            Vector3 fT  = new Vector3(cx,   mx.y, mn.z); // ön üst
+            Vector3 bBL = new Vector3(mn.x, mn.y, mx.z); // arka sol-alt
+            Vector3 bBR = new Vector3(mx.x, mn.y, mx.z); // arka sağ-alt
+            Vector3 bT  = new Vector3(cx,   mx.y, mx.z); // arka üst
+
+            // Ön üçgen
+            edges.Add((fBL, fBR)); edges.Add((fBL, fT)); edges.Add((fBR, fT));
+            // Arka üçgen
+            edges.Add((bBL, bBR)); edges.Add((bBL, bT)); edges.Add((bBR, bT));
+            // Bağlantı kenarları
+            edges.Add((fBL, bBL)); edges.Add((fBR, bBR)); edges.Add((fT, bT));
+        }
+        else
+        {
+            // Küp: 8 köşe, 12 kenar
+            Vector3[] v = {
+                new Vector3(mn.x, mn.y, mn.z), new Vector3(mx.x, mn.y, mn.z),
+                new Vector3(mn.x, mx.y, mn.z), new Vector3(mx.x, mx.y, mn.z),
+                new Vector3(mn.x, mn.y, mx.z), new Vector3(mx.x, mn.y, mx.z),
+                new Vector3(mn.x, mx.y, mx.z), new Vector3(mx.x, mx.y, mx.z),
+            };
+            // Ön yüz
+            edges.Add((v[0], v[1])); edges.Add((v[2], v[3]));
+            edges.Add((v[0], v[2])); edges.Add((v[1], v[3]));
+            // Arka yüz
+            edges.Add((v[4], v[5])); edges.Add((v[6], v[7]));
+            edges.Add((v[4], v[6])); edges.Add((v[5], v[7]));
+            // Bağlantı kenarları
+            edges.Add((v[0], v[4])); edges.Add((v[1], v[5]));
+            edges.Add((v[2], v[6])); edges.Add((v[3], v[7]));
+        }
+
+        GameObject prefabToUse = shapeCornerPrefab != null ? shapeCornerPrefab : frameSegmentPrefab;
+        foreach (var (a, b) in edges)
+        {
+            Vector3 mid = (a + b) * 0.5f;
+            Vector3 dir = b - a;
+            float len = dir.magnitude;
+
+            GameObject seg;
+            if (prefabToUse != null)
+                seg = Instantiate(prefabToUse, shapeRoot.transform);
+            else
+            {
+                seg = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                seg.transform.SetParent(shapeRoot.transform, false);
+                Destroy(seg.GetComponent<BoxCollider>());
+            }
+
+            seg.transform.localPosition = mid;
+            // Segmentin uzun eksenini (local Y) kenar yönüne hizala
+            seg.transform.localRotation = Quaternion.FromToRotation(Vector3.up, dir.normalized);
+            seg.transform.localScale = new Vector3(t, len, t);
+            activeSpawnedObjects.Add(seg);
+        }
     }
 
     public bool HasPendingShadows()

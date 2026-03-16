@@ -18,39 +18,33 @@ MonoBehaviour:
   gridX: 3
   gridY: 3
   customGridPositions: []
-  shapePrefab: {fileID: 1217424872966981867, guid: 48074df0d09288e459c997b0a1e3643e, type: 3}
+  shapePrefab: {fileID: 50145709238587834, guid: f52ce685393b0cd44b2ef209df48c8e9, type: 3}
   shapeFaces:
-  - faceId: Front
+  - faceId: FrontTriangle
+    surfaceType: 1
+    isActive: 1
+    gridX: 3
+    gridY: 3
+    customGridPositions: []
+  - faceId: BackTriangle
+    surfaceType: 1
+    isActive: 1
+    gridX: 3
+    gridY: 3
+    customGridPositions: []
+  - faceId: BottomRect
     surfaceType: 0
     isActive: 1
     gridX: 3
     gridY: 3
     customGridPositions: []
-  - faceId: Back
+  - faceId: LeftRect
     surfaceType: 0
     isActive: 1
     gridX: 3
     gridY: 3
     customGridPositions: []
-  - faceId: Right
-    surfaceType: 0
-    isActive: 1
-    gridX: 3
-    gridY: 3
-    customGridPositions: []
-  - faceId: Left
-    surfaceType: 0
-    isActive: 1
-    gridX: 3
-    gridY: 3
-    customGridPositions: []
-  - faceId: Top
-    surfaceType: 0
-    isActive: 1
-    gridX: 3
-    gridY: 3
-    customGridPositions: []
-  - faceId: Bottom
+  - faceId: RightRect
     surfaceType: 0
     isActive: 1
     gridX: 3

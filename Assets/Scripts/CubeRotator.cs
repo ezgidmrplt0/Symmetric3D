@@ -20,6 +20,17 @@ public class CubeRotator : MonoBehaviour
     public bool isPrism = false;
 
     private int activeFingerId = -1;
+    private Quaternion discreteRotation = Quaternion.identity;
+    // Prizma: Y ekseninde her 90° dönüşte bu toggle olur.
+    // false = üçgen yüz kameraya bakıyor (dikey = 90°)
+    // true  = dikdörtgen yüz kameraya bakıyor (dikey = 120°)
+    private bool prismViewingRect = false;
+
+    void Awake()
+    {
+        discreteRotation = transform.localRotation;
+        prismViewingRect = false;
+    }
 
     void Update()
     {
@@ -101,79 +112,65 @@ public class CubeRotator : MonoBehaviour
 
     void RotateCube(Vector2 swipeDelta, Vector2 startPoint)
     {
-        // Yön bul
         bool horizontal = Mathf.Abs(swipeDelta.x) > Mathf.Abs(swipeDelta.y);
         float screenHeightFactor = startPoint.y / Screen.height;
+        bool isLowerScreen = screenHeightFactor < 0.4f;
 
-        Vector3 rotAxis = Vector3.zero;
+        Vector3 rotAxis;
 
         if (horizontal)
         {
-            // Prizmada Z-roll (direksiyon gibi dönme) anlamsız; her zaman Y-ekseni kullan.
-            // Küpte ekranın alt %40'ında Z-ekseni (rolling) kullanılır.
-            bool isLowerScreen = screenHeightFactor < 0.4f;
-
             if (!isPrism && isLowerScreen)
-            {
-                // Z-Ekseni rotasyonu (Direksiyon gibi dönme) — sadece küp
-                if (swipeDelta.x > 0) rotAxis = Vector3.forward;
-                else rotAxis = Vector3.back;
-                Debug.Log($"<color=orange>[CubeRotator]</color> Z-Axis Rotation (Lower Screen: {screenHeightFactor:F2})");
-            }
+                rotAxis = swipeDelta.x > 0 ? Vector3.forward : Vector3.back;
             else
-            {
-                // Y-Ekseni rotasyonu (Normal sağ-sol çevirme)
-                if (swipeDelta.x > 0) rotAxis = Vector3.down;
-                else rotAxis = Vector3.up;
-                Debug.Log($"<color=cyan>[CubeRotator]</color> Y-Axis Rotation (Upper Screen: {screenHeightFactor:F2}, isPrism: {isPrism})");
-            }
+                rotAxis = swipeDelta.x > 0 ? Vector3.down : Vector3.up;
         }
         else
         {
-            // X-Ekseni rotasyonu (Yukarı-aşağı devirme)
-            if (swipeDelta.y > 0) rotAxis = Vector3.right; 
-            else rotAxis = Vector3.left;
+            rotAxis = swipeDelta.y > 0 ? Vector3.right : Vector3.left;
+        }
+
+        // Açı mantığı RotateByAngle içinde; dışarıdan 90f pasla yeter
+        RotateByAngle(rotAxis, 90f);
+    }
+
+    public void Rotate90(Vector3 axis) => RotateByAngle(axis, 90f);
+
+    public void RotateByAngle(Vector3 axis, float requestedAngle)
+    {
+        if (isAnimating) return;
+
+        float angle = requestedAngle;
+
+        if (isPrism)
+        {
+            bool isZ = axis == Vector3.forward || axis == Vector3.back;
+            bool isY = axis == Vector3.up      || axis == Vector3.down;
+            bool isX = axis == Vector3.right   || axis == Vector3.left;
+
+            if (isZ) return; // Prizmada Z-roll yok
+
+            if (isY)
+            {
+                angle = 90f;
+                prismViewingRect = !prismViewingRect; // her Y dönüşünde yüz tipi değişir
+            }
+            else if (isX)
+            {
+                // Dikdörtgen yüze bakılıyorken 120° → kenar altta; üçgen yüzdeyken 90°
+                angle = prismViewingRect ? 120f : 90f;
+            }
         }
 
         isAnimating = true;
+        discreteRotation = Quaternion.Euler(axis * angle) * discreteRotation;
+        Debug.Log($"[ROTATE] axis={axis} angle={angle} prismRect={prismViewingRect} → {discreteRotation.eulerAngles:F0}");
 
-        // --- DÜNYA/KAMERA ALANINDA ROTASYON ---
-        // Hedef rotasyonu mevcut rotasyonun SOLUNDAN çarparak ekliyoruz.
-        // Bu sayede rotasyon "Dünya/Parent" koordinatlarında (Kameraya göre) uygulanır.
-        // Yerel koordinat kilitlenmesi (gimbal lock veya yön karmaşası) önlenmiş olur.
-        Quaternion targetRot = Quaternion.Euler(rotAxis * 90f) * transform.localRotation;
-
-        transform.DOLocalRotateQuaternion(targetRot, rotationDuration)
+        transform.DOLocalRotateQuaternion(discreteRotation, rotationDuration)
             .SetEase(Ease.InOutCubic)
             .OnComplete(() => {
                 isAnimating = false;
-                
-                // Rotasyonu tam 90 derecelerde kalacak şekilde temizle
-                Vector3 finalEuler = transform.localEulerAngles;
-                finalEuler.x = Mathf.Round(finalEuler.x / 90f) * 90f;
-                finalEuler.y = Mathf.Round(finalEuler.y / 90f) * 90f;
-                finalEuler.z = Mathf.Round(finalEuler.z / 90f) * 90f;
-                transform.localEulerAngles = finalEuler;
-            });
-    }
-    
-    public void Rotate90(Vector3 axis)
-    {
-        if (isAnimating) return;
-        
-        isAnimating = true;
-        Quaternion targetRot = Quaternion.Euler(axis * 90f) * transform.localRotation;
-        Debug.Log($"[ROTATE] axis={axis} | euler={transform.localEulerAngles:F0} → {targetRot.eulerAngles:F0}");
-        
-        transform.DOLocalRotateQuaternion(targetRot, rotationDuration)
-            .SetEase(Ease.InOutCubic)
-            .OnComplete(() => {
-                isAnimating = false;
-                Vector3 finalEuler = transform.localEulerAngles;
-                finalEuler.x = Mathf.Round(finalEuler.x / 90f) * 90f;
-                finalEuler.y = Mathf.Round(finalEuler.y / 90f) * 90f;
-                finalEuler.z = Mathf.Round(finalEuler.z / 90f) * 90f;
-                transform.localEulerAngles = finalEuler;
+                transform.localRotation = discreteRotation;
             });
     }
 }
