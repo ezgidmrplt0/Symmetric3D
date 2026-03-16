@@ -9,7 +9,7 @@ public class LiquidTransfer : MonoBehaviour
     public Color liquidColor = Color.white;
     public float fillAmount = 0f; 
     public float transferDuration = 0.5f;
-    public float maxAdjacencyDistance = 1.8f; // 3D'de köşe komşuları için biraz daha esnek (1.5 -> 1.8)
+    public float maxAdjacencyDistance = 1.6f; 
 
     [Header("Dilim (Slice) Ayarları")]
     public int currentSlices = 1;
@@ -159,26 +159,28 @@ public class LiquidTransfer : MonoBehaviour
 
         float dist = Vector3.Distance(myPos, otherPos);
         
-        // Ekrana/Düzleme göre hizalı mı? (En az iki eksende yakın olmalı ya da 3D'de 1 birim mesafe)
-        // Küp üzerinde komşular arası mesafe yaklaşık 'spacing + gridSize' kadardır.
+        // Mesafe kontrolü
         if (dist >= maxAdjacencyDistance || dist <= 0.1f) return false;
 
         Vector3 dirToOther = (otherPos - myPos).normalized;
         Vector3 myFace = transform.up;
         Vector3 otherFace = other.transform.up;
 
-        // Benim baktığım yönde 'öteki' var mı? 
-        // 3D küpte köşe komşuları ~45 derece açı yaptığı için 
-        // dot threshold'u (cos 45 = 0.707) değerinden biraz daha düşük (0.6) tutulmalı.
-        bool dot1 = Vector3.Dot(myFace, dirToOther) > 0.6f;
-        bool dot2 = Vector3.Dot(otherFace, -dirToOther) > 0.6f;
+        // --- ÇAPRAZ ENGELEME (DIAGONAL PREVENTION) ---
+        float maxAxisOverlap = Mathf.Max(Mathf.Abs(dirToOther.x), Mathf.Max(Mathf.Abs(dirToOther.y), Mathf.Abs(dirToOther.z)));
+        if (maxAxisOverlap < 0.85f) return false;
+
+        // --- AYNA/SİMETRİ KONTROLÜ (FACING EACH OTHER) ---
+        bool dot1 = Vector3.Dot(myFace, dirToOther) > 0.8f;
+        bool dot2 = Vector3.Dot(otherFace, -dirToOther) > 0.8f;
 
         if (dot1 && dot2)
         {
-            Debug.Log($"<color=cyan>[LiquidTransfer]</color> Adjacency MATCH: {gameObject.name} -> {other.gameObject.name} | Dist: {dist:F2}");
+            Debug.Log($"<color=cyan>[LiquidTransfer]</color> Symmetry MATCH: {gameObject.name} <-> {other.gameObject.name} | Dist: {dist:F2}");
+            return true;
         }
 
-        return dot1 && dot2;
+        return false;
     }
 
     // ── ColorMix Transfer ────────────────────────────────────────

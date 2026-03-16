@@ -263,9 +263,19 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   handImage: {fileID: 98113297}
-  gridPath:
-  - {x: 1, y: 0}
-  - {x: 0, y: 0}
+  levelTutorials:
+  - levelDisplayName: level 1
+    levelIndex: 0
+    path:
+    - {x: 1, y: 0}
+    - {x: 0, y: 0}
+    handOffset: {x: 0, y: 0}
+  - levelDisplayName: 'level 6 '
+    levelIndex: 5
+    path:
+    - {x: 4, y: 1}
+    - {x: 0, y: 1}
+    handOffset: {x: 0, y: 100}
   durationPerSegment: 0.8
 --- !u!1 &98113296
 GameObject:
@@ -352,12 +362,17 @@ MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 6528357348445093365, guid: 48062912f29680864b86f7a4474afbec, type: 3}
   m_PrefabInstance: {fileID: 1238439526}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
+  m_GameObject: {fileID: 316182049}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 313bea6bfcbfbf5f09194a785ddf4dd1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+--- !u!1 &316182049 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 2508430584408265187, guid: 48062912f29680864b86f7a4474afbec, type: 3}
+  m_PrefabInstance: {fileID: 1238439526}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1001 &338703152
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1145,6 +1160,22 @@ PrefabInstance:
     - target: {fileID: 2508430584408265187, guid: 48062912f29680864b86f7a4474afbec, type: 3}
       propertyPath: m_IsActive
       value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 3632218115358867020, guid: 48062912f29680864b86f7a4474afbec, type: 3}
+      propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.size
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3632218115358867020, guid: 48062912f29680864b86f7a4474afbec, type: 3}
+      propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_Mode
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 3632218115358867020, guid: 48062912f29680864b86f7a4474afbec, type: 3}
+      propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_Target
+      value: 
+      objectReference: {fileID: 316182049}
+    - target: {fileID: 3632218115358867020, guid: 48062912f29680864b86f7a4474afbec, type: 3}
+      propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_CallState
+      value: 2
       objectReference: {fileID: 0}
     - target: {fileID: 9218332984121215912, guid: 48062912f29680864b86f7a4474afbec, type: 3}
       propertyPath: m_Pivot.x

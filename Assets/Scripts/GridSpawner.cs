@@ -104,12 +104,18 @@ public class GridSpawner : MonoBehaviour
     {
         GameManager.Instance?.ResetLevelState();
 
-        if (levels == null || levels.Count == 0) return;
+        if (levels == null || levels.Count == 0)
+        {
+            Debug.LogError("[GridSpawner] Levels listesi boş! NextLevel çalışamaz.");
+            return;
+        }
 
         // Unlock kontrolü için birikimli progress kullan (hiç sıfırlanmaz)
         int effectiveProgress = GameManager.Instance != null
             ? GameManager.Instance.lifetimeProgress
             : 0;
+
+        Debug.Log($"[GridSpawner] NextLevel() | Mevcut Index: {currentLevelIndex} | Lifetime Progress: {effectiveProgress}");
 
         // Kilitli olmayan bir sonraki level'ı bul
         int startIndex = currentLevelIndex;
@@ -123,25 +129,33 @@ public class GridSpawner : MonoBehaviour
             // Tüm listeyi dolaştıysak başa dön (hepsi kilitliyse bile çalışmaya devam et)
             if (candidate == startIndex)
             {
+                Debug.Log("[GridSpawner] Tüm liste tarandı, başka açık level bulunamadı. Mevcut seviye tekrarlanacak.");
                 next = candidate;
                 break;
             }
 
-            if (candidateLevel == null) continue;
+            if (candidateLevel == null)
+            {
+                Debug.LogWarning($"[GridSpawner] Index {candidate} boş (null)! Geçiliyor...");
+                continue;
+            }
 
             // Unlock kontrolü — effectiveProgress ile
             if (sequence != null && !sequence.IsLevelUnlocked(candidateLevel, effectiveProgress))
             {
-                Debug.Log($"[GridSpawner] '{candidateLevel.levelDisplayName}' kilitli! (Tür: {candidateLevel.levelType}, Gerekli: {sequence.GetUnlockProgress(candidateLevel.levelType)}, Mevcut: {effectiveProgress})");
+                Debug.Log($"[GridSpawner] '{candidateLevel.levelDisplayName}' (Index: {candidate}) kilitli! Gerekli: {sequence.GetUnlockProgress(candidateLevel.levelType)}");
                 continue;
             }
 
+            Debug.Log($"[GridSpawner] Yeni level bulundu: {candidateLevel.levelDisplayName} (Index: {candidate})");
             next = candidate;
             break;
         }
 
         if (next == startIndex && next == currentLevelIndex)
-            Debug.Log("Oyun Bitti! Tüm leveller tamamlandı.");
+        {
+            Debug.Log("<color=orange>[GridSpawner] Oyun Bitti veya Tüm leveller kilitli!</color>");
+        }
 
         currentLevelIndex = next;
         
@@ -803,13 +817,12 @@ public class GridSpawner : MonoBehaviour
         SpawnCleanFrameSegments(occupied, step, gridSize, offsetX, offsetY);
 
         // --- GRID ARKA ZEMİNİ (MODÜLER PLAKA) ---
-        // Artık tek bir büyük dikdörtgen yerine, her hücrenin altına birer parça koyuyoruz.
-        // Bu sayede Artı, L veya çapraz gibi özel şekilli gridlerde zemin tam olarak çerçevenin içine oturur.
         if (level.boardMode == LevelData.BoardMode.Flat2D)
         {
             float localPlateZ = 0.015f;
-            float plateSize = step; // Hücre boyutu + spacing kadar büyüklük Gap'leri kapatır.
+            float plateSize = step; 
 
+            // Sadece aktif (occupied) hücrelerin altına plaka yerleştir
             foreach (var pos in occupied)
             {
                 GameObject bgTile = null;
@@ -822,11 +835,11 @@ public class GridSpawner : MonoBehaviour
                 else
                 {
                     bgTile = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                    Renderer rend = bgTile.GetComponent<Renderer>();
-                    if (rend != null) {
-                        rend.material = new Material(Shader.Find("Unlit/Color"));
-                        rend.material.color = Color.white;
-                    }
+                    Destroy(bgTile.GetComponent<BoxCollider>());
+                    bgTile.transform.SetParent(transform);
+                    
+                    Renderer r = bgTile.GetComponent<Renderer>();
+                    if (r != null) r.material.color = Color.white;
                 }
 
                 bgTile.name = $"GridBG_{pos.x}_{pos.y}";
@@ -834,9 +847,6 @@ public class GridSpawner : MonoBehaviour
                 bgTile.transform.localPosition = localPos;
                 bgTile.transform.localScale = new Vector3(plateSize, plateSize, 0.01f);
 
-                // Collider sil (etkileşime girmesin)
-                if (bgTile.TryGetComponent<BoxCollider>(out var col)) Destroy(col);
-                
                 activeSpawnedObjects.Add(bgTile);
             }
         }
@@ -963,6 +973,32 @@ public class GridSpawner : MonoBehaviour
 
             Vector3 worldPos = center + new Vector3(edge + t / 2f, yOffset, 0);
             SpawnCustomSegment(worldPos, new Vector3(t, len, t));
+        }
+
+        // --- CONCAVE CORNER FILLERS (İç Köşe Düzeltmeleri) ---
+        // Top-Right Concave
+        if (up && right && !occupied.Contains(pos + new Vector2Int(1, 1)))
+        {
+            Vector3 cornerPos = center + new Vector3(edge + t / 2f, edge + t / 2f, 0);
+            SpawnCustomSegment(cornerPos, new Vector3(t, t, t));
+        }
+        // Top-Left Concave
+        if (up && left && !occupied.Contains(pos + new Vector2Int(-1, 1)))
+        {
+            Vector3 cornerPos = center + new Vector3(-edge - t / 2f, edge + t / 2f, 0);
+            SpawnCustomSegment(cornerPos, new Vector3(t, t, t));
+        }
+        // Bottom-Right Concave
+        if (down && right && !occupied.Contains(pos + new Vector2Int(1, -1)))
+        {
+            Vector3 cornerPos = center + new Vector3(edge + t / 2f, -edge - t / 2f, 0);
+            SpawnCustomSegment(cornerPos, new Vector3(t, t, t));
+        }
+        // Bottom-Left Concave
+        if (down && left && !occupied.Contains(pos + new Vector2Int(-1, -1)))
+        {
+            Vector3 cornerPos = center + new Vector3(-edge - t / 2f, -edge - t / 2f, 0);
+            SpawnCustomSegment(cornerPos, new Vector3(t, t, t));
         }
     }
 }

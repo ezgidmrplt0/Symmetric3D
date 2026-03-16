@@ -1,20 +1,33 @@
 using UnityEngine;
+using System.Collections.Generic;
 using DG.Tweening;
 
 public class TutorialManager : MonoBehaviour
 {
     public static TutorialManager Instance;
 
+    [System.Serializable]
+    public struct LevelTutorial
+    {
+        public string levelDisplayName; 
+        public int levelIndex;
+        public Vector2Int[] path;
+        [Tooltip("Elin merkezden ne kadar sapacağını belirler (Pixel cinsinden)")]
+        public Vector2 handOffset; 
+    }
+
     [Header("UI Tanımlamaları")]
-    [Tooltip("El objesi (Image) buraya sürüklenip bırakılacak")]
     public RectTransform handImage; 
 
-    [Header("Animasyon Yolu (Grid Koordinatları)")]
-    [Tooltip("Elin sırayla gideceği grid noktaları. (Haritada sol alt köşe X:0, Y:0'dır.)")]
-    public Vector2Int[] gridPath = new Vector2Int[] { new Vector2Int(1, 0), new Vector2Int(0, 0) }; 
+    [Header("Seviye Bazlı Eğitimler")]
+    public List<LevelTutorial> levelTutorials = new List<LevelTutorial>();
+
     public float durationPerSegment = 0.8f;
 
     private Camera cam;
+    private Sequence currentSeq;
+    private LevelTutorial activeTutorial;
+    private Vector2 lastTrackedOffset;
 
     private void Awake()
     {
@@ -24,65 +37,98 @@ public class TutorialManager : MonoBehaviour
 
     private void Start()
     {
-        // Objerin var olması için yarım saniye gecikmeli başlatıyoruz
         Invoke("StartTutorial", 0.5f);
     }
 
-    private void StartTutorial()
+    private void Update()
+    {
+        // Inspector'dan yapılan değişikliği canlı yakalamak için
+        if (Application.isPlaying && handImage != null && handImage.gameObject.activeInHierarchy)
+        {
+            // O anki levelin offsetini kontrol et
+            foreach (var tut in levelTutorials)
+            {
+                if (tut.levelIndex == FindObjectOfType<GridSpawner>()?.currentLevelIndex)
+                {
+                    if (tut.handOffset != lastTrackedOffset)
+                    {
+                        Debug.Log($"<color=cyan>[Tutorial]</color> Offset Değişikliği Algılandı: {tut.handOffset}. Resetleniyor...");
+                        lastTrackedOffset = tut.handOffset;
+                        StartTutorial();
+                    }
+                    break;
+                }
+            }
+        }
+    }
+
+    public void StartTutorial()
     {
         GridSpawner spawner = FindObjectOfType<GridSpawner>();
+        if (spawner == null) return;
 
-        // Sadece level 1 (0. index) için öğretici gösterilsin
-        if (spawner != null && spawner.currentLevelIndex != 0)
+        bool found = false;
+        foreach (var tut in levelTutorials)
         {
-            gameObject.SetActive(false);
+            if (tut.levelIndex == spawner.currentLevelIndex)
+            {
+                activeTutorial = tut;
+                lastTrackedOffset = tut.handOffset;
+                found = true;
+                break;
+            }
+        }
+
+        if (!found)
+        {
+            if (handImage != null) handImage.gameObject.SetActive(false);
             return;
         }
 
-        if (handImage != null && gridPath.Length > 0 && spawner != null)
+        if (handImage != null && activeTutorial.path.Length > 0)
         {
+            handImage.gameObject.SetActive(true);
             CanvasGroup cg = handImage.GetComponent<CanvasGroup>();
             if (cg == null) cg = handImage.gameObject.AddComponent<CanvasGroup>();
             
+            cg.interactable = false;
+            cg.blocksRaycasts = false;
             cg.alpha = 0f;
 
-            Sequence seq = DOTween.Sequence();
+            if (currentSeq != null) currentSeq.Kill();
+            currentSeq = DOTween.Sequence();
             
-            // Her döngü başında pozisyonu (Ekran çözünürlüğü değişse bile) doğru hesaplar
-            seq.AppendInterval(0.3f);
-            seq.AppendCallback(() => {
-                handImage.position = cam.WorldToScreenPoint(spawner.GetWorldPosition(gridPath[0]));
+            currentSeq.AppendInterval(0.2f);
+            currentSeq.AppendCallback(() => {
+                if (spawner == null) return;
+                Vector3 basePos = cam.WorldToScreenPoint(spawner.GetWorldPosition(activeTutorial.path[0]));
+                handImage.position = basePos + (Vector3)activeTutorial.handOffset;
             });
             
-            // Görün ve küçül
-            seq.Append(cg.DOFade(1f, 0.3f));
-            seq.Join(handImage.DOScale(0.9f, 0.3f).SetEase(Ease.OutBack));
+            currentSeq.Append(cg.DOFade(1f, 0.3f));
+            currentSeq.Join(handImage.DOScale(0.9f, 0.3f).SetEase(Ease.OutBack));
             
-            // Noktaları dolaş (DOMove komutu RectTransform'da Screen Space pozisyonlarına sorunsuz gider)
-            for (int i = 1; i < gridPath.Length; i++)
+            for (int i = 1; i < activeTutorial.path.Length; i++)
             {
-                int index = i;
-                seq.Append(handImage.DOMove(cam.WorldToScreenPoint(spawner.GetWorldPosition(gridPath[index])), durationPerSegment)
+                int nextIndex = i;
+                currentSeq.Append(handImage.DOMove(cam.WorldToScreenPoint(spawner.GetWorldPosition(activeTutorial.path[nextIndex])) + (Vector3)activeTutorial.handOffset, durationPerSegment)
                     .SetEase(Ease.InOutSine));
             }
             
-            // İş bitince büyü ve kaybol
-            seq.Append(handImage.DOScale(1f, 0.3f));
-            seq.Join(cg.DOFade(0f, 0.3f));
+            currentSeq.Append(handImage.DOScale(1f, 0.3f));
+            currentSeq.Join(cg.DOFade(0f, 0.3f));
             
-            seq.SetLoops(-1);
+            currentSeq.SetLoops(-1);
         }
     }
 
     public void HideTutorial()
     {
-        if (gameObject.activeSelf)
+        if (currentSeq != null) currentSeq.Kill();
+        if (handImage != null) 
         {
-            if (handImage != null) 
-            {
-                handImage.DOKill(); 
-            }
-            gameObject.SetActive(false); 
+            handImage.DOKill();
+            handImage.gameObject.SetActive(false);
         }
     }
 }
