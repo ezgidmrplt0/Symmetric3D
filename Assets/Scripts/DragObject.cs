@@ -5,6 +5,7 @@ public class DragObject : MonoBehaviour
 {
     private Camera cam;
     private bool dragging = false;
+    private GridSpawner activeSpawner;
 
     private Vector2 screenGrabOffset; 
     private float zDepth;
@@ -34,6 +35,7 @@ public class DragObject : MonoBehaviour
     void Start()
     {
         cam = Camera.main;
+        activeSpawner = FindObjectOfType<GridSpawner>();
     }
 
     void Update()
@@ -115,7 +117,7 @@ public class DragObject : MonoBehaviour
                 
                 // --- CLIP ÖNLEME (KAMERAYA DAHA ÇOK YAKLAŞTIR) ---
                 // Sürüklerken küpün içinden geçmemesi için kameraya doğru belirgince çekiyoruz.
-                zDepth = objectScreenPos.z - 1.8f; 
+                zDepth = objectScreenPos.z - 0.1f; 
                 screenGrabOffset = (Vector2)objectScreenPos - (Vector2)screenPos;
 
                 // Hafifçe kaldır (Görsel)
@@ -129,15 +131,7 @@ public class DragObject : MonoBehaviour
 
     void Drag(Vector3 screenPos)
     {
-        // Ekran dışına çıkılırsa drag'i durdur ve bırak.
-        if (screenPos.x < 0 || screenPos.x > Screen.width ||
-            screenPos.y < 0 || screenPos.y > Screen.height)
-        {
-            Drop(screenPos); // bounds dışı → ReturnToStart tetiklenir
-            return;
-        }
-
-        DOTween.Kill(transform);
+        DOTween.Kill(transform); 
 
         Vector2 targetScreenPos = (Vector2)screenPos + screenGrabOffset;
         Vector3 rayPoint = new Vector3(targetScreenPos.x, targetScreenPos.y, zDepth);
@@ -154,26 +148,53 @@ public class DragObject : MonoBehaviour
         Vector3 stepVec = moveDir / steps;
         for (int s = 0; s < steps; s++)
         {
-            currentPos += stepVec;
+            Vector3 nextPos = currentPos + stepVec;
+            bool collisionFound = false;
 
             foreach (DragObject obj in allObjects)
             {
                 if (obj == this || !obj.gameObject.activeInHierarchy) continue;
-                if (obj.transform.parent != transform.parent && transform.parent != null) continue;
+                
+                // Sadece aynı yüzeydeki (parent) veya parent'sız objelerle çarpış
+                if (obj.transform.parent != startParent && startParent != null) continue;
 
-                float d = Vector3.Distance(currentPos, obj.transform.position);
-
-                if (d < activeCollisionDist)
+                // Mesafe kontrolü - activeCollisionDist değerini biraz daha güvenli (0.65f) tutuyoruz
+                float d = Vector3.Distance(nextPos, obj.transform.position);
+                if (d < 0.65f)
                 {
-                    Vector3 pushDir = (currentPos - obj.transform.position).normalized;
-                    if (pushDir == Vector3.zero) pushDir = Random.onUnitSphere;
-                    pushDir.z = 0;
-                    pushDir.Normalize();
-
-                    float pushPower = (activeCollisionDist - d) * 0.6f; 
-                    currentPos += pushDir * pushPower;
+                    collisionFound = true;
+                    break;
                 }
             }
+
+            if (collisionFound) break; // Çarpışma varsa orada dur, daha ileri gitme (üzerinden atlama)
+
+            // --- SINIR KONTROLÜ (BOUNDARY CHECK) ---
+            // Objeyi taşıdığı yüzeyin (Grid/Face) sınırları içerisinde tut.
+            if (activeSpawner != null)
+            {
+                // Yerel pozisyonda sınır kontrolü yapmak en güvenlisidir.
+                Vector3 localNextPos = startParent != null 
+                    ? startParent.InverseTransformPoint(nextPos) 
+                    : activeSpawner.transform.InverseTransformPoint(nextPos);
+                
+                // Grid/Face'in yerel sınırları
+                // Not: Gridlerin yerel uzayda -offsetX/+offsetX ve -offsetY/+offsetY arasında olduğunu biliyoruz.
+                // GridSpawner içindeki AdjustViewportCoroutine'de hesaplanan min/max değerlerini baz alalım.
+                // Basitçe: merkezden çok uzaklaşmasını engelle.
+                float limitX = activeSpawner.levels[activeSpawner.currentLevelIndex].gridX * 0.5f;
+                float limitY = activeSpawner.levels[activeSpawner.currentLevelIndex].gridY * 0.5f;
+                
+                // 2D modunda offsetX/offsetY kullanılarak merkezlendiği için sınırları ona göre çizeriz.
+                // (GridScale+Spacing) * Count / 2 formülü yaklaşık sınırı verir.
+                float margin = 0.8f; // Çerçevenin dışına taşmaması için güvenli marj
+                if (Mathf.Abs(localNextPos.x) > limitX * margin || Mathf.Abs(localNextPos.y) > limitY * margin)
+                {
+                    break; // Sınır dışına çıkıyorsa hareketi durdur
+                }
+            }
+
+            currentPos = nextPos;
         }
         
         transform.position = currentPos;
@@ -222,16 +243,6 @@ public class DragObject : MonoBehaviour
     {
         dragging = false;
         activeTouchIndex = -1;
-
-        // Ekran dışına çıkılmışsa geçersiz drop; başlangıca geri dön.
-        if (finalScreenPos.x < 0 || finalScreenPos.x > Screen.width ||
-            finalScreenPos.y < 0 || finalScreenPos.y > Screen.height)
-        {
-            Debug.LogWarning("<color=red>[DragObject]</color> DROP FAIL -> Ekran dışı konum, ReturnToStart.");
-            ReturnToStart();
-            return;
-        }
-
         GridSpawner spawner = FindObjectOfType<GridSpawner>();
 
         // En yakın gridi bul
@@ -283,9 +294,14 @@ public class DragObject : MonoBehaviour
             foreach (var o in all)
             {
                 if (o == this) continue;
-                if (Vector3.Distance(o.transform.position, targetGrid.position) < 0.25f)
+                
+                // Z ekseni (derinlik) farkını yok sayarak sadece X-Y düzleminde (yüzeyde) yakınlık kontrolü yap.
+                // Ya da eşiği (0.25f), parça derinlik ofsetini (+0.3f) de kapsayacak kadar büyüt (0.6f).
+                float d = Vector3.Distance(o.transform.position, targetGrid.position);
+                if (d < 0.6f) 
                 {
-                    isFull = true; break;
+                    isFull = true; 
+                    break;
                 }
             }
 
@@ -332,11 +348,8 @@ public class DragObject : MonoBehaviour
                     }
                 }
 
-                // Parçanın mevcut local Z rotasyonunu (parent'a göre) en yakın 90°'e yuvarla.
-                // cachedLocalRotZ yerine SetParent sonrası okunuyor: küp/üçgen döndüyse
-                // cachedLocalRotZ bayat kalır, worldPositionStays=true ile yeniden hesaplanan
-                // localEulerAngles.z ise güncel parent'a göre doğru açıyı verir.
-                float snappedZ = Mathf.Round(transform.localEulerAngles.z / 90f) * 90f;
+                // Parçanın orijinal Z rotasyonunu (pick anındaki) en yakın 90°'e yuvarla
+                float snappedZ = Mathf.Round(cachedLocalRotZ / 90f) * 90f;
 
                 transform.DOLocalMove(new Vector3(targetGrid.localPosition.x, targetGrid.localPosition.y, oz), 0.25f).SetEase(Ease.OutCubic);
                 transform.DOLocalRotate(new Vector3(0, 0, snappedZ), 0.15f).SetEase(Ease.OutBack).OnComplete(() => {
@@ -360,14 +373,7 @@ public class DragObject : MonoBehaviour
         if (startParent != null)
         {
             transform.SetParent(startParent, true);
-            // Dönme animasyonu ortasında SetParent(worldPositionStays=true) parent'ın
-            // geçici lossyScale'ini kullanarak localScale'i yanlış hesaplar.
-            // cachedLocalScale'i direkt yazarak bunu önle.
-            transform.localScale = cachedLocalScale;
-            // Küp/üçgen döndüyse local rotation bozulur; cachedLocalRotZ ile geri snap'le.
-            float snappedZ = Mathf.Round(cachedLocalRotZ / 90f) * 90f;
             transform.DOLocalMove(startLocalPos, 0.4f).SetEase(Ease.OutBack);
-            transform.DOLocalRotate(new Vector3(0, 0, snappedZ), 0.25f).SetEase(Ease.OutBack);
         }
         else
         {

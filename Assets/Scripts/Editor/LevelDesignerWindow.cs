@@ -28,6 +28,27 @@ public class LevelDesignerWindow : EditorWindow
 
     void OnGUI()
     {
+        // --- KLAVYE KISAYOLLARI (YÖN TUŞLARI) ---
+        Event eCurrent = Event.current;
+        if (eCurrent.type == EventType.KeyDown)
+        {
+            float newRot = brushRotationZ;
+            bool changed = true;
+            switch (eCurrent.keyCode)
+            {
+                case KeyCode.UpArrow:    newRot = 180; break;
+                case KeyCode.RightArrow: newRot = -90; break;
+                case KeyCode.DownArrow:  newRot = 0;   break;
+                case KeyCode.LeftArrow:  newRot = 90;  break;
+                default: changed = false; break;
+            }
+            if (changed)
+            {
+                brushRotationZ = newRot;
+                Repaint(); // UI'ı hemen güncelle
+            }
+        }
+
         // ── Başlık ──────────────────────────────────────────────
         GUIStyle titleStyle = new GUIStyle(EditorStyles.boldLabel);
         titleStyle.fontSize = 14;

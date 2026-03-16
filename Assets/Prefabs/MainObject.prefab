@@ -31,8 +31,8 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: -0.07295725, y: -0.010215812, z: -0.085419044, w: 0.9936179}
   m_LocalPosition: {x: 200, y: 0, z: 0}
-  m_LocalScale: {x: 0.75, y: 0.75, z: 0.75}
-  m_ConstrainProportionsScale: 0
+  m_LocalScale: {x: 0.5, y: 0.5, z: 0.5}
+  m_ConstrainProportionsScale: 1
   m_Children:
   - {fileID: 2916744194921471043}
   m_Father: {fileID: 0}
@@ -120,8 +120,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9f757225ac6565d4c8b91f5ae90971bd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  snapDistance: 1.5
+  dragZOffset: -0.05
+  dragLift: 0.5
   collisionDistance: 1
+  wrapThreshold: 1.2
 --- !u!114 &213917902098604090
 MonoBehaviour:
   m_ObjectHideFlags: 0

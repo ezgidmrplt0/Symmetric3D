@@ -7,7 +7,7 @@ public class GameManager : MonoBehaviour
 
     [Header("Progress Ayarları")]
     [Tooltip("Her level tamamlandığında artacak yüzde miktarı")]
-    public int progressPerLevel = 10;
+    public int progressPerLevel = 20;
 
     [Tooltip("%100 dolunca hangi levelden itibaren yeni mechanic gelsin")]
     public int newMechanicStartLevelIndex = 10;
