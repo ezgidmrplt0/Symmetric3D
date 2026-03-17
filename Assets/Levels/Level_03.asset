@@ -13,42 +13,51 @@ MonoBehaviour:
   m_Name: Level_03
   m_EditorClassIdentifier: 
   levelDisplayName: Level_03
-  levelType: 0
+  levelType: 1
+  boardMode: 0
   gridX: 3
   gridY: 3
   customGridPositions: []
+  shapePrefab: {fileID: 0}
+  shapeFaces: []
   pieces:
   - gridPosition: {x: 0, y: 2}
+    faceIndex: 0
     liquidColor: {r: 0.8, g: 0.1, b: 0.1, a: 1}
     currentSlices: 2
     rotationZ: -90
     isShadowTrigger: 0
     linkId: 0
   - gridPosition: {x: 2, y: 2}
+    faceIndex: 0
     liquidColor: {r: 0.8, g: 0.1, b: 0.1, a: 1}
     currentSlices: 2
     rotationZ: 90
     isShadowTrigger: 0
     linkId: 0
   - gridPosition: {x: 1, y: 2}
+    faceIndex: 0
     liquidColor: {r: 0, g: 0, b: 1, a: 1}
     currentSlices: 2
     rotationZ: 180
     isShadowTrigger: 0
     linkId: 0
   - gridPosition: {x: 0, y: 0}
+    faceIndex: 0
     liquidColor: {r: 0, g: 0, b: 1, a: 1}
     currentSlices: 2
     rotationZ: 0
     isShadowTrigger: 0
     linkId: 0
   - gridPosition: {x: 1, y: 1}
+    faceIndex: 0
     liquidColor: {r: 0, g: 1, b: 0, a: 1}
     currentSlices: 2
     rotationZ: 0
     isShadowTrigger: 0
     linkId: 0
   - gridPosition: {x: 2, y: 0}
+    faceIndex: 0
     liquidColor: {r: 0, g: 1, b: 0, a: 1}
     currentSlices: 2
     rotationZ: 180

@@ -34,9 +34,16 @@ public class LevelSequenceData : ScriptableObject
     /// </summary>
     public int GetUnlockProgress(LevelData.LevelType type)
     {
+        int maxProgress = 0;
         foreach (var cfg in typeConfigs)
-            if (cfg.levelType == type) return cfg.unlockAtProgress;
-        return 0;
+        {
+            if ((type & cfg.levelType) != 0)
+            {
+                if (cfg.unlockAtProgress > maxProgress)
+                    maxProgress = cfg.unlockAtProgress;
+            }
+        }
+        return maxProgress;
     }
 
     /// <summary>

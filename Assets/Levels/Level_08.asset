@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Level_08
   m_EditorClassIdentifier: 
   levelDisplayName: Level_08
-  levelType: 1
+  levelType: 3
   boardMode: 0
   gridX: 6
   gridY: 3

@@ -81,11 +81,12 @@ public class LiquidTransfer : MonoBehaviour
             ? spawner.CurrentLevelType
             : LevelData.LevelType.Classic;
 
-        if (levelType == LevelData.LevelType.ColorMix)
+        if (levelType.HasFlag(LevelData.LevelType.ColorMix))
         {
             CheckColorMix();
         }
-        else
+        
+        if (levelType.HasFlag(LevelData.LevelType.Classic))
         {
             CheckClassicSymmetry();
         }
@@ -123,7 +124,7 @@ public class LiquidTransfer : MonoBehaviour
     // ── ColorMix Mod ─────────────────────────────────────────────
     void CheckColorMix()
     {
-        if (transferring) return;
+        if (transferring || currentSlices >= maxSlices) return;
 
         LiquidTransfer[] allLiquids = FindObjectsOfType<LiquidTransfer>();
 
@@ -189,11 +190,19 @@ public class LiquidTransfer : MonoBehaviour
         transferring = true;
         giver.transferring = true;
 
-        // Receiver (this) tam dolacak, giver tamamen boşalacak
-        float receiverTargetFill = 0.5f;   // maxSlices / maxSlices = 1 → Lerp(-0.5, 0.5, 1) = 0.5
-        float giverTargetFill    = -0.5f;  // 0 / maxSlices = 0 → Lerp(-0.5, 0.5, 0) = -0.5
+        int needed = maxSlices - this.currentSlices;
+        int takeAmount = Mathf.Min(needed, giver.currentSlices);
 
-        // Receiver'ın rengini hemen karışım rengine çevir
+        this.currentSlices += takeAmount;
+        giver.currentSlices -= takeAmount;
+        
+        // Receiver'ın yeni rengini ve miktarını güncelle
+        this.liquidColor = mixedColor;
+
+        float myTargetFill = Mathf.Lerp(-0.5f, 0.5f, (float)this.currentSlices / maxSlices);
+        float giverTargetFill = Mathf.Lerp(-0.5f, 0.5f, (float)giver.currentSlices / maxSlices);
+
+        // Receiver'ın rengini materyal üzerinden hemen güncelle
         if (liquidMat != null)
         {
             liquidMat.SetColor("_LiquidColor", mixedColor);
@@ -206,29 +215,49 @@ public class LiquidTransfer : MonoBehaviour
         seq.Join(DOTween.To(() => giver.fillAmount, x => giver.fillAmount = x, giverTargetFill, transferDuration)
             .OnUpdate(() => { if (giver != null && giver.liquidMat != null) giver.liquidMat.SetFloat("_FillAmount", giver.fillAmount); }));
 
-        // Receiver karışım rengiyle dolsun
-        seq.Join(DOTween.To(() => this.fillAmount, x => this.fillAmount = x, receiverTargetFill, transferDuration)
+        // Receiver yeni rengiyle dolsun
+        seq.Join(DOTween.To(() => this.fillAmount, x => this.fillAmount = x, myTargetFill, transferDuration)
             .OnUpdate(() => { if (this != null && this.liquidMat != null) this.liquidMat.SetFloat("_FillAmount", this.fillAmount); }));
 
-        // Dolunca ikisi de yok olsun
         seq.OnComplete(() =>
         {
-            // Giver
-            if (giver != null && giver.transform.parent != null)
-                giver.transform.parent.DOScale(0f, 0.2f).OnComplete(() =>
+            // Giver tamamen boşaldıysa yok et
+            if (giver != null)
+            {
+                if (giver.currentSlices <= 0)
                 {
-                    Destroy(giver.transform.parent.gameObject);
-                    CheckLevelComplete();
-                });
+                    if (giver.transform.parent != null)
+                        giver.transform.parent.DOScale(0f, 0.2f).OnComplete(() =>
+                        {
+                            giver.transferring = false;
+                            Destroy(giver.transform.parent.gameObject);
+                            CheckLevelComplete();
+                        });
+                }
+                else
+                {
+                    giver.transferring = false;
+                }
+            }
 
-            // Receiver (mix rengiyle dolu)
-            if (this != null && this.transform.parent != null)
-                this.transform.parent.DOScale(0f, 0.2f).OnComplete(() =>
+            // Receiver tamamen dolduysa yok et
+            if (this != null)
+            {
+                if (this.currentSlices >= maxSlices)
+                {
+                    if (this.transform.parent != null)
+                        this.transform.parent.DOScale(0f, 0.2f).OnComplete(() =>
+                        {
+                            this.transferring = false;
+                            Destroy(this.transform.parent.gameObject);
+                            CheckLevelComplete();
+                        });
+                }
+                else
                 {
                     this.transferring = false;
-                    Destroy(this.transform.parent.gameObject);
-                    CheckLevelComplete();
-                });
+                }
+            }
         });
     }
 

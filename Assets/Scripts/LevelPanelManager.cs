@@ -223,7 +223,13 @@ public class LevelPanelManager : MonoBehaviour
         {
             Sprite found = null;
             foreach (var item in mechanicIcons)
-                if (item.levelType == type) { found = item.icon; break; }
+            {
+                if (type.HasFlag(item.levelType))
+                {
+                    found = item.icon;
+                    if (found != null) break;
+                }
+            }
             unlockRewardImage.sprite = found;
             unlockRewardImage.gameObject.SetActive(found != null);
         }

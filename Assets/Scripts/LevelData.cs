@@ -4,14 +4,15 @@ using System.Collections.Generic;
 [CreateAssetMenu(fileName = "NewLevel", menuName = "Symmetric3D/Level Data")]
 public class LevelData : ScriptableObject
 {
+    [System.Flags]
     public enum LevelType
     {
-        Classic,
-        QuarterFill,
-        ColorMix,
-        Shadow,
-        Rotation,
-        Linked
+        Classic = 1 << 0,
+        QuarterFill = 1 << 1,
+        ColorMix = 1 << 2,
+        Shadow = 1 << 3,
+        Rotation = 1 << 4,
+        Linked = 1 << 5
     }
 
     public enum BoardMode

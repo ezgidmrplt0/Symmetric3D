@@ -93,7 +93,7 @@ public class LevelDesignerWindow : EditorWindow
         }
 
         EditorGUILayout.LabelField("Seviye Adı", currentLevel.name);
-        LevelData.LevelType newType = (LevelData.LevelType)EditorGUILayout.EnumPopup("Level Türü", currentLevel.levelType);
+        LevelData.LevelType newType = (LevelData.LevelType)EditorGUILayout.EnumFlagsField("Level Türü", currentLevel.levelType);
 
         if (EditorGUI.EndChangeCheck())
         {
@@ -103,30 +103,23 @@ public class LevelDesignerWindow : EditorWindow
         }
 
         // Türe göre açıklama göster
-        switch (currentLevel.levelType)
-        {
-            case LevelData.LevelType.Classic:
-                EditorGUILayout.HelpBox("Classic — Kaydır ve eşleştir.  |  Açılma: Her zaman açık", MessageType.None);
-                break;
-            case LevelData.LevelType.QuarterFill:
-                EditorGUILayout.HelpBox("QuarterFill — Çeyrek dolu obje mekaniği.  |  Açılma: %100", MessageType.None);
-                break;
-            case LevelData.LevelType.ColorMix:
-                EditorGUILayout.HelpBox("ColorMix — Farklı renklerin birleşimiyle yeni renkler oluşturun.", MessageType.None);
-                break;
-            case LevelData.LevelType.Shadow:
-                EditorGUILayout.HelpBox("Shadow — Tek kalan parçalar (isShadowTrigger) diğer eşleşmeler bittiğinde eşlerini doğurur.", MessageType.None);
-                break;
-            case LevelData.LevelType.Rotation:
-                EditorGUILayout.HelpBox("Rotation — Parçalar tıklandığında 90 derece döner. Sürükleme de aktiftir.", MessageType.None);
-                break;
-            case LevelData.LevelType.Linked:
-                EditorGUILayout.HelpBox("Linked — Aynı 'Bağlantı Grubu'na sahip objeler birbirine yapışır ve çoklu blok mantığıyla (2'li, 3'lü vb.) grup halinde hareket ederler.", MessageType.None);
-                break;
-            default:
-                EditorGUILayout.HelpBox("Seçilen mod için açıklama bulunamadı.", MessageType.None);
-                break;
-        }
+        if (currentLevel.levelType.HasFlag(LevelData.LevelType.Classic))
+            EditorGUILayout.HelpBox("Classic — Kaydır ve eşleştir.  |  Açılma: Her zaman açık", MessageType.None);
+        
+        if (currentLevel.levelType.HasFlag(LevelData.LevelType.QuarterFill))
+            EditorGUILayout.HelpBox("QuarterFill — Çeyrek dolu obje mekaniği.  |  Açılma: %100", MessageType.None);
+        
+        if (currentLevel.levelType.HasFlag(LevelData.LevelType.ColorMix))
+            EditorGUILayout.HelpBox("ColorMix — Farklı renklerin birleşimiyle yeni renkler oluşturun.", MessageType.None);
+        
+        if (currentLevel.levelType.HasFlag(LevelData.LevelType.Shadow))
+            EditorGUILayout.HelpBox("Shadow — Tek kalan parçalar (isShadowTrigger) diğer eşleşmeler bittiğinde eşlerini doğurur.", MessageType.None);
+        
+        if (currentLevel.levelType.HasFlag(LevelData.LevelType.Rotation))
+            EditorGUILayout.HelpBox("Rotation — Parçalar tıklandığında 90 derece döner. Sürükleme de aktiftir.", MessageType.None);
+        
+        if (currentLevel.levelType.HasFlag(LevelData.LevelType.Linked))
+            EditorGUILayout.HelpBox("Linked — Aynı 'Bağlantı Grubu'na sahip objeler birbirine yapışır ve çoklu blok mantığıyla (2'li, 3'lü vb.) grup halinde hareket ederler.", MessageType.None);
 
         GUILayout.Space(6);
 
@@ -310,7 +303,7 @@ public class LevelDesignerWindow : EditorWindow
         currentRotIndex = EditorGUILayout.Popup("Baktığı Yön", currentRotIndex, rotOptions);
         brushRotationZ = rotValues[currentRotIndex];
         
-        if (currentLevel.levelType == LevelData.LevelType.Shadow)
+        if (currentLevel.levelType.HasFlag(LevelData.LevelType.Shadow))
         {
             brushIsShadowTrigger = EditorGUILayout.Toggle("Shadow Trigger?", brushIsShadowTrigger);
         }
@@ -319,7 +312,7 @@ public class LevelDesignerWindow : EditorWindow
             brushIsShadowTrigger = false;
         }
 
-        if (currentLevel.levelType == LevelData.LevelType.Linked)
+        if (currentLevel.levelType.HasFlag(LevelData.LevelType.Linked))
         {
             GUILayout.Space(2);
             brushLinkId = EditorGUILayout.IntSlider("Bağlantı Grubu (Link)", brushLinkId, 1, 9);
@@ -439,7 +432,7 @@ public class LevelDesignerWindow : EditorWindow
                             _ => piece.currentSlices.ToString() + "/4"
                         };
                         string linkTxt = piece.linkId > 0 ? $"\n[L{piece.linkId}]" : "";
-                        buttonText = $"{sliceLabel}\n{yon}" + (currentLevel.levelType == LevelData.LevelType.Shadow && piece.isShadowTrigger ? "\n(S)" : "") + linkTxt;
+                        buttonText = $"{sliceLabel}\n{yon}" + (currentLevel.levelType.HasFlag(LevelData.LevelType.Shadow) && piece.isShadowTrigger ? "\n(S)" : "") + linkTxt;
                     }
                     else
                     {
@@ -566,10 +559,9 @@ public class LevelDesignerWindow : EditorWindow
 
     private int[] GetAvailableSlices(LevelData.LevelType type)
     {
-        return type switch
-        {
-            LevelData.LevelType.QuarterFill => new int[] { 1, 2, 4 },
-            _ => new int[] { 2, 4 } // Classic ve ColorMix modlarında sadece Yarım ve Tam
-        };
+        if (type.HasFlag(LevelData.LevelType.QuarterFill))
+            return new int[] { 1, 2, 4 };
+        
+        return new int[] { 2, 4 }; // Classic ve ColorMix modlarında sadece Yarım ve Tam
     }
 }

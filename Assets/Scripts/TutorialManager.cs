@@ -33,6 +33,24 @@ public class TutorialManager : MonoBehaviour
     {
         Instance = this;
         cam = Camera.main;
+
+        // --- 11. Level Tutorial Otomatik Ekleme ---
+        bool level11Found = false;
+        foreach (var tut in levelTutorials)
+        {
+            if (tut.levelIndex == 10) { level11Found = true; break; }
+        }
+
+        if (!level11Found)
+        {
+            levelTutorials.Add(new LevelTutorial
+            {
+                levelDisplayName = "Level 11",
+                levelIndex = 10,
+                path = new Vector2Int[] { new Vector2Int(0, 2), new Vector2Int(0, 1) },
+                handOffset = new Vector2(0, -40f) // Elin parçanın biraz altında durması için
+            });
+        }
     }
 
     private void Start()

@@ -23,6 +23,16 @@ public class LevelFlowWindow : EditorWindow
         { LevelData.LevelType.Rotation,    new Color(0.2f,  0.7f,  0.4f)  }, // Yeşil
     };
 
+    private Color GetTypeColor(LevelData.LevelType type)
+    {
+        // İlk bulunan aktif flag'in rengini döndür
+        foreach (var kvp in typeColors)
+        {
+            if (type.HasFlag(kvp.Key)) return kvp.Value;
+        }
+        return new Color(0.4f, 0.4f, 0.4f);
+    }
+
     [MenuItem("Symmetric3D/Level Akış Yöneticisi")]
     public static void ShowWindow()
     {
@@ -168,8 +178,9 @@ public class LevelFlowWindow : EditorWindow
                 hoverTypeIndex = i;
             }
 
+            Color tc = GetTypeColor(cfg.levelType);
             Color prevCell = GUI.backgroundColor;
-            if (typeColors.TryGetValue(cfg.levelType, out Color c)) GUI.backgroundColor = c;
+            GUI.backgroundColor = tc;
             GUILayout.Label(cfg.levelType.ToString(), EditorStyles.miniButtonMid, GUILayout.Width(120));
             GUI.backgroundColor = prevCell;
 
@@ -307,7 +318,7 @@ public class LevelFlowWindow : EditorWindow
             else
             {
                 Color prev = GUI.backgroundColor;
-                if (typeColors.TryGetValue(level.levelType, out Color tc)) GUI.backgroundColor = tc;
+                GUI.backgroundColor = GetTypeColor(level.levelType);
 
                 // Orijinaldeki buton
                 if (GUILayout.Button(level.levelDisplayName, EditorStyles.miniButtonMid, GUILayout.Width(130)))

@@ -10,96 +10,123 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: c59920f407dc8f14785c8fd032f0cff0, type: 3}
-  m_Name: Level_05
+  m_Name: Level_14
   m_EditorClassIdentifier: 
-  levelDisplayName: Level_05
-  levelType: 1
+  levelDisplayName: Level_14
+  levelType: 7
   boardMode: 0
   gridX: 4
-  gridY: 4
+  gridY: 6
   customGridPositions:
   - {x: 0, y: 1}
+  - {x: 0, y: 2}
+  - {x: 0, y: 3}
   - {x: 1, y: 0}
   - {x: 1, y: 1}
   - {x: 1, y: 2}
+  - {x: 1, y: 3}
+  - {x: 1, y: 4}
+  - {x: 1, y: 5}
   - {x: 2, y: 0}
   - {x: 2, y: 1}
   - {x: 2, y: 2}
-  - {x: 3, y: 1}
-  - {x: 3, y: 2}
   - {x: 2, y: 3}
-  - {x: 0, y: 2}
-  - {x: 1, y: 3}
+  - {x: 2, y: 4}
+  - {x: 2, y: 5}
+  - {x: 3, y: 2}
+  - {x: 3, y: 3}
+  - {x: 3, y: 4}
   shapePrefab: {fileID: 0}
   shapeFaces: []
   pieces:
-  - gridPosition: {x: 1, y: 3}
+  - gridPosition: {x: 0, y: 3}
     faceIndex: 0
     liquidColor: {r: 1, g: 0, b: 0, a: 1}
-    currentSlices: 2
-    rotationZ: -90
-    isShadowTrigger: 0
-    linkId: 0
-  - gridPosition: {x: 2, y: 3}
-    faceIndex: 0
-    liquidColor: {r: 0, g: 0, b: 1, a: 1}
-    currentSlices: 2
-    rotationZ: 0
-    isShadowTrigger: 0
-    linkId: 0
-  - gridPosition: {x: 0, y: 2}
-    faceIndex: 0
-    liquidColor: {r: 0, g: 1, b: 0, a: 1}
-    currentSlices: 2
-    rotationZ: -90
-    isShadowTrigger: 0
-    linkId: 0
-  - gridPosition: {x: 1, y: 1}
-    faceIndex: 0
-    liquidColor: {r: 0, g: 1, b: 0, a: 1}
-    currentSlices: 2
-    rotationZ: 90
-    isShadowTrigger: 0
-    linkId: 0
-  - gridPosition: {x: 2, y: 2}
-    faceIndex: 0
-    liquidColor: {r: 1, g: 0.5, b: 0, a: 1}
-    currentSlices: 2
-    rotationZ: 0
+    currentSlices: 1
+    rotationZ: 180
     isShadowTrigger: 0
     linkId: 0
   - gridPosition: {x: 2, y: 0}
     faceIndex: 0
+    liquidColor: {r: 1, g: 1, b: 0, a: 1}
+    currentSlices: 1
+    rotationZ: 0
+    isShadowTrigger: 0
+    linkId: 0
+  - gridPosition: {x: 2, y: 5}
+    faceIndex: 0
+    liquidColor: {r: 0.5, g: 0, b: 0.5, a: 1}
+    currentSlices: 2
+    rotationZ: 180
+    isShadowTrigger: 0
+    linkId: 0
+  - gridPosition: {x: 1, y: 5}
+    faceIndex: 0
     liquidColor: {r: 1, g: 0.5, b: 0, a: 1}
+    currentSlices: 2
+    rotationZ: 90
+    isShadowTrigger: 0
+    linkId: 0
+  - gridPosition: {x: 0, y: 1}
+    faceIndex: 0
+    liquidColor: {r: 1, g: 0.5, b: 0, a: 1}
+    currentSlices: 2
+    rotationZ: -90
+    isShadowTrigger: 0
+    linkId: 0
+  - gridPosition: {x: 3, y: 4}
+    faceIndex: 0
+    liquidColor: {r: 0, g: 0, b: 1, a: 1}
+    currentSlices: 1
+    rotationZ: 180
+    isShadowTrigger: 0
+    linkId: 0
+  - gridPosition: {x: 1, y: 4}
+    faceIndex: 0
+    liquidColor: {r: 0, g: 0, b: 1, a: 1}
+    currentSlices: 1
+    rotationZ: 180
+    isShadowTrigger: 0
+    linkId: 0
+  - gridPosition: {x: 0, y: 2}
+    faceIndex: 0
+    liquidColor: {r: 0, g: 0, b: 1, a: 1}
+    currentSlices: 1
+    rotationZ: 0
+    isShadowTrigger: 0
+    linkId: 0
+  - gridPosition: {x: 1, y: 0}
+    faceIndex: 0
+    liquidColor: {r: 0, g: 0, b: 1, a: 1}
+    currentSlices: 1
+    rotationZ: 0
+    isShadowTrigger: 0
+    linkId: 0
+  - gridPosition: {x: 2, y: 4}
+    faceIndex: 0
+    liquidColor: {r: 1, g: 1, b: 0, a: 1}
     currentSlices: 2
     rotationZ: 180
     isShadowTrigger: 0
     linkId: 0
   - gridPosition: {x: 3, y: 2}
     faceIndex: 0
-    liquidColor: {r: 1, g: 0, b: 0, a: 1}
-    currentSlices: 2
-    rotationZ: 90
-    isShadowTrigger: 0
-    linkId: 0
-  - gridPosition: {x: 3, y: 1}
-    faceIndex: 0
-    liquidColor: {r: 0, g: 0, b: 1, a: 1}
-    currentSlices: 2
-    rotationZ: 180
-    isShadowTrigger: 0
-    linkId: 0
-  - gridPosition: {x: 0, y: 1}
-    faceIndex: 0
     liquidColor: {r: 1, g: 1, b: 0, a: 1}
     currentSlices: 2
-    rotationZ: -90
+    rotationZ: 0
     isShadowTrigger: 0
     linkId: 0
-  - gridPosition: {x: 1, y: 0}
+  - gridPosition: {x: 2, y: 1}
     faceIndex: 0
-    liquidColor: {r: 1, g: 1, b: 0, a: 1}
+    liquidColor: {r: 1, g: 0.5, b: 0, a: 1}
     currentSlices: 2
-    rotationZ: 90
+    rotationZ: 0
+    isShadowTrigger: 0
+    linkId: 0
+  - gridPosition: {x: 1, y: 1}
+    faceIndex: 0
+    liquidColor: {r: 0.5, g: 0, b: 0.5, a: 1}
+    currentSlices: 2
+    rotationZ: 0
     isShadowTrigger: 0
     linkId: 0

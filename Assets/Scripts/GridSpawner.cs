@@ -1388,7 +1388,7 @@ public class GridSpawner : MonoBehaviour
         if (a.isShadowChild || b.isShadowChild) return true; 
 
         bool capable = false;
-        if (CurrentLevelType == LevelData.LevelType.ColorMix)
+        if (CurrentLevelType.HasFlag(LevelData.LevelType.ColorMix))
         {
             // Renkler farklı ve karışabiliyorsa hamle var demektir
             if (!ColorMixData.ColorsMatch(a.liquidColor, b.liquidColor))
@@ -1396,7 +1396,8 @@ public class GridSpawner : MonoBehaviour
                 if (ColorMixData.TryGetMix(a.liquidColor, b.liquidColor, out _)) capable = true;
             }
         }
-        else
+        
+        if (!capable && CurrentLevelType.HasFlag(LevelData.LevelType.Classic))
         {
             // Classic: Aynı renk + Aynı dilim sayısı + Dolu değilse
             bool colorMatch = ColorMixData.ColorsMatch(a.liquidColor, b.liquidColor);
@@ -1410,7 +1411,7 @@ public class GridSpawner : MonoBehaviour
 
         // ROTASYON KONTROLÜ
         // Eğer Rotation modu değilse, parçaların birbirine bakabilecek (zıt) olması gerekir.
-        if (CurrentLevelType != LevelData.LevelType.Rotation)
+        if (!CurrentLevelType.HasFlag(LevelData.LevelType.Rotation))
         {
             Vector3 myFace    = a.transform.up;
             Vector3 otherFace = b.transform.up;

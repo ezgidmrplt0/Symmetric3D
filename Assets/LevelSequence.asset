@@ -13,18 +13,18 @@ MonoBehaviour:
   m_Name: LevelSequence
   m_EditorClassIdentifier: 
   typeConfigs:
-  - levelType: 0
-    unlockAtProgress: 0
   - levelType: 1
     unlockAtProgress: 100
   - levelType: 2
     unlockAtProgress: 200
   - levelType: 4
     unlockAtProgress: 300
-  - levelType: 3
+  - levelType: 16
     unlockAtProgress: 400
-  - levelType: 5
-    unlockAtProgress: 100
+  - levelType: 8
+    unlockAtProgress: 500
+  - levelType: 32
+    unlockAtProgress: 600
   levels:
   - {fileID: 11400000, guid: 512ccf2c2fe1323448bfa872859b8dc3, type: 2}
   - {fileID: 11400000, guid: 680a76eaba95d48aeb3e9fe98a1b1040, type: 2}
@@ -35,3 +35,8 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 278309c0c9e9f2d4880d4f3de596e528, type: 2}
   - {fileID: 11400000, guid: 7f430469a0e6963419c963b020ecd89e, type: 2}
   - {fileID: 11400000, guid: dd698c8c53295e449a2fc43b812c6816, type: 2}
+  - {fileID: 11400000, guid: 0e58d366f90266f45939d40f39ce74dc, type: 2}
+  - {fileID: 11400000, guid: 3145c75249bb51b40997cf1e0d163aef, type: 2}
+  - {fileID: 11400000, guid: 061ad57f7b8469640bc9c00c4470a4bf, type: 2}
+  - {fileID: 11400000, guid: c7f2bb737e28b2a44832c3ea57a187de, type: 2}
+  - {fileID: 11400000, guid: a4e3e7c0023a5b8428ada20b755cbca7, type: 2}
