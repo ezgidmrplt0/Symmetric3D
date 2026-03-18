@@ -171,6 +171,10 @@ public class DragObject : MonoBehaviour
                 }
             }
 
+            // Çapraz komşu iki obje arasındaki boşluktan geçişi engelle
+            if (!collisionFound)
+                collisionFound = IsDiagonallyBlocked(currentPos, nextPos, allObjects, is3D);
+
             if (collisionFound)
             {
                 // Tam yön engelliyse X ve Y eksenlerinde kaymayı dene (sliding)
@@ -185,6 +189,9 @@ public class DragObject : MonoBehaviour
                     if (Vector3.Distance(tryX, obj.transform.position) < collisionDistance) blockX = true;
                     if (Vector3.Distance(tryY, obj.transform.position) < collisionDistance) blockY = true;
                 }
+
+                if (!blockX) blockX = IsDiagonallyBlocked(currentPos, tryX, allObjects, is3D);
+                if (!blockY) blockY = IsDiagonallyBlocked(currentPos, tryY, allObjects, is3D);
 
                 if (!blockX && Mathf.Abs(stepVec.x) > 0.001f) nextPos = tryX;
                 else if (!blockY && Mathf.Abs(stepVec.y) > 0.001f) nextPos = tryY;
@@ -377,7 +384,7 @@ public class DragObject : MonoBehaviour
 
     void ReturnToStart()
     {
-        // Eğer küp döndüyse, eski world position yanlış kalır. 
+        // Eğer küp döndüyse, eski world position yanlış kalır.
         // Bu yüzden eski parent'ına local olarak geri dönmeli.
         if (startParent != null)
         {
@@ -389,5 +396,69 @@ public class DragObject : MonoBehaviour
             // Fallback: World pos
             transform.DOMove(startPosition, 0.4f).SetEase(Ease.OutBack);
         }
+    }
+
+    // ──────────────────────────────────────────────────────────────
+    // ÇAPRAZ ENGEL KONTROLÜ
+    // İki obje çapraz komşuysa aralarındaki segmentten geçişi engeller.
+    // ──────────────────────────────────────────────────────────────
+
+    private float GetGridStep()
+    {
+        if (activeSpawner != null && activeSpawner.gridPrefab != null)
+            return activeSpawner.gridPrefab.transform.localScale.x + activeSpawner.spacing;
+        return 1.4f;
+    }
+
+    private bool IsDiagonallyBlocked(Vector3 from, Vector3 to, DragObject[] allObjects, bool is3D)
+    {
+        float gridStep = GetGridStep();
+        float diagDist = gridStep * Mathf.Sqrt(2f);
+        float tolerance = gridStep * 0.35f;
+
+        Vector2 p1 = new Vector2(from.x, from.y);
+        Vector2 p2 = new Vector2(to.x, to.y);
+
+        for (int i = 0; i < allObjects.Length; i++)
+        {
+            for (int j = i + 1; j < allObjects.Length; j++)
+            {
+                DragObject a = allObjects[i];
+                DragObject b = allObjects[j];
+                if (a == this || b == this) continue;
+                if (!a.gameObject.activeInHierarchy || !b.gameObject.activeInHierarchy) continue;
+                if (is3D && startParent != null)
+                {
+                    if (a.transform.parent != startParent || b.transform.parent != startParent) continue;
+                }
+
+                Vector2 pa = new Vector2(a.transform.position.x, a.transform.position.y);
+                Vector2 pb = new Vector2(b.transform.position.x, b.transform.position.y);
+
+                float distAB = Vector2.Distance(pa, pb);
+                if (Mathf.Abs(distAB - diagDist) > tolerance) continue;
+
+                if (SegmentsIntersect2D(p1, p2, pa, pb))
+                    return true;
+            }
+        }
+        return false;
+    }
+
+    // İki 2D segment kesişiyor mu? (parametrik yöntem)
+    // r = p2-p1, s = p4-p3, qp = p3-p1
+    // t = (qp × s) / (r × s),  u = (qp × r) / (r × s)
+    private bool SegmentsIntersect2D(Vector2 p1, Vector2 p2, Vector2 p3, Vector2 p4)
+    {
+        float d1x = p2.x - p1.x, d1y = p2.y - p1.y; // r
+        float d2x = p4.x - p3.x, d2y = p4.y - p3.y; // s
+        float denom = d1x * d2y - d1y * d2x;          // r × s
+        if (Mathf.Abs(denom) < 0.0001f) return false; // Paralel
+
+        float dx = p3.x - p1.x, dy = p3.y - p1.y;    // qp
+        float t = (dx * d2y - dy * d2x) / denom;      // (qp × s) / (r × s)
+        float u = (dx * d1y - dy * d1x) / denom;      // (qp × r) / (r × s)
+
+        return t >= 0f && t <= 1f && u >= 0f && u <= 1f;
     }
 }

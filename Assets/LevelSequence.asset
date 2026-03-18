@@ -14,17 +14,17 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   typeConfigs:
   - levelType: 1
-    unlockAtProgress: 100
+    unlockAtProgress: 0
   - levelType: 2
-    unlockAtProgress: 200
+    unlockAtProgress: 100
   - levelType: 4
-    unlockAtProgress: 300
+    unlockAtProgress: 200
   - levelType: 16
-    unlockAtProgress: 400
+    unlockAtProgress: 300
   - levelType: 8
-    unlockAtProgress: 500
+    unlockAtProgress: 400
   - levelType: 32
-    unlockAtProgress: 600
+    unlockAtProgress: 500
   levels:
   - {fileID: 11400000, guid: 512ccf2c2fe1323448bfa872859b8dc3, type: 2}
   - {fileID: 11400000, guid: 680a76eaba95d48aeb3e9fe98a1b1040, type: 2}
