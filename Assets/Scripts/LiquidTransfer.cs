@@ -159,9 +159,13 @@ public class LiquidTransfer : MonoBehaviour
         Vector3 otherPos = other.transform.position;
 
         float dist = Vector3.Distance(myPos, otherPos);
-        
-        // Mesafe kontrolü
-        if (dist >= maxAdjacencyDistance || dist <= 0.1f) return false;
+
+        // Mesafe kontrolü — parça dünya boyutuna göre dinamik eşik (gridStep * 1.2)
+        // Shape3D'de gridStep ≈ lossyScale.x / 0.55; sabit maxAdjacencyDistance 3D için fazla büyük
+        float adjDist = transform.lossyScale.x > 0.001f
+            ? (transform.lossyScale.x / 0.55f) * 1.2f
+            : maxAdjacencyDistance;
+        if (dist >= adjDist || dist <= 0.1f) return false;
 
         Vector3 dirToOther = (otherPos - myPos).normalized;
         Vector3 myFace = transform.up;

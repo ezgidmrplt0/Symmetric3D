@@ -1795,6 +1795,7 @@ MonoBehaviour:
   cameraPadding: 1
   cameraZoomFactor: 0.75
   cameraVerticalOffset: 0.5
+  shapeZOffset: 5
   levelText: {fileID: 1595179919}
 --- !u!4 &1888244671
 Transform:
