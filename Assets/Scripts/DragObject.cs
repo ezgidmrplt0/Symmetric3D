@@ -199,15 +199,28 @@ public class DragObject : MonoBehaviour
             }
 
             // --- SINIR KONTROLÜ ---
+            // Sınırı spawn edilmiş aktif grid hücrelerinden çek → frame şekliyle birebir örtüşür.
+            // Eşik olarak step/2 kullanılır: yan yana hücrelerin arasındaki boşlukta obje serbest
+            // hareket edebilsin, dış sınırda ise obje frame duvarının içinde durur.
             if (activeSpawner != null && !is3D)
             {
-                var lvl = activeSpawner.levels[activeSpawner.currentLevelIndex];
                 float gridSize = activeSpawner.gridPrefab.transform.localScale.x;
                 float step = gridSize + activeSpawner.spacing;
-                float halfX = (lvl.gridX - 1) * 0.5f * step + gridSize * 0.5f + activeSpawner.framePadding - activeSpawner.frameThickness * 0.5f;
-                float halfY = (lvl.gridY - 1) * 0.5f * step + gridSize * 0.5f + activeSpawner.framePadding - activeSpawner.frameThickness * 0.5f;
+                float halfStep = step * 0.5f;
                 Vector3 lp = activeSpawner.transform.InverseTransformPoint(nextPos);
-                if (Mathf.Abs(lp.x) > halfX || Mathf.Abs(lp.y) > halfY) break;
+
+                bool inBounds = false;
+                foreach (Transform cell in activeSpawner.transform)
+                {
+                    if (!cell.CompareTag("Grid") || !cell.gameObject.activeInHierarchy || cell.name.Contains("Blocked")) continue;
+                    Vector3 cellLp = activeSpawner.transform.InverseTransformPoint(cell.position);
+                    if (Mathf.Abs(lp.x - cellLp.x) <= halfStep && Mathf.Abs(lp.y - cellLp.y) <= halfStep)
+                    {
+                        inBounds = true;
+                        break;
+                    }
+                }
+                if (!inBounds) break;
             }
 
             currentPos = nextPos;
