@@ -13,6 +13,7 @@ public class LevelDesignerWindow : EditorWindow
     private float brushRotationZ = 0f;
     private bool brushIsShadowTrigger = false;
     private int brushLinkId = 0;
+    private int brushSpawnShadowAfterLinkID = 0;
 
 
     private bool isGridEditMode = false;
@@ -306,6 +307,14 @@ public class LevelDesignerWindow : EditorWindow
         if (currentLevel.levelType.HasFlag(LevelData.LevelType.Shadow))
         {
             brushIsShadowTrigger = EditorGUILayout.Toggle("Shadow Trigger?", brushIsShadowTrigger);
+            if (brushIsShadowTrigger)
+            {
+                brushSpawnShadowAfterLinkID = EditorGUILayout.IntSlider("Hangi Linkten Sonra? (0=Sonra)", brushSpawnShadowAfterLinkID, 0, 9);
+                if (brushSpawnShadowAfterLinkID > 0)
+                    EditorGUILayout.HelpBox($"Bu gölge, Link {brushSpawnShadowAfterLinkID} grubu temizlendiğinde doğacak.", MessageType.None);
+                else
+                    EditorGUILayout.HelpBox("Bu gölge, en sonda (hiç parça kalmadığında) doğacak.", MessageType.None);
+            }
         }
         else
         {
@@ -315,8 +324,24 @@ public class LevelDesignerWindow : EditorWindow
         if (currentLevel.levelType.HasFlag(LevelData.LevelType.Linked))
         {
             GUILayout.Space(2);
-            brushLinkId = EditorGUILayout.IntSlider("Bağlantı Grubu (Link)", brushLinkId, 1, 9);
-            EditorGUILayout.HelpBox($"Şu an Link {brushLinkId} seçili. Aynı Link'e sahip iki veya daha fazla parça çizerseniz grup olarak hareket ederler.", MessageType.Info);
+            bool useLink = brushLinkId > 0;
+            EditorGUI.BeginChangeCheck();
+            useLink = EditorGUILayout.Toggle("Grup Yap (Link)", useLink);
+            if (EditorGUI.EndChangeCheck())
+            {
+                brushLinkId = useLink ? 1 : 0;
+            }
+
+            if (useLink)
+            {
+                brushLinkId = EditorGUILayout.IntSlider("Link ID", brushLinkId, 1, 9);
+                EditorGUILayout.HelpBox($"Link {brushLinkId} seçili. Aynı ID'ye sahip parçalar grup olarak hareket ederler.", MessageType.Info);
+            }
+            else
+            {
+                brushLinkId = 0;
+                EditorGUILayout.HelpBox("Bağımsız parça (Grup yok). Link özelliği kapalı olduğu için bu parça tekil hareket eder.", MessageType.None);
+            }
         }
         else
         {
@@ -432,7 +457,11 @@ public class LevelDesignerWindow : EditorWindow
                             _ => piece.currentSlices.ToString() + "/4"
                         };
                         string linkTxt = piece.linkId > 0 ? $"\n[L{piece.linkId}]" : "";
-                        buttonText = $"{sliceLabel}\n{yon}" + (currentLevel.levelType.HasFlag(LevelData.LevelType.Shadow) && piece.isShadowTrigger ? "\n(S)" : "") + linkTxt;
+                        string shadowTxt = piece.isShadowTrigger ? "\n(S)" : "";
+                        if (piece.isShadowTrigger && piece.spawnShadowAfterLinkID > 0)
+                            shadowTxt += $"[A:{piece.spawnShadowAfterLinkID}]";
+                        
+                        buttonText = $"{sliceLabel}\n{yon}{linkTxt}{shadowTxt}";
                     }
                     else
                     {
@@ -503,6 +532,7 @@ public class LevelDesignerWindow : EditorWindow
                             piece.rotationZ = brushRotationZ;
                             piece.isShadowTrigger = brushIsShadowTrigger;
                             piece.linkId = brushLinkId;
+                            piece.spawnShadowAfterLinkID = brushSpawnShadowAfterLinkID;
                             if (currentLevel.boardMode == LevelData.BoardMode.Shape3D) piece.faceIndex = currentFaceIndex;
 
                             EditorUtility.SetDirty(currentLevel);

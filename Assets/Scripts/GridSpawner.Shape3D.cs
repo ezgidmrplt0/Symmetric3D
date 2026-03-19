@@ -144,6 +144,12 @@ public partial class GridSpawner
 
         foreach (var piece in level.pieces)
         {
+            if (piece.isShadowTrigger)
+            {
+                pendingPieces.Add(piece);
+                continue;
+            }
+
             if (piece.faceIndex < 0 || piece.faceIndex >= def.FaceCount) continue;
 
             ShapeFaceMarker marker = def.GetFace(piece.faceIndex);
@@ -196,6 +202,9 @@ public partial class GridSpawner
 
             activeSpawnedObjects.Add(newObj);
 
+            DragObject dobj = newObj.GetComponent<DragObject>();
+            if (dobj != null) dobj.linkId = piece.linkId;
+
             if (piece.linkId > 0)
             {
                 if (!groups.ContainsKey(piece.linkId))
@@ -216,6 +225,7 @@ public partial class GridSpawner
                 lt.liquidColor     = piece.liquidColor;
                 lt.currentSlices   = piece.currentSlices;
                 lt.isShadowTrigger = piece.isShadowTrigger;
+                lt.spawnShadowAfterLinkID = piece.spawnShadowAfterLinkID;
             }
         }
 

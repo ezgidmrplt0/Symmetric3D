@@ -41,6 +41,7 @@ public class LevelData : ScriptableObject
         public int currentSlices = 1;
         public float rotationZ = 0f;
         public bool isShadowTrigger = false;
+        public int spawnShadowAfterLinkID = 0;
         public int linkId = 0;
     }
 

@@ -73,6 +73,12 @@ public partial class GridSpawner
 
         foreach (var piece in level.pieces)
         {
+            if (piece.isShadowTrigger)
+            {
+                pendingPieces.Add(piece);
+                continue;
+            }
+
             Vector3 piecePos = new Vector3(
                 piece.gridPosition.x * (gridSize + spacing) - offsetX,
                 piece.gridPosition.y * (gridSize + spacing) - offsetY,
@@ -82,6 +88,9 @@ public partial class GridSpawner
             GameObject newObj = Instantiate(objectPrefab, transform.position + piecePos,
                 Quaternion.Euler(0, 0, piece.rotationZ), transform);
             activeSpawnedObjects.Add(newObj);
+
+            DragObject dobj = newObj.GetComponent<DragObject>();
+            if (dobj != null) dobj.linkId = piece.linkId;
 
             if (piece.linkId > 0)
             {
@@ -103,6 +112,7 @@ public partial class GridSpawner
                 lt.liquidColor     = piece.liquidColor;
                 lt.currentSlices   = piece.currentSlices;
                 lt.isShadowTrigger = piece.isShadowTrigger;
+                lt.spawnShadowAfterLinkID = piece.spawnShadowAfterLinkID;
             }
         }
 

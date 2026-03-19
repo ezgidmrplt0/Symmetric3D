@@ -39,6 +39,7 @@ public partial class DragObject : MonoBehaviour
     private float wrapCooldown = 0f;
 
     private int activeTouchIndex = -1;
+    public int linkId = 0;
 
     // ──────────────────────────────────────────────────────────────
     // BAŞLANGIÇ
@@ -109,7 +110,7 @@ public partial class DragObject : MonoBehaviour
                 if (parentMarker != null)
                 {
                     float dot = Vector3.Dot(transform.parent.forward, cam.transform.forward);
-                    Debug.Log($"[PICK] Face dot check: face.forward={transform.parent.forward:F2} cam.forward={cam.transform.forward:F2} |dot|={Mathf.Abs(dot):F2}");
+                    Debug.Log($"[PICK] Face dot check: face.forward={transform.parent.forward:F2} cam.transform.forward={cam.transform.forward:F2} |dot|={Mathf.Abs(dot):F2}");
                     if (Mathf.Abs(dot) < 0.45f)
                     {
                         Debug.Log($"<color=gray>[PICK] DENIED: Yan yüzey (|dot|={Mathf.Abs(dot):F2})</color>");

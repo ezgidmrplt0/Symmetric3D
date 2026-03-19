@@ -1,20 +1,21 @@
 using UnityEngine;
 using System.Collections.Generic;
+using DG.Tweening;
 
 public class LinkedObjectGroup : MonoBehaviour
 {
     private Camera cam;
     private bool dragging = false;
 
-    private Vector3 offset;
-    private float zDepth;
+    private Plane dragPlane;
+    private Vector3 worldGrabOffset;
 
     private Vector3 startPosition;
     private Vector2 startScreenPos;
     private float startTime;
 
     public float snapDistance = 1.5f;
-    public float collisionDistance = 1.0f;
+    public float collisionDistance = 0.35f;
 
     public List<DragObject> childDrags = new List<DragObject>();
     private GameObject backPanel;
@@ -86,9 +87,10 @@ public class LinkedObjectGroup : MonoBehaviour
             lr.SetPosition(i, p);
         }
 
-        // Genişliğini orta bir değere aldım (Küreleri taşmadan tatlıca kaplasın)
-        lr.startWidth = 0.85f;
-        lr.endWidth = 0.85f;
+        // Genişliği grid hücrelerine ve objelere daha uyumlu hale getirelim.
+        float width = 0.62f;
+        lr.startWidth = width;
+        lr.endWidth = width;
         
         // Oval / Yuvarlatılmış köşeler
         lr.numCapVertices = 15;
@@ -108,8 +110,7 @@ public class LinkedObjectGroup : MonoBehaviour
         mat.renderQueue = 3000;
 
         // Temadaki pastel mavi ve saf beyaz grid ortamında "Dokulu, Koyu Buzlu Cam" etkisi yaratır
-        // Daha az saydam (0.75) ve daha koyu/tok bir gri/lacivert tonu.
-        mat.color = new Color(0.25f, 0.3f, 0.35f, 0.75f); 
+        mat.color = new Color(0.2f, 0.25f, 0.3f, 0.55f); 
         
         // Parlamasını şık durması için korudum
         mat.SetFloat("_Glossiness", 0.7f); 
@@ -157,75 +158,145 @@ public class LinkedObjectGroup : MonoBehaviour
         Ray ray = cam.ScreenPointToRay(screenPos);
         if (Physics.Raycast(ray, out RaycastHit hit))
         {
-            bool hitChild = false;
+            DragObject hitTarget = null;
             foreach (var d in childDrags)
             {
                 if (d != null && hit.transform.IsChildOf(d.transform))
                 {
-                    hitChild = true;
+                    hitTarget = d;
                     break;
                 }
             }
 
-            if (hitChild)
+            if (hitTarget != null)
             {
                 dragging = true;
                 startPosition = transform.position;
-                zDepth = cam.WorldToScreenPoint(transform.position).z;
                 startScreenPos = screenPos;
                 startTime = Time.time;
 
-                Vector3 world = cam.ScreenToWorldPoint(new Vector3(screenPos.x, screenPos.y, zDepth));
-                offset = transform.position - world;
+                dragPlane = new Plane(Vector3.forward, transform.position);
+                Ray dragRay = cam.ScreenPointToRay(screenPos);
+                if (dragPlane.Raycast(dragRay, out float enter))
+                {
+                    worldGrabOffset = transform.position - dragRay.GetPoint(enter);
+                }
+                else
+                {
+                    worldGrabOffset = Vector3.zero;
+                }
             }
         }
     }
 
     void Drag(Vector3 screenPos)
     {
-        Vector3 world = cam.ScreenToWorldPoint(new Vector3(screenPos.x, screenPos.y, zDepth));
-        Vector3 desiredPos = world + offset;
+        Ray ray = cam.ScreenPointToRay(screenPos);
+        if (!dragPlane.Raycast(ray, out float enter)) return;
 
-        DragObject[] allObjects = FindObjectsOfType<DragObject>();
+        Vector3 worldPoint = ray.GetPoint(enter);
+        Vector3 desiredPos = worldPoint + worldGrabOffset;
+
+        DragObject[] allObjects = FindObjectsOfType<DragObject>(true);
 
         Vector3 currentPos = transform.position;
         Vector3 moveDir = desiredPos - currentPos;
-        float expectedDistance = moveDir.magnitude;
+        float dist = moveDir.magnitude;
 
-        int steps = Mathf.CeilToInt(expectedDistance / 0.1f);
-        if (steps > 0)
+        List<Vector3> childOffsets = new List<Vector3>();
+        foreach (var d in childDrags)
         {
-            Vector3 stepVec = moveDir / steps;
-            for (int s = 0; s < steps; s++)
+            if (d != null) childOffsets.Add(d.transform.position - transform.position);
+            else childOffsets.Add(Vector3.zero);
+        }
+
+        int steps = Mathf.Max(1, Mathf.CeilToInt(dist / 0.05f));
+        Vector3 stepVec = moveDir / steps;
+
+        GridSpawner spawner = FindObjectOfType<GridSpawner>();
+
+        for (int s = 0; s < steps; s++)
+        {
+            Vector3 nextPos = currentPos + stepVec;
+            bool stepBlocked = false;
+
+            // 1. DİĞER OBJELERLE ÇARPIŞMA KONTROLÜ
+            for (int iter = 0; iter < 2; iter++)
             {
-                currentPos += stepVec;
-
-                for (int i = 0; i < 2; i++)
+                for (int i = 0; i < childDrags.Count; i++)
                 {
-                    foreach (DragObject obj in allObjects)
+                    if (childDrags[i] == null) continue;
+
+                    Vector3 proposedChildPos = nextPos + childOffsets[i];
+                    Vector2 p2 = new Vector2(proposedChildPos.x, proposedChildPos.y);
+
+                    foreach (var other in allObjects)
                     {
-                        if (obj == null || obj.transform.IsChildOf(this.transform)) continue;
+                        if (other == null || !other.gameObject.activeInHierarchy || other.transform.IsChildOf(this.transform))
+                            continue;
 
-                        for (int j = 0; j < childDrags.Count; j++)
+                        Vector2 op2 = new Vector2(other.transform.position.x, other.transform.position.y);
+                        float d = Vector2.Distance(p2, op2);
+
+                        if (d < collisionDistance)
                         {
-                            Vector3 worldOffset = childDrags[j].transform.position - transform.position;
-                            Vector3 myChildPos = currentPos + worldOffset;
-                            Vector2 myPos2D = new Vector2(myChildPos.x, myChildPos.y);
-                            Vector2 otherPos2D = new Vector2(obj.transform.position.x, obj.transform.position.y);
+                            Vector2 push = (p2 - op2).normalized;
+                            if (push == Vector2.zero) push = Vector2.up;
 
-                            float dist = Vector2.Distance(myPos2D, otherPos2D);
-                            if (dist < collisionDistance)
-                            {
-                                Vector2 pushDir = (myPos2D - otherPos2D).normalized;
-                                if (pushDir == Vector2.zero) pushDir = Vector2.up;
-
-                                Vector2 resolvedPos2D = otherPos2D + pushDir * collisionDistance;
-                                currentPos.x += (resolvedPos2D.x - myPos2D.x);
-                                currentPos.y += (resolvedPos2D.y - myPos2D.y);
-                            }
+                            Vector2 resolved = op2 + push * collisionDistance;
+                            nextPos.x += (resolved.x - p2.x);
+                            nextPos.y += (resolved.y - p2.y);
+                            
+                            p2 = new Vector2(nextPos.x + childOffsets[i].x, nextPos.y + childOffsets[i].y);
                         }
                     }
                 }
+            }
+
+            // 2. GRID VE BOŞLUK (HOLE) KONTROLÜ
+            // Her bir parçanın altında geçerli bir grid hücresi var mı?
+            if (spawner != null)
+            {
+                float gridSize = spawner.gridPrefab.transform.localScale.x;
+                float cellSize = gridSize + spawner.spacing;
+                float halfCell = cellSize * 0.5f;
+
+                for (int i = 0; i < childDrags.Count; i++)
+                {
+                    if (childDrags[i] == null) continue;
+                    Vector3 worldChildPos = nextPos + childOffsets[i];
+                    Vector3 localChildPos = spawner.transform.InverseTransformPoint(worldChildPos);
+                    
+                    bool overValidGrid = false;
+                    foreach (Transform cell in spawner.transform)
+                    {
+                        if (!cell.CompareTag("Grid") || !cell.gameObject.activeInHierarchy || cell.name.Contains("Blocked")) 
+                            continue;
+
+                        Vector3 cellLp = spawner.transform.InverseTransformPoint(cell.position);
+                        if (Mathf.Abs(localChildPos.x - cellLp.x) <= halfCell && 
+                            Mathf.Abs(localChildPos.y - cellLp.y) <= halfCell)
+                        {
+                            overValidGrid = true;
+                            break;
+                        }
+                    }
+
+                    if (!overValidGrid)
+                    {
+                        stepBlocked = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!stepBlocked)
+            {
+                currentPos = nextPos;
+            }
+            else
+            {
+                break; // Geçersiz bir alana gelindiği için hareketi burada kes
             }
         }
 
@@ -246,7 +317,6 @@ public class LinkedObjectGroup : MonoBehaviour
             GridSpawner spawner = FindObjectOfType<GridSpawner>();
             if (spawner != null && spawner.CurrentLevelType == LevelData.LevelType.Rotation)
             {
-                // Grubu kendi merkezi etrafında 90 derece döndür
                 transform.Rotate(0, 0, 90f);
                 foreach (var c in childDrags)
                 {
@@ -263,7 +333,6 @@ public class LinkedObjectGroup : MonoBehaviour
         Vector3 bestParentPosition = startPosition;
         float bestGroupDistance = Mathf.Infinity;
 
-        // Grubun ilk elemanı (anchor) için tüm gridleri dene
         foreach (GameObject grid in grids)
         {
             float dist = Vector3.Distance(childDrags[0].transform.position, grid.transform.position);

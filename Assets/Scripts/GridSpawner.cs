@@ -49,6 +49,7 @@ public partial class GridSpawner : MonoBehaviour
     private List<GameObject> activeSpawnedObjects = new List<GameObject>();
     private List<GameObject> activeFrameSegments = new List<GameObject>();
     private Dictionary<int, Transform> spawnedFaceRoots = new Dictionary<int, Transform>();
+    private List<LevelData.PieceData> pendingPieces = new List<LevelData.PieceData>();
 
     // ──────────────────────────────────────────────────────────────
     // KOLAYLIK ÖZELLİKLERİ
@@ -182,6 +183,7 @@ public partial class GridSpawner : MonoBehaviour
         foreach (GameObject seg in activeFrameSegments)
             if (seg != null) Destroy(seg);
         activeFrameSegments.Clear();
+        pendingPieces.Clear();
     }
 
     /// <summary>Board moduna göre 2D veya 3D spawn'ı başlatır.</summary>
@@ -266,6 +268,93 @@ public partial class GridSpawner : MonoBehaviour
             lt.currentSlices = trigger.currentSlices;
             lt.isShadowChild = true;
             lt.UpdateVisuals();
+        }
+    }
+
+    public void TrySpawnPending(int clearedLinkId)
+    {
+        if (levels == null || currentLevelIndex >= levels.Count) return;
+        LevelData level = levels[currentLevelIndex];
+        float gridSize = gridPrefab.transform.localScale.x;
+
+        // 2D Offset Hesapla
+        bool isCustom = level.customGridPositions != null && level.customGridPositions.Count > 0;
+        float minX = 0, maxX = level.gridX - 1;
+        float minY = 0, maxY = level.gridY - 1;
+        if (isCustom)
+        {
+            minX = minY = float.MaxValue; maxX = maxY = float.MinValue;
+            foreach (var pos in level.customGridPositions)
+            {
+                if (pos.x < minX) minX = pos.x; if (pos.x > maxX) maxX = pos.x;
+                if (pos.y < minY) minY = pos.y; if (pos.y > maxY) maxY = pos.y;
+            }
+        }
+        float offsetX = (minX + maxX) * (gridSize + spacing) / 2f;
+        float offsetY = (minY + maxY) * (gridSize + spacing) / 2f;
+
+        List<LevelData.PieceData> toSpawn = new List<LevelData.PieceData>();
+        foreach(var p in pendingPieces) if(p.spawnShadowAfterLinkID == clearedLinkId) toSpawn.Add(p);
+
+        foreach(var piece in toSpawn)
+        {
+            pendingPieces.Remove(piece);
+            GameObject newObj = null;
+
+            if (level.boardMode == LevelData.BoardMode.Shape3D)
+            {
+                // 3D Yüzey Spawn
+                if (spawnedFaceRoots.TryGetValue(piece.faceIndex, out Transform marker))
+                {
+                    ShapeFaceMarker sfm = marker.GetComponent<ShapeFaceMarker>();
+                    LevelData.FaceLayoutData fd = level.shapeFaces[piece.faceIndex];
+                    
+                    bool isTri = sfm.surfaceType == ShapeFaceMarker.FaceSurfaceType.Triangle;
+                    int gy = isTri ? fd.gridX : fd.gridY;
+                    float area = isTri ? 0.82f : 1f;
+                    float sx = area / fd.gridX; float sy = area / gy;
+                    float xOff = 0;
+                    if (isTri) { int cells = Mathf.Max(0, fd.gridX - piece.gridPosition.y); xOff = (1f - cells*sx)*0.5f; }
+
+                    Vector3 lPos = new Vector3(-0.5f+(piece.gridPosition.x+0.5f)*sx+xOff, -0.5f+(piece.gridPosition.y+0.5f)*sy, 0);
+                    newObj = Instantiate(objectPrefab, marker);
+                    newObj.transform.localPosition = lPos;
+                    newObj.transform.localRotation = Quaternion.Euler(0,0,piece.rotationZ);
+
+                    Vector3 ws = marker.lossyScale;
+                    float worldS = Mathf.Min(sx*Mathf.Abs(ws.x), sy*Mathf.Abs(ws.y))*0.55f;
+                    newObj.transform.localScale = new Vector3(worldS/Mathf.Abs(ws.x), worldS/Mathf.Abs(ws.y), worldS);
+                    newObj.transform.localPosition = new Vector3(lPos.x, lPos.y, -(worldS*0.5f + sfm.surfaceOffset));
+                }
+            }
+            else
+            {
+                // 2D Spawn
+                Vector3 piecePos = new Vector3(piece.gridPosition.x*(gridSize+spacing)-offsetX, piece.gridPosition.y*(gridSize+spacing)-offsetY, -objectOffset);
+                newObj = Instantiate(objectPrefab, transform.position + piecePos, Quaternion.Euler(0,0,piece.rotationZ), transform);
+            }
+
+            if (newObj != null)
+            {
+                activeSpawnedObjects.Add(newObj);
+                DragObject dobj = newObj.GetComponent<DragObject>();
+                if(dobj != null) dobj.linkId = piece.linkId;
+                
+                LiquidTransfer lt = newObj.GetComponentInChildren<LiquidTransfer>();
+                if (lt!=null) {
+                    lt.liquidColor = piece.liquidColor; lt.currentSlices = piece.currentSlices;
+                    lt.isShadowTrigger = piece.isShadowTrigger; lt.spawnShadowAfterLinkID = piece.spawnShadowAfterLinkID;
+                    lt.UpdateVisuals();
+                    
+                    // ÖNEMLİ: Parça doğduğu an gölgesini de doğur!
+                    lt.shadowSpawned = true;
+                    SpawnShadowFor(lt);
+                }
+
+                Vector3 targetS = newObj.transform.localScale;
+                newObj.transform.localScale = Vector3.zero;
+                newObj.transform.DOScale(targetS, 0.5f).SetEase(Ease.OutBack);
+            }
         }
     }
 

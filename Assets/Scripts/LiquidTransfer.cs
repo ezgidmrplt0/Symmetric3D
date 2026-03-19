@@ -15,6 +15,7 @@ public class LiquidTransfer : MonoBehaviour
     public int currentSlices = 1;
     public int maxSlices = 4;
     public bool isShadowTrigger = false;
+    public int spawnShadowAfterLinkID = 0; // Bu Link Grubu temizlendiğinde gölgeyi doğur
     public bool isShadowChild = false;
     public bool shadowSpawned = false;
 
@@ -367,9 +368,49 @@ public class LiquidTransfer : MonoBehaviour
             if (remaining.Count > 0)
             {
                 Debug.Log($"<color=orange>[LiquidTransfer]</color> Level devam ediyor. Kalan aktif parça sayısı: {remaining.Count}");
-                // Hâlâ parça var, ama hepsi ShadowTrigger mı?
+                
+                GridSpawner spawner = FindObjectOfType<GridSpawner>();
+                DragObject[] allObjectsOnBoard = FindObjectsOfType<DragObject>();
+
                 bool anyRegularLeft = false;
                 List<LiquidTransfer> triggers = new List<LiquidTransfer>();
+
+                // Sahada halihazırda normal parça var mı bak (pendinglerden önce)
+                foreach (var obj in remaining)
+                {
+                    LiquidTransfer lt = obj.GetComponentInChildren<LiquidTransfer>();
+                    if (lt != null && (!lt.isShadowTrigger || lt.shadowSpawned || lt.isShadowChild))
+                        anyRegularLeft = true;
+                }
+
+                // 0. BEKLEYEN (ERTELEME ALAN) PARÇALARI KONTROL ET
+                HashSet<int> existingLinkIds = new HashSet<int>();
+                foreach(var ao in allObjectsOnBoard) if(ao != null && ao.linkId > 0) existingLinkIds.Add(ao.linkId);
+                
+                if (spawner != null)
+                {
+                    for(int id=1; id<=9; id++)
+                    {
+                        if (!existingLinkIds.Contains(id))
+                        {
+                            spawner.TrySpawnPending(id);
+                        }
+                    }
+                }
+
+                if (!anyRegularLeft)
+                {
+                    if (spawner != null)
+                    {
+                         spawner.TrySpawnPending(0);
+                    }
+                }
+
+                // Tekrar kontrol et (Yeni doğanlar olduysa durum değişmiş olabilir)
+                remaining = new List<DragObject>();
+                foreach (var ao in FindObjectsOfType<DragObject>()) if (ao != null && ao.gameObject.activeInHierarchy) remaining.Add(ao);
+                anyRegularLeft = false;
+                triggers = new List<LiquidTransfer>();
 
                 foreach (var obj in remaining)
                 {
@@ -385,11 +426,10 @@ public class LiquidTransfer : MonoBehaviour
 
                 if (!anyRegularLeft && triggers.Count > 0)
                 {
-                    // Sadece gölge bekleyen tetikleyiciler kaldı
-                    GridSpawner spawner = FindObjectOfType<GridSpawner>();
-                    if (spawner != null)
+                    // Geleneksel ShadowTrigger'lar (özel ID'si olmayanlar) sadece en son doğar
+                    foreach (var t in triggers)
                     {
-                        foreach (var t in triggers)
+                        if (t.spawnShadowAfterLinkID == 0) // Ekstra kontrol
                         {
                             t.shadowSpawned = true;
                             spawner.SpawnShadowFor(t);
@@ -398,7 +438,7 @@ public class LiquidTransfer : MonoBehaviour
                 }
                 else
                 {
-                    // Hâlâ normal objeler var, hamle kalıp kalmadığını kontrol et
+                    // Hâlâ normal objeler var veya shadow'lar spawn oldu, hamle kalıp kalmadığını kontrol et
                     FindObjectOfType<GridSpawner>()?.CheckForFail();
                 }
             }

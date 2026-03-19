@@ -16,16 +16,17 @@ MonoBehaviour:
   - levelType: 1
     unlockAtProgress: 0
   - levelType: 2
-    unlockAtProgress: 100
+    unlockAtProgress: 0
   - levelType: 4
-    unlockAtProgress: 200
+    unlockAtProgress: 0
   - levelType: 16
-    unlockAtProgress: 300
+    unlockAtProgress: 0
   - levelType: 8
-    unlockAtProgress: 400
+    unlockAtProgress: 0
   - levelType: 32
-    unlockAtProgress: 500
+    unlockAtProgress: 0
   levels:
+  - {fileID: 11400000, guid: 07cc547b1fdcc3548b858f8983cb9043, type: 2}
   - {fileID: 11400000, guid: 512ccf2c2fe1323448bfa872859b8dc3, type: 2}
   - {fileID: 11400000, guid: 680a76eaba95d48aeb3e9fe98a1b1040, type: 2}
   - {fileID: 11400000, guid: 8865759d32f0a2f4cba2d07e5eae6814, type: 2}
@@ -41,3 +42,8 @@ MonoBehaviour:
   - {fileID: 11400000, guid: c7f2bb737e28b2a44832c3ea57a187de, type: 2}
   - {fileID: 11400000, guid: a4e3e7c0023a5b8428ada20b755cbca7, type: 2}
   - {fileID: 11400000, guid: 3e62e07454486bf81ad2f6fdff43bbdb, type: 2}
+  - {fileID: 11400000, guid: f1cf99b3fd8b4374c97a5549d7c55ceb, type: 2}
+  - {fileID: 11400000, guid: 330b10fbabf90864eb673d38f47742c9, type: 2}
+  - {fileID: 11400000, guid: 5dedb936d9cec9040af1fd25148b0fb1, type: 2}
+  - {fileID: 11400000, guid: dc0b779391793be4a9b95574e7296f14, type: 2}
+  - {fileID: 11400000, guid: f7951d89aa6186f4a807476ce07028b4, type: 2}
