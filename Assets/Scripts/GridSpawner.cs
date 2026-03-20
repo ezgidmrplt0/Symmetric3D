@@ -206,6 +206,66 @@ public partial class GridSpawner : MonoBehaviour
     // GÖLGE / YARDIMCI
     // ──────────────────────────────────────────────────────────────
 
+    private Vector3 FindEmptyGridPosition(Vector3 targetPos, float gridSize, float offsetX, float offsetY, LevelData level)
+    {
+        float step = gridSize + spacing;
+        DragObject[] existing = FindObjectsOfType<DragObject>();
+
+        // Tüm grid hücrelerini listele
+        List<Vector3> allCells = new List<Vector3>();
+        if (level.customGridPositions != null && level.customGridPositions.Count > 0)
+        {
+            foreach (var gp in level.customGridPositions)
+                allCells.Add(transform.position + new Vector3(gp.x * step - offsetX, gp.y * step - offsetY, -objectOffset));
+        }
+        else
+        {
+            for (int x = 0; x < level.gridX; x++)
+                for (int y = 0; y < level.gridY; y++)
+                    allCells.Add(transform.position + new Vector3(x * step - offsetX, y * step - offsetY, -objectOffset));
+        }
+
+        // Dolu hücreleri çıkar
+        foreach (var obj in existing)
+        {
+            Vector3 objPos = new Vector3(obj.transform.position.x, obj.transform.position.y, -objectOffset);
+            Vector3 closest = allCells[0];
+            float minDist = float.MaxValue;
+            foreach (var cell in allCells)
+            {
+                float d = Vector3.Distance(objPos, cell);
+                if (d < minDist) { minDist = d; closest = cell; }
+            }
+            if (minDist < step * 0.5f) allCells.Remove(closest);
+        }
+
+        if (allCells.Count == 0) return targetPos; // Fallback: üst üste gel
+
+        // Hedef pozisyona en yakın boş hücreyi döndür
+        Vector3 best = allCells[0];
+        float bestDist = Vector3.Distance(targetPos, best);
+        foreach (var cell in allCells)
+        {
+            float d = Vector3.Distance(targetPos, cell);
+            if (d < bestDist) { bestDist = d; best = cell; }
+        }
+        return best;
+    }
+
+    private LiquidTransfer FindMirrorTarget()
+    {
+        LiquidTransfer[] all = FindObjectsOfType<LiquidTransfer>();
+        LiquidTransfer best = null;
+        foreach (var lt in all)
+        {
+            if (lt.transferring) continue;
+            if (lt.isShadowTrigger && !lt.shadowSpawned) continue;
+            if (best == null || lt.currentSlices > best.currentSlices)
+                best = lt;
+        }
+        return best;
+    }
+
     public HashSet<int> GetPendingSpawnIds()
     {
         HashSet<int> ids = new HashSet<int>();
@@ -339,8 +399,9 @@ public partial class GridSpawner : MonoBehaviour
             else
             {
                 // 2D Spawn
-                Vector3 piecePos = new Vector3(piece.gridPosition.x*(gridSize+spacing)-offsetX, piece.gridPosition.y*(gridSize+spacing)-offsetY, -objectOffset);
-                newObj = Instantiate(objectPrefab, transform.position + piecePos, Quaternion.Euler(0,0,piece.rotationZ), transform);
+                Vector3 targetPos = transform.position + new Vector3(piece.gridPosition.x*(gridSize+spacing)-offsetX, piece.gridPosition.y*(gridSize+spacing)-offsetY, -objectOffset);
+                Vector3 spawnPos = FindEmptyGridPosition(targetPos, gridSize, offsetX, offsetY, level);
+                newObj = Instantiate(objectPrefab, spawnPos, Quaternion.Euler(0,0,piece.rotationZ), transform);
             }
 
             if (newObj != null)
@@ -348,12 +409,32 @@ public partial class GridSpawner : MonoBehaviour
                 activeSpawnedObjects.Add(newObj);
                 DragObject dobj = newObj.GetComponent<DragObject>();
                 if(dobj != null) dobj.linkId = piece.linkId;
-                
+
                 LiquidTransfer lt = newObj.GetComponentInChildren<LiquidTransfer>();
-                if (lt!=null) {
-                    lt.liquidColor = piece.liquidColor; lt.currentSlices = piece.currentSlices;
-                    lt.isShadowTrigger = piece.isShadowTrigger; lt.spawnShadowAfterLinkID = piece.spawnShadowAfterLinkID;
+                if (lt != null)
+                {
+                    lt.isShadowTrigger = piece.isShadowTrigger;
+                    lt.spawnShadowAfterLinkID = piece.spawnShadowAfterLinkID;
                     lt.shadowSpawned = true;
+
+                    if (clearedLinkId == 0)
+                    {
+                        // Sahadaki son parçanın tam simetrisini al
+                        LiquidTransfer mirror = FindMirrorTarget();
+                        if (mirror != null)
+                        {
+                            lt.liquidColor = mirror.liquidColor;
+                            lt.currentSlices = mirror.currentSlices;
+                            float mirrorRot = (mirror.transform.eulerAngles.z + 180f) % 360f;
+                            newObj.transform.eulerAngles = new Vector3(0, 0, mirrorRot);
+                        }
+                    }
+                    else
+                    {
+                        lt.liquidColor = piece.liquidColor;
+                        lt.currentSlices = piece.currentSlices;
+                    }
+
                     lt.UpdateVisuals();
                 }
 
