@@ -205,20 +205,21 @@ public partial class DragObject : MonoBehaviour
             return;
         }
 
-        // En yakın grid hücresini bul
-        Ray ray = cam.ScreenPointToRay(finalScreenPos);
-        RaycastHit[] hits = Physics.RaycastAll(ray);
+        // En yakın grid hücresini bul — objenin gerçek pozisyonuna göre (mouse değil)
         Transform targetGrid = null;
         float minGridDist = float.MaxValue;
 
-        Debug.Log($"[DROP] {gameObject.name} bırakıldı. Toplam raycast hit: {hits.Length}");
-        foreach (var hit in hits)
+        Debug.Log($"[DROP] {gameObject.name} bırakıldı. Obje pozisyonu: {transform.position:F2}");
+        GameObject[] gridCells = GameObject.FindGameObjectsWithTag("Grid");
+        foreach (GameObject cellObj in gridCells)
         {
-            Debug.Log($"[DROP]   hit: {hit.transform.name} | tag: {hit.transform.tag} | dist: {hit.distance:F2} | parent: {hit.transform.parent?.name}");
-            if (hit.transform.CompareTag("Grid") && hit.distance < minGridDist)
+            if (!cellObj.activeInHierarchy) continue;
+            float d = Vector3.Distance(transform.position, cellObj.transform.position);
+            Debug.Log($"[DROP]   grid: {cellObj.name} | pos: {cellObj.transform.position:F2} | dist: {d:F3}");
+            if (d < minGridDist)
             {
-                minGridDist = hit.distance;
-                targetGrid = hit.transform;
+                minGridDist = d;
+                targetGrid = cellObj.transform;
             }
         }
 
