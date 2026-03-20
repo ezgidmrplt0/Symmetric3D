@@ -315,7 +315,7 @@ public class LinkedObjectGroup : MonoBehaviour
             transform.position = startPosition;
 
             GridSpawner spawner = FindObjectOfType<GridSpawner>();
-            if (spawner != null && spawner.CurrentLevelType == LevelData.LevelType.Rotation)
+            if (spawner != null && spawner.CurrentLevelType.HasFlag(LevelData.LevelType.Rotation))
             {
                 transform.Rotate(0, 0, 90f);
                 foreach (var c in childDrags)

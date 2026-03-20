@@ -187,6 +187,24 @@ public partial class DragObject : MonoBehaviour
         activeTouchIndex = -1;
         GridSpawner spawner = FindObjectOfType<GridSpawner>();
 
+        // TAP KONTROLÜ — Rotation modunda kısa dokunuş = 90° döndür
+        float screenDist = Vector2.Distance(finalScreenPos, startScreenPos);
+        float tapDuration = Time.time - startTime;
+        if (screenDist < 50f && tapDuration < 0.5f && !IsShape3DMode() &&
+            spawner != null && spawner.CurrentLevelType.HasFlag(LevelData.LevelType.Rotation))
+        {
+            if (startParent != null) transform.SetParent(startParent, true);
+            transform.localPosition = startLocalPos;
+            transform.DOLocalRotate(new Vector3(0, 0, cachedLocalRotZ + 90f), 0.3f)
+                .SetEase(Ease.OutBack)
+                .OnComplete(() =>
+                {
+                    LiquidTransfer lt = GetComponentInChildren<LiquidTransfer>();
+                    if (lt != null) lt.CheckSymmetry();
+                });
+            return;
+        }
+
         // En yakın grid hücresini bul
         Ray ray = cam.ScreenPointToRay(finalScreenPos);
         RaycastHit[] hits = Physics.RaycastAll(ray);
