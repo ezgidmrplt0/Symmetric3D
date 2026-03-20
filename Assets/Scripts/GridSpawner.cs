@@ -206,6 +206,15 @@ public partial class GridSpawner : MonoBehaviour
     // GÖLGE / YARDIMCI
     // ──────────────────────────────────────────────────────────────
 
+    public HashSet<int> GetPendingSpawnIds()
+    {
+        HashSet<int> ids = new HashSet<int>();
+        foreach (var p in pendingPieces)
+            if (p.spawnShadowAfterLinkID > 0)
+                ids.Add(p.spawnShadowAfterLinkID);
+        return ids;
+    }
+
     public bool HasPendingShadows()
     {
         LiquidTransfer[] all = FindObjectsOfType<LiquidTransfer>();
@@ -344,11 +353,8 @@ public partial class GridSpawner : MonoBehaviour
                 if (lt!=null) {
                     lt.liquidColor = piece.liquidColor; lt.currentSlices = piece.currentSlices;
                     lt.isShadowTrigger = piece.isShadowTrigger; lt.spawnShadowAfterLinkID = piece.spawnShadowAfterLinkID;
-                    lt.UpdateVisuals();
-                    
-                    // ÖNEMLİ: Parça doğduğu an gölgesini de doğur!
                     lt.shadowSpawned = true;
-                    SpawnShadowFor(lt);
+                    lt.UpdateVisuals();
                 }
 
                 Vector3 targetS = newObj.transform.localScale;
@@ -400,6 +406,14 @@ public partial class GridSpawner : MonoBehaviour
     {
         if (PossibleMovesExist()) return;
 
+        // Hamle kalmadı ama spawn bekleyen shadow var mı?
+        if (pendingPieces.Exists(p => p.spawnShadowAfterLinkID == 0))
+        {
+            TrySpawnPending(0);
+            DOVirtual.DelayedCall(0.6f, CheckForFail); // Spawn animasyonu biter bitmez tekrar kontrol et
+            return;
+        }
+
         Debug.Log("[GridSpawner] Oynanabilir hamle kalmadı, FAIL tetikleniyor.");
         GameManager.Instance?.LevelFail();
     }
@@ -434,12 +448,6 @@ public partial class GridSpawner : MonoBehaviour
 
         if (activePieces.Count == 1)
         {
-            var lt = activePieces[0];
-            if (lt.isShadowTrigger && !lt.shadowSpawned)
-            {
-                Debug.Log("<color=white>[GridSpawner]</color> Tek parça kaldı ama ShadowTrigger! Gölge doğurması bekleniyor.");
-                return true;
-            }
             Debug.Log($"<color=red>[GridSpawner]</color> Tek parça kaldı ve eşleşme imkansız!");
             return false;
         }
@@ -456,15 +464,6 @@ public partial class GridSpawner : MonoBehaviour
             }
         }
 
-        foreach (var lt in activePieces)
-        {
-            if (lt.isShadowTrigger && !lt.shadowSpawned)
-            {
-                Debug.Log($"<color=white>[GridSpawner]</color> Eşleşme yok ama '{lt.name}' bir ShadowTrigger. Bekleniyor.");
-                return true;
-            }
-        }
-
         Debug.Log($"<color=red>[GridSpawner]</color> {activePieces.Count} parça arasında hiçbir geçerli etkileşim bulunamadı. FAIL KOŞULU!");
         return false;
     }
@@ -472,8 +471,6 @@ public partial class GridSpawner : MonoBehaviour
     private bool CanInteractionsExist(LiquidTransfer a, LiquidTransfer b)
     {
         if (a == null || b == null) return false;
-
-        if (a.isShadowChild || b.isShadowChild) return true;
 
         bool capable = false;
         if (CurrentLevelType.HasFlag(LevelData.LevelType.ColorMix))

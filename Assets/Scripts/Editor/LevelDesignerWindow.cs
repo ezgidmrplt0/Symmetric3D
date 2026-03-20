@@ -309,7 +309,7 @@ public class LevelDesignerWindow : EditorWindow
             brushIsShadowTrigger = EditorGUILayout.Toggle("Shadow Trigger?", brushIsShadowTrigger);
             if (brushIsShadowTrigger)
             {
-                brushSpawnShadowAfterLinkID = EditorGUILayout.IntSlider("Hangi Linkten Sonra? (0=Sonra)", brushSpawnShadowAfterLinkID, 0, 9);
+                brushSpawnShadowAfterLinkID = EditorGUILayout.IntSlider("Hangi Linkten Sonra? (0=Sonra)", brushSpawnShadowAfterLinkID, 0, 99);
                 if (brushSpawnShadowAfterLinkID > 0)
                     EditorGUILayout.HelpBox($"Bu gölge, Link {brushSpawnShadowAfterLinkID} grubu temizlendiğinde doğacak.", MessageType.None);
                 else
@@ -359,6 +359,22 @@ public class LevelDesignerWindow : EditorWindow
 
         GUILayout.Space(4);
         DrawGrid();
+
+        GUILayout.Space(6);
+
+        // ── Shadow Validasyonu ────────────────────────────────────
+        if (currentLevel.levelType.HasFlag(LevelData.LevelType.Shadow))
+        {
+            foreach (var piece in currentLevel.pieces)
+            {
+                if (!piece.isShadowTrigger || piece.spawnShadowAfterLinkID <= 0) continue;
+                bool hasLink = currentLevel.pieces.Exists(p => p.linkId == piece.spawnShadowAfterLinkID);
+                if (!hasLink)
+                    EditorGUILayout.HelpBox(
+                        $"⚠️ ({piece.gridPosition.x},{piece.gridPosition.y}) shadow trigger → Link {piece.spawnShadowAfterLinkID}'i bekliyor ama bu linkId'ye sahip parça yok. İlk transferde hemen spawn olacak.",
+                        MessageType.Warning);
+            }
+        }
 
         GUILayout.Space(10);
 
