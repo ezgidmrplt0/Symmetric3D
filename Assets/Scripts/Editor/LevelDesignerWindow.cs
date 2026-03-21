@@ -14,6 +14,7 @@ public class LevelDesignerWindow : EditorWindow
     private bool brushIsShadowTrigger = false;
     private int brushLinkId = 0;
     private int brushSpawnShadowAfterLinkID = 0;
+    private bool brushCanRotate = true;
 
 
     private bool isGridEditMode = false;
@@ -414,6 +415,17 @@ public class LevelDesignerWindow : EditorWindow
             brushLinkId = 0; // Linked modunda değilse sıfırla
         }
 
+        // Rotation: döndürülebilir mi?
+        if (currentLevel.levelType.HasFlag(LevelData.LevelType.Rotation))
+        {
+            GUILayout.Space(4);
+            brushCanRotate = EditorGUILayout.Toggle("Döndürülebilir?", brushCanRotate);
+        }
+        else
+        {
+            brushCanRotate = true;
+        }
+
         GUILayout.Space(6);
 
         // ── 4. BÖLÜM: Harita / Grid ──────────────────────────────
@@ -551,8 +563,9 @@ public class LevelDesignerWindow : EditorWindow
                         string shadowTxt = piece.isShadowTrigger ? "\n(S)" : "";
                         if (piece.isShadowTrigger && piece.spawnShadowAfterLinkID > 0)
                             shadowTxt += $"[A:{piece.spawnShadowAfterLinkID}]";
-                        
-                        buttonText = $"{sliceLabel}\n{yon}{linkTxt}{shadowTxt}";
+                        string rotateTxt = (currentLevel.levelType.HasFlag(LevelData.LevelType.Rotation) && piece.canRotate) ? "\n[R]" : "";
+
+                        buttonText = $"{sliceLabel}\n{yon}{linkTxt}{shadowTxt}{rotateTxt}";
                     }
                     else
                     {
@@ -686,6 +699,7 @@ public class LevelDesignerWindow : EditorWindow
                             piece.isShadowTrigger = brushIsShadowTrigger;
                             piece.linkId = brushLinkId;
                             piece.spawnShadowAfterLinkID = brushSpawnShadowAfterLinkID;
+                            piece.canRotate = brushCanRotate;
                             if (currentLevel.boardMode == LevelData.BoardMode.Shape3D) piece.faceIndex = currentFaceIndex;
 
                             EditorUtility.SetDirty(currentLevel);

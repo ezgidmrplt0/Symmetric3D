@@ -203,7 +203,11 @@ public partial class GridSpawner
             activeSpawnedObjects.Add(newObj);
 
             DragObject dobj = newObj.GetComponent<DragObject>();
-            if (dobj != null) dobj.linkId = piece.linkId;
+            if (dobj != null)
+            {
+                dobj.linkId = piece.linkId;
+                dobj.canRotate = piece.canRotate;
+            }
 
             if (piece.linkId > 0)
             {

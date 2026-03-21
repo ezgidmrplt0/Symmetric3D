@@ -21,6 +21,7 @@ public partial class DragObject : MonoBehaviour
     private float startTime;
     private float cachedWorldSize;
     private float cachedLocalRotZ;
+    private float targetRotZ; // tween hedef rotasyonu (art arda tıklamada doğru hesaplama için)
     private Quaternion cachedWorldRotation;
     private Vector3 cachedLocalScale;
 
@@ -33,6 +34,10 @@ public partial class DragObject : MonoBehaviour
     [Header("Çarpışma (Collision)")]
     [Tooltip("Görsel izdüşüm üzerinden diğer objelere ne kadar yaklaşabileceğini belirler.")]
     public float collisionDistance = 0.25f;
+
+    [Header("Rotation")]
+    [Tooltip("Rotation levellerinde bu parça döndürülebilir mi?")]
+    public bool canRotate = true;
 
     [Header("Yüzey Geçişi (Wrap-around) — Sadece 3D")]
     public float wrapThreshold = 1.2f;
@@ -49,6 +54,7 @@ public partial class DragObject : MonoBehaviour
     {
         cam = Camera.main;
         activeSpawner = FindObjectOfType<GridSpawner>();
+        targetRotZ = transform.localEulerAngles.z;
     }
 
     // ──────────────────────────────────────────────────────────────
@@ -127,7 +133,7 @@ public partial class DragObject : MonoBehaviour
                 wrapCooldown = 0.2f;
 
                 cachedWorldSize     = transform.lossyScale.x;
-                cachedLocalRotZ     = transform.localEulerAngles.z;
+                cachedLocalRotZ     = targetRotZ; // tween mid-değil, hedef rotasyon kullan
                 cachedWorldRotation = transform.rotation;
                 cachedLocalScale    = transform.localScale;
                 transform.SetParent(null, true);
@@ -190,12 +196,14 @@ public partial class DragObject : MonoBehaviour
         // TAP KONTROLÜ — Rotation modunda kısa dokunuş = 90° döndür
         float screenDist = Vector2.Distance(finalScreenPos, startScreenPos);
         float tapDuration = Time.time - startTime;
-        if (screenDist < 50f && tapDuration < 0.5f && !IsShape3DMode() &&
+        if (screenDist < 50f && tapDuration < 0.5f && !IsShape3DMode() && canRotate &&
             spawner != null && spawner.CurrentLevelType.HasFlag(LevelData.LevelType.Rotation))
         {
             if (startParent != null) transform.SetParent(startParent, true);
             transform.localPosition = startLocalPos;
-            transform.DOLocalRotate(new Vector3(0, 0, cachedLocalRotZ + 90f), 0.3f)
+            targetRotZ = cachedLocalRotZ + 90f;
+            transform.DOKill();
+            transform.DOLocalRotate(new Vector3(0, 0, targetRotZ), 0.3f)
                 .SetEase(Ease.OutBack)
                 .OnComplete(() =>
                 {

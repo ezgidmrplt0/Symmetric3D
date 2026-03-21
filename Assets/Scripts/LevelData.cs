@@ -43,6 +43,8 @@ public class LevelData : ScriptableObject
         public bool isShadowTrigger = false;
         public int spawnShadowAfterLinkID = 0;
         public int linkId = 0;
+        [HideInInspector]
+        public bool canRotate = true;
     }
 
     [System.Serializable]
