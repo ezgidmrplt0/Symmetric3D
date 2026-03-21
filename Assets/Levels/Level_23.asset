@@ -1,0 +1,163 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c59920f407dc8f14785c8fd032f0cff0, type: 3}
+  m_Name: Level_23
+  m_EditorClassIdentifier: 
+  levelDisplayName: Level_23
+  levelType: 47
+  boardMode: 0
+  gridX: 7
+  gridY: 4
+  customGridPositions:
+  - {x: 0, y: 0}
+  - {x: 0, y: 3}
+  - {x: 1, y: 0}
+  - {x: 1, y: 1}
+  - {x: 1, y: 2}
+  - {x: 1, y: 3}
+  - {x: 2, y: 0}
+  - {x: 2, y: 1}
+  - {x: 2, y: 2}
+  - {x: 2, y: 3}
+  - {x: 3, y: 0}
+  - {x: 3, y: 3}
+  - {x: 4, y: 0}
+  - {x: 4, y: 1}
+  - {x: 4, y: 2}
+  - {x: 4, y: 3}
+  - {x: 5, y: 0}
+  - {x: 5, y: 1}
+  - {x: 5, y: 2}
+  - {x: 5, y: 3}
+  - {x: 6, y: 0}
+  - {x: 6, y: 3}
+  shapePrefab: {fileID: 0}
+  shapeFaces: []
+  pieces:
+  - gridPosition: {x: 0, y: 3}
+    faceIndex: 0
+    liquidColor: {r: 1, g: 0, b: 0, a: 1}
+    currentSlices: 2
+    rotationZ: 180
+    isShadowTrigger: 0
+    spawnShadowAfterLinkID: 0
+    linkId: 0
+  - gridPosition: {x: 4, y: 1}
+    faceIndex: 0
+    liquidColor: {r: 1, g: 0, b: 0, a: 1}
+    currentSlices: 2
+    rotationZ: 0
+    isShadowTrigger: 0
+    spawnShadowAfterLinkID: 0
+    linkId: 0
+  - gridPosition: {x: 1, y: 1}
+    faceIndex: 0
+    liquidColor: {r: 0, g: 0, b: 1, a: 1}
+    currentSlices: 1
+    rotationZ: 180
+    isShadowTrigger: 0
+    spawnShadowAfterLinkID: 0
+    linkId: 1
+  - gridPosition: {x: 2, y: 1}
+    faceIndex: 0
+    liquidColor: {r: 1, g: 0.5, b: 0, a: 1}
+    currentSlices: 2
+    rotationZ: 0
+    isShadowTrigger: 0
+    spawnShadowAfterLinkID: 0
+    linkId: 1
+  - gridPosition: {x: 4, y: 0}
+    faceIndex: 0
+    liquidColor: {r: 0, g: 0, b: 1, a: 1}
+    currentSlices: 1
+    rotationZ: 0
+    isShadowTrigger: 0
+    spawnShadowAfterLinkID: 0
+    linkId: 2
+  - gridPosition: {x: 5, y: 0}
+    faceIndex: 0
+    liquidColor: {r: 1, g: 0.5, b: 0, a: 1}
+    currentSlices: 2
+    rotationZ: 180
+    isShadowTrigger: 0
+    spawnShadowAfterLinkID: 0
+    linkId: 2
+  - gridPosition: {x: 6, y: 3}
+    faceIndex: 0
+    liquidColor: {r: 0, g: 0, b: 1, a: 1}
+    currentSlices: 2
+    rotationZ: 0
+    isShadowTrigger: 0
+    spawnShadowAfterLinkID: 0
+    linkId: 0
+  - gridPosition: {x: 0, y: 0}
+    faceIndex: 0
+    liquidColor: {r: 0.5, g: 0, b: 0.5, a: 1}
+    currentSlices: 1
+    rotationZ: 90
+    isShadowTrigger: 0
+    spawnShadowAfterLinkID: 0
+    linkId: 0
+  - gridPosition: {x: 4, y: 3}
+    faceIndex: 0
+    liquidColor: {r: 0.5, g: 0, b: 0.5, a: 1}
+    currentSlices: 1
+    rotationZ: -90
+    isShadowTrigger: 0
+    spawnShadowAfterLinkID: 0
+    linkId: 0
+  - gridPosition: {x: 2, y: 3}
+    faceIndex: 0
+    liquidColor: {r: 0.5, g: 0, b: 0.5, a: 1}
+    currentSlices: 1
+    rotationZ: -90
+    isShadowTrigger: 1
+    spawnShadowAfterLinkID: 0
+    linkId: 0
+  - gridPosition: {x: 2, y: 0}
+    faceIndex: 0
+    liquidColor: {r: 0, g: 1, b: 0, a: 1}
+    currentSlices: 1
+    rotationZ: 90
+    isShadowTrigger: 0
+    spawnShadowAfterLinkID: 0
+    linkId: 0
+  - gridPosition: {x: 5, y: 2}
+    faceIndex: 0
+    liquidColor: {r: 0, g: 1, b: 0, a: 1}
+    currentSlices: 1
+    rotationZ: -90
+    isShadowTrigger: 0
+    spawnShadowAfterLinkID: 0
+    linkId: 0
+  - gridPosition: {x: 1, y: 3}
+    faceIndex: 0
+    liquidColor: {r: 0, g: 1, b: 0, a: 1}
+    currentSlices: 1
+    rotationZ: 90
+    isShadowTrigger: 0
+    spawnShadowAfterLinkID: 0
+    linkId: 0
+  - gridPosition: {x: 6, y: 0}
+    faceIndex: 0
+    liquidColor: {r: 0, g: 1, b: 0, a: 1}
+    currentSlices: 1
+    rotationZ: -90
+    isShadowTrigger: 0
+    spawnShadowAfterLinkID: 0
+    linkId: 0
+  shadowTransferPairs:
+  - posA: {x: 0, y: 0}
+    faceA: 0
+    posB: {x: 4, y: 3}
+    faceB: 0
+    shadowToSpawnLinkId: 0

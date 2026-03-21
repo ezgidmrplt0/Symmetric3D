@@ -113,6 +113,8 @@ public partial class GridSpawner
                 lt.currentSlices   = piece.currentSlices;
                 lt.isShadowTrigger = piece.isShadowTrigger;
                 lt.spawnShadowAfterLinkID = piece.spawnShadowAfterLinkID;
+                lt.initialGridPos = piece.gridPosition;
+                lt.initialFaceIndex = piece.faceIndex;
             }
         }
 

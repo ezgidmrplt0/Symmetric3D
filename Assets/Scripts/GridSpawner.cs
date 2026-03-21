@@ -340,7 +340,7 @@ public partial class GridSpawner : MonoBehaviour
         }
     }
 
-    public void TrySpawnPending(int clearedLinkId)
+    public void TrySpawnPending(int clearedLinkId, LiquidTransfer mirrorSource = null)
     {
         if (levels == null || currentLevelIndex >= levels.Count) return;
         LevelData level = levels[currentLevelIndex];
@@ -416,18 +416,19 @@ public partial class GridSpawner : MonoBehaviour
                     lt.isShadowTrigger = piece.isShadowTrigger;
                     lt.spawnShadowAfterLinkID = piece.spawnShadowAfterLinkID;
                     lt.shadowSpawned = true;
+                    lt.initialGridPos = piece.gridPosition;
+                    lt.initialFaceIndex = piece.faceIndex;
 
-                    if (clearedLinkId == 0)
+                    // Dinamik Simetri (Mirror Logic)
+                    LiquidTransfer mirror = mirrorSource;
+                    if (mirror == null && clearedLinkId == 0) mirror = FindMirrorTarget();
+
+                    if (mirror != null)
                     {
-                        // Sahadaki son parçanın tam simetrisini al
-                        LiquidTransfer mirror = FindMirrorTarget();
-                        if (mirror != null)
-                        {
-                            lt.liquidColor = mirror.liquidColor;
-                            lt.currentSlices = mirror.currentSlices;
-                            float mirrorRot = (mirror.transform.eulerAngles.z + 180f) % 360f;
-                            newObj.transform.eulerAngles = new Vector3(0, 0, mirrorRot);
-                        }
+                        lt.liquidColor = mirror.liquidColor;
+                        lt.currentSlices = mirror.currentSlices;
+                        float mirrorRot = (mirror.transform.eulerAngles.z + 180f) % 360f;
+                        newObj.transform.eulerAngles = new Vector3(0, 0, mirrorRot);
                     }
                     else
                     {

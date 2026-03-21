@@ -21,27 +21,33 @@ MonoBehaviour:
   shapePrefab: {fileID: 0}
   shapeFaces: []
   pieces:
+  - gridPosition: {x: 0, y: 2}
+    faceIndex: 0
+    liquidColor: {r: 0, g: 0, b: 1, a: 1}
+    currentSlices: 1
+    rotationZ: 180
+    isShadowTrigger: 0
+    spawnShadowAfterLinkID: 2
+    linkId: 0
   - gridPosition: {x: 0, y: 0}
     faceIndex: 0
     liquidColor: {r: 1, g: 1, b: 0, a: 1}
     currentSlices: 1
     rotationZ: 0
     isShadowTrigger: 0
-    spawnShadowAfterLinkID: 0
+    spawnShadowAfterLinkID: 2
     linkId: 0
   - gridPosition: {x: 2, y: 2}
     faceIndex: 0
     liquidColor: {r: 0.5, g: 0, b: 0.5, a: 1}
-    currentSlices: 2
+    currentSlices: 1
     rotationZ: 0
     isShadowTrigger: 1
     spawnShadowAfterLinkID: 0
     linkId: 0
-  - gridPosition: {x: 0, y: 2}
-    faceIndex: 0
-    liquidColor: {r: 0, g: 0, b: 1, a: 1}
-    currentSlices: 1
-    rotationZ: 0
-    isShadowTrigger: 0
-    spawnShadowAfterLinkID: 0
-    linkId: 0
+  shadowTransferPairs:
+  - posA: {x: 2, y: 2}
+    faceA: 0
+    posB: {x: 0, y: 0}
+    faceB: 0
+    shadowToSpawnLinkId: 2

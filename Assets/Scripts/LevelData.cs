@@ -45,6 +45,16 @@ public class LevelData : ScriptableObject
         public int linkId = 0;
     }
 
+    [System.Serializable]
+    public class ShadowTransferPair
+    {
+        public Vector2Int posA;
+        public int faceA;
+        public Vector2Int posB;
+        public int faceB;
+        public int shadowToSpawnLinkId; // Bu Link ID'ye sahip gölge parçaları spawn olur
+    }
+
     [Header("Level Bilgileri")]
     public string levelDisplayName = "Yeni Level";
     public LevelType levelType = LevelType.Classic;
@@ -63,6 +73,9 @@ public class LevelData : ScriptableObject
 
     [Header("Parçalar")]
     public List<PieceData> pieces = new List<PieceData>();
+
+    [Header("Shadow Tansfer Triggers")]
+    public List<ShadowTransferPair> shadowTransferPairs = new List<ShadowTransferPair>();
 
     public bool IsUnlocked(LevelSequenceData sequence, int currentProgress)
     {

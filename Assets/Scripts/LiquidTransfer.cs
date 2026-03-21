@@ -22,6 +22,10 @@ public class LiquidTransfer : MonoBehaviour
 
     [HideInInspector]
     public bool transferring = false;
+    
+    [Header("Başlangıç Konumu (Trigger İçin)")]
+    public Vector2Int initialGridPos;
+    public int initialFaceIndex;
 
     void Start()
     {
@@ -204,6 +208,8 @@ public class LiquidTransfer : MonoBehaviour
         // Receiver'ın yeni rengini ve miktarını güncelle
         this.liquidColor = mixedColor;
 
+        CheckTriggerPairs(giver);
+
         float myTargetFill = Mathf.Lerp(-0.5f, 0.5f, (float)this.currentSlices / maxSlices);
         float giverTargetFill = Mathf.Lerp(-0.5f, 0.5f, (float)giver.currentSlices / maxSlices);
 
@@ -277,6 +283,8 @@ public class LiquidTransfer : MonoBehaviour
 
         this.currentSlices += takeAmount;
         giver.currentSlices -= takeAmount;
+
+        CheckTriggerPairs(giver);
 
         float myTargetFill = Mathf.Lerp(-0.5f, 0.5f, (float)this.currentSlices / maxSlices);
         float giverTargetFill = Mathf.Lerp(-0.5f, 0.5f, (float)giver.currentSlices / maxSlices);
@@ -391,4 +399,31 @@ public class LiquidTransfer : MonoBehaviour
         });
     }
 
+    private void CheckTriggerPairs(LiquidTransfer other)
+    {
+        GridSpawner spawner = FindObjectOfType<GridSpawner>();
+        if (spawner == null || spawner.levels == null || spawner.currentLevelIndex >= spawner.levels.Count) return;
+
+        LevelData level = spawner.levels[spawner.currentLevelIndex];
+        if (level.shadowTransferPairs == null || level.shadowTransferPairs.Count == 0) return;
+
+        foreach (var pair in level.shadowTransferPairs)
+        {
+            bool match = false;
+            // Bu obje A, diğeri B mi?
+            if (this.initialGridPos == pair.posA && this.initialFaceIndex == pair.faceA &&
+                other.initialGridPos == pair.posB && other.initialFaceIndex == pair.faceB)
+                match = true;
+            // Veya tam tersi mi?
+            else if (this.initialGridPos == pair.posB && this.initialFaceIndex == pair.faceB &&
+                     other.initialGridPos == pair.posA && other.initialFaceIndex == pair.faceA)
+                match = true;
+
+            if (match)
+            {
+                Debug.Log($"<color=magenta>[LiquidTransfer]</color> Shadow Transfer Pair Triggered! Spawning Link {pair.shadowToSpawnLinkId}");
+                spawner.TrySpawnPending(pair.shadowToSpawnLinkId, this);
+            }
+        }
+    }
 }
