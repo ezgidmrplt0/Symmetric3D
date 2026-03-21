@@ -22,6 +22,7 @@ public partial class DragObject : MonoBehaviour
     private float cachedWorldSize;
     private float cachedLocalRotZ;
     public float targetRotZ; // tween hedef rotasyonu (art arda tıklamada doğru hesaplama için)
+    private GameObject rotateIcon;
     private Quaternion cachedWorldRotation;
     private Vector3 cachedLocalScale;
 
@@ -38,6 +39,8 @@ public partial class DragObject : MonoBehaviour
     [Header("Rotation")]
     [Tooltip("Rotation levellerinde bu parça döndürülebilir mi?")]
     public bool canRotate = true;
+    [Tooltip("Döndürülebilir parçalarda gösterilecek ikon sprite'ı")]
+    public Sprite rotateIconSprite;
 
     [Header("Yüzey Geçişi (Wrap-around) — Sadece 3D")]
     public float wrapThreshold = 1.2f;
@@ -55,6 +58,33 @@ public partial class DragObject : MonoBehaviour
         cam = Camera.main;
         activeSpawner = FindObjectOfType<GridSpawner>();
         targetRotZ = transform.localEulerAngles.z;
+
+        if (canRotate && activeSpawner != null &&
+            activeSpawner.CurrentLevelType.HasFlag(LevelData.LevelType.Rotation))
+        {
+            CreateRotateIcon();
+        }
+    }
+
+    void CreateRotateIcon()
+    {
+        rotateIcon = new GameObject("RotateIcon");
+        rotateIcon.transform.SetParent(transform);
+        rotateIcon.transform.localScale = Vector3.one * 0.1f;
+
+        SpriteRenderer sr = rotateIcon.AddComponent<SpriteRenderer>();
+        sr.sprite = rotateIconSprite;
+        sr.sortingOrder = 10;
+    }
+
+    void LateUpdate()
+    {
+        if (rotateIcon != null)
+        {
+            float size = transform.lossyScale.x;
+            rotateIcon.transform.position = transform.position + new Vector3(-size * 0.4f, -size * 0.4f, -0.3f);
+            rotateIcon.transform.rotation = Quaternion.identity;
+        }
     }
 
     // ──────────────────────────────────────────────────────────────

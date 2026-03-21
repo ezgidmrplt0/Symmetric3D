@@ -120,10 +120,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9f757225ac6565d4c8b91f5ae90971bd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  targetRotZ: 0
   dragZOffset: -0.05
   dragLift: 0.5
   collisionDistance: 0.45
+  canRotate: 1
+  rotateIconSprite: {fileID: -1162935304264728111, guid: bdd455275ad5e0d4ca4bdae7242a35c5, type: 3}
   wrapThreshold: 1.2
+  linkId: 0
 --- !u!114 &213917902098604090
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -280,6 +284,9 @@ MonoBehaviour:
   currentSlices: 1
   maxSlices: 4
   isShadowTrigger: 0
+  spawnShadowAfterLinkID: 0
   isShadowChild: 0
   shadowSpawned: 0
   transferring: 0
+  initialGridPos: {x: 0, y: 0}
+  initialFaceIndex: 0
