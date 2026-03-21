@@ -19,10 +19,16 @@ public class LinkedObjectGroup : MonoBehaviour
 
     public List<DragObject> childDrags = new List<DragObject>();
     private GameObject backPanel;
+    private bool backPanelFading = false;
+
+    // Drag başında hesaplanan child world offset'leri (drag boyunca sabit kalır)
+    private List<Vector3> dragChildOffsets = new List<Vector3>();
+    private GridSpawner spawnerCache;
 
     void Start()
     {
         cam = Camera.main;
+        spawnerCache = FindObjectOfType<GridSpawner>();
     }
 
     public void InitGroup()
@@ -127,9 +133,26 @@ public class LinkedObjectGroup : MonoBehaviour
         childDrags.RemoveAll(item => item == null);
         
         // Sadece 1 obje kalırsa ya da obje kalmazsa tabakayı yok et
-        if (childDrags.Count <= 1 && backPanel != null)
+        if (childDrags.Count <= 1 && backPanel != null && !backPanelFading)
         {
-            Destroy(backPanel);
+            backPanelFading = true;
+            LineRenderer lr = backPanel.GetComponent<LineRenderer>();
+            if (lr != null)
+            {
+                float startW = lr.startWidth;
+                DOTween.To(() => startW, x =>
+                {
+                    startW = x;
+                    if (lr != null) { lr.startWidth = x; lr.endWidth = x; }
+                }, 0f, 0.25f)
+                .SetEase(Ease.InBack)
+                .OnComplete(() => { if (backPanel != null) Destroy(backPanel); backPanel = null; });
+            }
+            else
+            {
+                Destroy(backPanel);
+                backPanel = null;
+            }
         }
 
         if (childDrags.Count == 0) return;
@@ -175,6 +198,11 @@ public class LinkedObjectGroup : MonoBehaviour
                 startScreenPos = screenPos;
                 startTime = Time.time;
 
+                // Child'ların parent'a göre world-space offset'lerini kaydet
+                dragChildOffsets.Clear();
+                foreach (var d in childDrags)
+                    dragChildOffsets.Add(d != null ? d.transform.position - transform.position : Vector3.zero);
+
                 dragPlane = new Plane(Vector3.forward, transform.position);
                 Ray dragRay = cam.ScreenPointToRay(screenPos);
                 if (dragPlane.Raycast(dragRay, out float enter))
@@ -210,19 +238,37 @@ public class LinkedObjectGroup : MonoBehaviour
             else childOffsets.Add(Vector3.zero);
         }
 
+        // Çoklu obje grubunda efektif çarpışma mesafesini grup genişliğine göre ölçekle.
+        // Diyagonal geçişi engellemek için minChildSep / sqrt(2) üstünde olmalı → * 0.75f
+        // Bu sayede: 1-grid diyagonal gap → geçemez, 2-grid diyagonal gap → geçebilir.
+        float effectiveCollDist = collisionDistance;
+        if (childDrags.Count >= 2 && childOffsets.Count >= 2)
+        {
+            float minChildSep = float.MaxValue;
+            for (int i = 0; i < childOffsets.Count; i++)
+                for (int j = i + 1; j < childOffsets.Count; j++)
+                {
+                    float sep = new Vector2(childOffsets[i].x - childOffsets[j].x,
+                                           childOffsets[i].y - childOffsets[j].y).magnitude;
+                    if (sep < minChildSep) minChildSep = sep;
+                }
+            effectiveCollDist = Mathf.Max(collisionDistance, minChildSep * 0.75f);
+        }
+
         int steps = Mathf.Max(1, Mathf.CeilToInt(dist / 0.05f));
         Vector3 stepVec = moveDir / steps;
 
-        GridSpawner spawner = FindObjectOfType<GridSpawner>();
+        if (spawnerCache == null) spawnerCache = FindObjectOfType<GridSpawner>();
 
         for (int s = 0; s < steps; s++)
         {
             Vector3 nextPos = currentPos + stepVec;
             bool stepBlocked = false;
 
-            // 1. DİĞER OBJELERLE ÇARPIŞMA KONTROLÜ
-            for (int iter = 0; iter < 2; iter++)
+            // Diğer objelerle çarpışma çözümü (3 iterasyon)
+            for (int iter = 0; iter < 3; iter++)
             {
+                // a) Her child nokta → dış obje
                 for (int i = 0; i < childDrags.Count; i++)
                 {
                     if (childDrags[i] == null) continue;
@@ -238,51 +284,64 @@ public class LinkedObjectGroup : MonoBehaviour
                         Vector2 op2 = new Vector2(other.transform.position.x, other.transform.position.y);
                         float d = Vector2.Distance(p2, op2);
 
-                        if (d < collisionDistance)
+                        if (d < effectiveCollDist)
                         {
                             Vector2 push = (p2 - op2).normalized;
                             if (push == Vector2.zero) push = Vector2.up;
-
-                            Vector2 resolved = op2 + push * collisionDistance;
+                            Vector2 resolved = op2 + push * effectiveCollDist;
                             nextPos.x += (resolved.x - p2.x);
                             nextPos.y += (resolved.y - p2.y);
-                            
                             p2 = new Vector2(nextPos.x + childOffsets[i].x, nextPos.y + childOffsets[i].y);
+                        }
+                    }
+                }
+
+                // b) Child'lar arası segment → dış obje (ikiler arasından obje geçişini engeller)
+                for (int i = 0; i < childDrags.Count; i++)
+                {
+                    for (int j = i + 1; j < childDrags.Count; j++)
+                    {
+                        if (childDrags[i] == null || childDrags[j] == null) continue;
+
+                        Vector2 segA = new Vector2((nextPos + childOffsets[i]).x, (nextPos + childOffsets[i]).y);
+                        Vector2 segB = new Vector2((nextPos + childOffsets[j]).x, (nextPos + childOffsets[j]).y);
+
+                        foreach (var other in allObjects)
+                        {
+                            if (other == null || !other.gameObject.activeInHierarchy || other.transform.IsChildOf(this.transform))
+                                continue;
+
+                            Vector2 op2 = new Vector2(other.transform.position.x, other.transform.position.y);
+                            Vector2 ab = segB - segA;
+                            float t = ab.sqrMagnitude > 0.0001f ? Mathf.Clamp01(Vector2.Dot(op2 - segA, ab) / ab.sqrMagnitude) : 0f;
+                            Vector2 closest = segA + t * ab;
+                            float d = Vector2.Distance(op2, closest);
+
+                            if (d < effectiveCollDist)
+                            {
+                                Vector2 pushDir = (closest - op2).normalized;
+                                if (pushDir == Vector2.zero) pushDir = Vector2.up;
+                                float penetration = effectiveCollDist - d;
+                                nextPos.x += pushDir.x * penetration;
+                                nextPos.y += pushDir.y * penetration;
+                                segA = new Vector2((nextPos + childOffsets[i]).x, (nextPos + childOffsets[i]).y);
+                                segB = new Vector2((nextPos + childOffsets[j]).x, (nextPos + childOffsets[j]).y);
+                            }
                         }
                     }
                 }
             }
 
-            // 2. GRID VE BOŞLUK (HOLE) KONTROLÜ
-            // Her bir parçanın altında geçerli bir grid hücresi var mı?
-            if (spawner != null)
+            // Nihai doğrulama: zıt pushlar iptal ettiyse adımı tamamen engelle
+            for (int i = 0; i < childDrags.Count && !stepBlocked; i++)
             {
-                float gridSize = spawner.gridPrefab.transform.localScale.x;
-                float cellSize = gridSize + spawner.spacing;
-                float halfCell = cellSize * 0.5f;
-
-                for (int i = 0; i < childDrags.Count; i++)
+                if (childDrags[i] == null) continue;
+                Vector2 p2 = new Vector2((nextPos + childOffsets[i]).x, (nextPos + childOffsets[i]).y);
+                foreach (var other in allObjects)
                 {
-                    if (childDrags[i] == null) continue;
-                    Vector3 worldChildPos = nextPos + childOffsets[i];
-                    Vector3 localChildPos = spawner.transform.InverseTransformPoint(worldChildPos);
-                    
-                    bool overValidGrid = false;
-                    foreach (Transform cell in spawner.transform)
-                    {
-                        if (!cell.CompareTag("Grid") || !cell.gameObject.activeInHierarchy || cell.name.Contains("Blocked")) 
-                            continue;
-
-                        Vector3 cellLp = spawner.transform.InverseTransformPoint(cell.position);
-                        if (Mathf.Abs(localChildPos.x - cellLp.x) <= halfCell && 
-                            Mathf.Abs(localChildPos.y - cellLp.y) <= halfCell)
-                        {
-                            overValidGrid = true;
-                            break;
-                        }
-                    }
-
-                    if (!overValidGrid)
+                    if (other == null || !other.gameObject.activeInHierarchy || other.transform.IsChildOf(this.transform))
+                        continue;
+                    if (Vector2.Distance(p2, new Vector2(other.transform.position.x, other.transform.position.y)) < effectiveCollDist)
                     {
                         stepBlocked = true;
                         break;
@@ -290,14 +349,38 @@ public class LinkedObjectGroup : MonoBehaviour
                 }
             }
 
+            // Grid / boşluk kontrolü
+            if (!stepBlocked && spawnerCache != null)
+            {
+                float gridSize = spawnerCache.gridPrefab.transform.localScale.x;
+                float halfCell = (gridSize + spawnerCache.spacing) * 0.5f;
+
+                for (int i = 0; i < childDrags.Count; i++)
+                {
+                    if (childDrags[i] == null) continue;
+                    Vector3 localChildPos = spawnerCache.transform.InverseTransformPoint(nextPos + childOffsets[i]);
+
+                    bool overValidGrid = false;
+                    foreach (Transform cell in spawnerCache.transform)
+                    {
+                        if (!cell.CompareTag("Grid") || !cell.gameObject.activeInHierarchy || cell.name.Contains("Blocked"))
+                            continue;
+                        Vector3 cellLp = spawnerCache.transform.InverseTransformPoint(cell.position);
+                        if (Mathf.Abs(localChildPos.x - cellLp.x) <= halfCell &&
+                            Mathf.Abs(localChildPos.y - cellLp.y) <= halfCell)
+                        {
+                            overValidGrid = true;
+                            break;
+                        }
+                    }
+                    if (!overValidGrid) { stepBlocked = true; break; }
+                }
+            }
+
             if (!stepBlocked)
-            {
                 currentPos = nextPos;
-            }
             else
-            {
-                break; // Geçersiz bir alana gelindiği için hareketi burada kes
-            }
+                break;
         }
 
         transform.position = new Vector3(currentPos.x, currentPos.y, desiredPos.z);
@@ -333,56 +416,52 @@ public class LinkedObjectGroup : MonoBehaviour
         Vector3 bestParentPosition = startPosition;
         float bestGroupDistance = Mathf.Infinity;
 
+        DragObject[] allObsDrop = FindObjectsOfType<DragObject>();
+
         foreach (GameObject grid in grids)
         {
             float dist = Vector3.Distance(childDrags[0].transform.position, grid.transform.position);
+            if (dist >= snapDistance) continue;
 
-            if (dist < snapDistance)
+            Vector3 proposedParentPos = grid.transform.position - dragChildOffsets[0];
+            proposedParentPos.z = transform.position.z;
+
+            bool attemptValid = true;
+
+            for (int i = 0; i < childDrags.Count; i++)
             {
-                Vector3 worldOffset0 = childDrags[0].transform.position - transform.position;
-                Vector3 proposedParentPos = grid.transform.position - worldOffset0;
-                proposedParentPos.z = transform.position.z;
+                Vector3 testChildPos = proposedParentPos + dragChildOffsets[i];
+                bool foundGrid = false;
+                bool occupied = false;
 
-                bool attemptValid = true;
-
-                for (int i = 0; i < childDrags.Count; i++)
+                foreach (GameObject g in grids)
                 {
-                    Vector3 worldOffsetI = childDrags[i].transform.position - transform.position;
-                    Vector3 testChildPos = proposedParentPos + worldOffsetI;
-                    bool foundGrid = false;
-                    bool occupied = false;
-
-                    foreach (GameObject g in grids)
+                    if (Vector2.Distance(testChildPos, g.transform.position) > 0.1f) continue;
+                    foundGrid = true;
+                    foreach (var obs in allObsDrop)
                     {
-                        if (Vector2.Distance(testChildPos, g.transform.position) < 0.1f)
+                        if (obs == null || obs.transform.IsChildOf(this.transform)) continue;
+                        if (Vector2.Distance(obs.transform.position, testChildPos) < 0.1f)
                         {
-                            foundGrid = true;
-                            DragObject[] allObs = FindObjectsOfType<DragObject>();
-                            foreach (var obs in allObs)
-                            {
-                                if (obs == null || obs.transform.IsChildOf(this.transform)) continue;
-                                if (Vector2.Distance(obs.transform.position, testChildPos) < 0.1f)
-                                {
-                                    occupied = true; break;
-                                }
-                            }
+                            occupied = true;
                             break;
                         }
                     }
-
-                    if (!foundGrid || occupied)
-                    {
-                        attemptValid = false;
-                        break;
-                    }
+                    break;
                 }
 
-                if (attemptValid && dist < bestGroupDistance)
+                if (!foundGrid || occupied)
                 {
-                    bestGroupDistance = dist;
-                    bestParentPosition = proposedParentPos;
-                    allFit = true;
+                    attemptValid = false;
+                    break;
                 }
+            }
+
+            if (attemptValid && dist < bestGroupDistance)
+            {
+                bestGroupDistance = dist;
+                bestParentPosition = proposedParentPos;
+                allFit = true;
             }
         }
 
