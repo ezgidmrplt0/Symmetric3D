@@ -163,14 +163,16 @@ public class LinkedObjectGroup : MonoBehaviour
 
             if (touch.phase == TouchPhase.Began) TryPick(touch.position);
             if (touch.phase == TouchPhase.Moved && dragging) Drag(touch.position);
-            if (touch.phase == TouchPhase.Ended) Drop();
+            if (touch.phase == TouchPhase.Ended && dragging) Drop();
         }
-
+        else
+        {
 #if UNITY_EDITOR
-        if (Input.GetMouseButtonDown(0)) TryPick(Input.mousePosition);
-        if (Input.GetMouseButton(0) && dragging) Drag(Input.mousePosition);
-        if (Input.GetMouseButtonUp(0)) Drop();
+            if (Input.GetMouseButtonDown(0)) TryPick(Input.mousePosition);
+            if (Input.GetMouseButton(0) && dragging) Drag(Input.mousePosition);
+            if (Input.GetMouseButtonUp(0) && dragging) Drop();
 #endif
+        }
     }
 
     void TryPick(Vector3 screenPos)
@@ -401,12 +403,18 @@ public class LinkedObjectGroup : MonoBehaviour
             bool anyCanRotate = childDrags.Exists(c => c != null && c.canRotate);
             if (spawner != null && spawner.CurrentLevelType.HasFlag(LevelData.LevelType.Rotation) && anyCanRotate)
             {
-                transform.Rotate(0, 0, 90f);
                 foreach (var c in childDrags)
                 {
-                    if (c == null) continue;
-                    LiquidTransfer transfer = c.GetComponentInChildren<LiquidTransfer>();
-                    if (transfer != null) transfer.CheckSymmetry();
+                    if (c == null || !c.canRotate) continue;
+                    c.targetRotZ += 90f;
+                    c.transform.DOKill();
+                    DragObject captured = c;
+                    c.transform.DOLocalRotate(new Vector3(0, 0, c.targetRotZ), 0.3f)
+                        .SetEase(Ease.OutBack)
+                        .OnComplete(() => {
+                            LiquidTransfer lt = captured.GetComponentInChildren<LiquidTransfer>();
+                            if (lt != null) lt.CheckSymmetry();
+                        });
                 }
             }
             return;

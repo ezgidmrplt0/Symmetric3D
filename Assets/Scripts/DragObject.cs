@@ -21,7 +21,7 @@ public partial class DragObject : MonoBehaviour
     private float startTime;
     private float cachedWorldSize;
     private float cachedLocalRotZ;
-    private float targetRotZ; // tween hedef rotasyonu (art arda tıklamada doğru hesaplama için)
+    public float targetRotZ; // tween hedef rotasyonu (art arda tıklamada doğru hesaplama için)
     private Quaternion cachedWorldRotation;
     private Vector3 cachedLocalScale;
 
@@ -196,7 +196,7 @@ public partial class DragObject : MonoBehaviour
         // TAP KONTROLÜ — Rotation modunda kısa dokunuş = 90° döndür
         float screenDist = Vector2.Distance(finalScreenPos, startScreenPos);
         float tapDuration = Time.time - startTime;
-        if (screenDist < 50f && tapDuration < 0.5f && !IsShape3DMode() && canRotate &&
+        if (screenDist < 50f && tapDuration < 0.5f && !IsShape3DMode() && canRotate && linkId == 0 &&
             spawner != null && spawner.CurrentLevelType.HasFlag(LevelData.LevelType.Rotation))
         {
             if (startParent != null) transform.SetParent(startParent, true);
