@@ -419,9 +419,8 @@ public partial class GridSpawner : MonoBehaviour
                     lt.initialGridPos = piece.gridPosition;
                     lt.initialFaceIndex = piece.faceIndex;
 
-                    // Dinamik Simetri (Mirror Logic)
+                    // Mirror sadece açık linkId spawn'ında (mirrorSource verilmişse) geçerli
                     LiquidTransfer mirror = mirrorSource;
-                    if (mirror == null && clearedLinkId == 0) mirror = FindMirrorTarget();
 
                     if (mirror != null)
                     {

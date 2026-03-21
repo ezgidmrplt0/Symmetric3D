@@ -15,7 +15,7 @@ MonoBehaviour:
   levelDisplayName: deneme
   levelType: 17
   boardMode: 0
-  gridX: 3
+  gridX: 6
   gridY: 3
   customGridPositions: []
   shapePrefab: {fileID: 0}
