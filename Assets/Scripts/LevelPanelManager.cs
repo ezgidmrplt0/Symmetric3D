@@ -21,6 +21,10 @@ public class LevelPanelManager : MonoBehaviour
     public GameObject failPanelRoot;
     public Button retryButton;
 
+    // ── RESET BUTTON ─────────────────────────────────────────────
+    [Header("Reset Level Button")]
+    public Button resetLevelButton;
+
     // ── UNLOCK POPUP ─────────────────────────────────────────────
     [Header("Unlock Popup")]
     public GameObject unlockPanelRoot;
@@ -66,6 +70,8 @@ public class LevelPanelManager : MonoBehaviour
 
         if (unlockPanelRoot != null) unlockPanelRoot.SetActive(false);
         if (unlockOkButton != null) unlockOkButton.onClick.AddListener(HideUnlockPopup);
+
+        if (resetLevelButton != null) resetLevelButton.onClick.AddListener(OnResetLevelClicked);
 
         GameManager.OnLevelCompleted.AddListener(ShowCompletePanel);
         GameManager.OnLevelFailed.AddListener(ShowFailPanel);
@@ -208,6 +214,19 @@ public class LevelPanelManager : MonoBehaviour
             GameManager.Instance?.ResetLevelState();
             FindObjectOfType<GridSpawner>()?.SpawnCurrentLevel();
         });
+    }
+
+    void OnResetLevelClicked()
+    {
+        // Açık paneller varsa kapat
+        if (completePanelRoot != null && completePanelRoot.activeInHierarchy)
+            completePanelRoot.SetActive(false);
+        if (failPanelRoot != null && failPanelRoot.activeInHierarchy)
+            failPanelRoot.SetActive(false);
+
+        GameManager.Instance?.ResetLevelState();
+        if (gridSpawner == null) gridSpawner = FindObjectOfType<GridSpawner>();
+        gridSpawner?.SpawnCurrentLevel();
     }
 
     // ── UNLOCK POPUP ─────────────────────────────────────────────
