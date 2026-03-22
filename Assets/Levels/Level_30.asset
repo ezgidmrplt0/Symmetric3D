@@ -47,7 +47,7 @@ MonoBehaviour:
     isShadowTrigger: 0
     spawnShadowAfterLinkID: 0
     linkId: 0
-    canRotate: 1
+    canRotate: 0
   - gridPosition: {x: 3, y: 4}
     faceIndex: 0
     liquidColor: {r: 0.8, g: 0.1, b: 0.1, a: 1}
@@ -110,7 +110,7 @@ MonoBehaviour:
     isShadowTrigger: 0
     spawnShadowAfterLinkID: 0
     linkId: 0
-    canRotate: 1
+    canRotate: 0
   - gridPosition: {x: 3, y: 3}
     faceIndex: 0
     liquidColor: {r: 1, g: 1, b: 0, a: 1}
@@ -155,7 +155,7 @@ MonoBehaviour:
     isShadowTrigger: 0
     spawnShadowAfterLinkID: 0
     linkId: 0
-    canRotate: 1
+    canRotate: 0
   - gridPosition: {x: 1, y: 1}
     faceIndex: 0
     liquidColor: {r: 1, g: 0.5, b: 0, a: 1}
