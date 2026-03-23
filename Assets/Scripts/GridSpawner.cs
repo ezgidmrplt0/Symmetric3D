@@ -340,7 +340,7 @@ public partial class GridSpawner : MonoBehaviour
         }
     }
 
-    public void TrySpawnPending(int clearedLinkId, LiquidTransfer mirrorSource = null)
+    public void TrySpawnPending(int clearedLinkId, LiquidTransfer mirrorSource = null, LiquidTransfer mirrorOther = null)
     {
         if (levels == null || currentLevelIndex >= levels.Count) return;
         LevelData level = levels[currentLevelIndex];
@@ -365,8 +365,17 @@ public partial class GridSpawner : MonoBehaviour
         List<LevelData.PieceData> toSpawn = new List<LevelData.PieceData>();
         foreach(var p in pendingPieces) if(p.spawnShadowAfterLinkID == clearedLinkId) toSpawn.Add(p);
 
-        foreach(var piece in toSpawn)
+        // --- SIRALI EŞLEŞME (ORDERED MATCHING) ---
+        toSpawn.Sort((a, b) => a.gridPosition.x != b.gridPosition.x ? a.gridPosition.x.CompareTo(b.gridPosition.x) : a.gridPosition.y.CompareTo(b.gridPosition.y));
+        
+        List<LiquidTransfer> mirrors = new List<LiquidTransfer>();
+        if (mirrorSource != null) mirrors.Add(mirrorSource);
+        if (mirrorOther != null) mirrors.Add(mirrorOther);
+        mirrors.Sort((a, b) => a.initialGridPos.x != b.initialGridPos.x ? a.initialGridPos.x.CompareTo(b.initialGridPos.x) : a.initialGridPos.y.CompareTo(b.initialGridPos.y));
+
+        for (int pIdx = 0; pIdx < toSpawn.Count; pIdx++)
         {
+            var piece = toSpawn[pIdx];
             pendingPieces.Remove(piece);
             GameObject newObj = null;
 
@@ -419,16 +428,18 @@ public partial class GridSpawner : MonoBehaviour
                     lt.initialGridPos = piece.gridPosition;
                     lt.initialFaceIndex = piece.faceIndex;
 
-                    // Dinamik Simetri (Mirror Logic)
-                    LiquidTransfer mirror = mirrorSource;
-                    if (mirror == null && clearedLinkId == 0) mirror = FindMirrorTarget();
+                    // Dinamik Simetri (Mirror Logic - Ordered Matching)
+                    LiquidTransfer mirror = null;
+                    if (mirrors.Count > 0) mirror = mirrors[pIdx % mirrors.Count];
 
                     if (mirror != null)
                     {
                         lt.liquidColor = mirror.liquidColor;
-                        lt.currentSlices = mirror.currentSlices;
-                        float mirrorRot = (mirror.transform.eulerAngles.z + 180f) % 360f;
-                        newObj.transform.eulerAngles = new Vector3(0, 0, mirrorRot);
+                        // Akıllı Miktar
+                        lt.currentSlices = Mathf.Clamp(mirror.currentSlices, 1, mirror.maxSlices - 1);
+                        // SIVI AKTARIMI İÇİN TAM ZITTI (+180)
+                        float mRotZ = mirror.transform.localEulerAngles.z;
+                        newObj.transform.localRotation = Quaternion.Euler(0, 0, (mRotZ + 180f) % 360f);
                     }
                     else
                     {
@@ -478,6 +489,22 @@ public partial class GridSpawner : MonoBehaviour
             gridPos.y * (gridSize + spacing) - offsetY,
             -objectOffset
         );
+    }
+
+    public DragObject GetPieceAt(Vector2Int gridPos, int faceIndex = 0)
+    {
+        DragObject[] all = FindObjectsOfType<DragObject>();
+        foreach (var obj in all)
+        {
+            if (obj == null) continue;
+            LiquidTransfer lt = obj.GetComponentInChildren<LiquidTransfer>();
+            if (lt != null && lt.initialGridPos == gridPos && lt.initialFaceIndex == faceIndex)
+            {
+                // Mevcut konumunu kontrol et (Sürüklenmiş olabilir ama başlangıç verisine bakıyoruz)
+                return obj;
+            }
+        }
+        return null;
     }
 
     // ──────────────────────────────────────────────────────────────

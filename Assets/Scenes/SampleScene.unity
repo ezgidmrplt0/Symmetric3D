@@ -303,17 +303,46 @@ MonoBehaviour:
   handImage: {fileID: 98113297}
   levelTutorials:
   - levelDisplayName: level 1
+    levelAsset: {fileID: 11400000, guid: 512ccf2c2fe1323448bfa872859b8dc3, type: 2}
     levelIndex: 0
     path:
     - {x: 1, y: 0}
     - {x: 0, y: 0}
     handOffset: {x: 0, y: 0}
   - levelDisplayName: 'level 6 '
+    levelAsset: {fileID: 11400000, guid: d6c6dbffb0804a24db712756e2b7ed6f, type: 2}
     levelIndex: 5
     path:
     - {x: 4, y: 1}
     - {x: 0, y: 1}
     handOffset: {x: 0, y: 100}
+  - levelDisplayName: level 11
+    levelAsset: {fileID: 11400000, guid: 3145c75249bb51b40997cf1e0d163aef, type: 2}
+    levelIndex: 10
+    path:
+    - {x: 0, y: 2}
+    - {x: 0, y: 1}
+    handOffset: {x: 0, y: 20}
+  - levelDisplayName: level 16
+    levelAsset: {fileID: 11400000, guid: f1cf99b3fd8b4374c97a5549d7c55ceb, type: 2}
+    levelIndex: 15
+    path:
+    - {x: 1, y: 0}
+    - {x: 0, y: 1}
+    handOffset: {x: 0, y: -40}
+  - levelDisplayName: level 21
+    levelAsset: {fileID: 11400000, guid: 07cc547b1fdcc3548b858f8983cb9043, type: 2}
+    levelIndex: 20
+    path:
+    - {x: 0, y: 0}
+    - {x: 0, y: 1}
+    handOffset: {x: 40, y: -40}
+  - levelDisplayName: level 26
+    levelAsset: {fileID: 11400000, guid: 5d583454f56773a418ff626f3453ff60, type: 2}
+    levelIndex: 25
+    path:
+    - {x: 0, y: 1}
+    handOffset: {x: 0, y: 0}
   durationPerSegment: 0.8
 --- !u!1 &98113296
 GameObject:
@@ -576,14 +605,14 @@ RectTransform:
   m_GameObject: {fileID: 558492374}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalScale: {x: 0.53515214, y: 0.88534063, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 927317452}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 482, y: 1099}
+  m_AnchoredPosition: {x: 511.8, y: 1096.5}
   m_SizeDelta: {x: 150, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &558492376
@@ -606,7 +635,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: -3092956421908063085, guid: 9165684ccdf1afe45b06edbd1d7632ea, type: 3}
+  m_Sprite: {fileID: -1819701690166057918, guid: c1cc38a044718ba4ba4bfa2e1538b4d8, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1

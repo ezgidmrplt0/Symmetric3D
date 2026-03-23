@@ -10,6 +10,7 @@ public class TutorialManager : MonoBehaviour
     public struct LevelTutorial
     {
         public string levelDisplayName; 
+        public LevelData levelAsset;
         public int levelIndex;
         public Vector2Int[] path;
         [Tooltip("Elin merkezden ne kadar sapacağını belirler (Pixel cinsinden)")]
@@ -28,29 +29,12 @@ public class TutorialManager : MonoBehaviour
     private Sequence currentSeq;
     private LevelTutorial activeTutorial;
     private Vector2 lastTrackedOffset;
+    private int lastTrackedLevelIndex = -1;
 
     private void Awake()
     {
         Instance = this;
         cam = Camera.main;
-
-        // --- 11. Level Tutorial Otomatik Ekleme ---
-        bool level11Found = false;
-        foreach (var tut in levelTutorials)
-        {
-            if (tut.levelIndex == 10) { level11Found = true; break; }
-        }
-
-        if (!level11Found)
-        {
-            levelTutorials.Add(new LevelTutorial
-            {
-                levelDisplayName = "Level 11",
-                levelIndex = 10,
-                path = new Vector2Int[] { new Vector2Int(0, 2), new Vector2Int(0, 1) },
-                handOffset = new Vector2(0, -40f) // Elin parçanın biraz altında durması için
-            });
-        }
     }
 
     private void Start()
@@ -60,34 +44,54 @@ public class TutorialManager : MonoBehaviour
 
     private void Update()
     {
-        // Inspector'dan yapılan değişikliği canlı yakalamak için
-        if (Application.isPlaying && handImage != null && handImage.gameObject.activeInHierarchy)
+        if (!Application.isPlaying || handImage == null) return;
+
+        GridSpawner spawner = FindObjectOfType<GridSpawner>();
+        if (spawner == null || spawner.levels == null) return;
+
+        // Mevcut aktif level datasını al
+        LevelData currentLevel = (spawner.currentLevelIndex < spawner.levels.Count) ? spawner.levels[spawner.currentLevelIndex] : null;
+
+        // Level veya Offset değişikliğini canlı yakalamak için
+        bool levelChanged = (spawner.currentLevelIndex != lastTrackedLevelIndex);
+        
+        // Mevcut levelin tutorial verisini bul (Asset üzerinden veya Index üzerinden eşle)
+        LevelTutorial currentTut = default;
+        bool hasTut = false;
+        foreach (var tut in levelTutorials)
         {
-            // O anki levelin offsetini kontrol et
-            foreach (var tut in levelTutorials)
-            {
-                if (tut.levelIndex == FindObjectOfType<GridSpawner>()?.currentLevelIndex)
-                {
-                    if (tut.handOffset != lastTrackedOffset)
-                    {
-                        Debug.Log($"<color=cyan>[Tutorial]</color> Offset Değişikliği Algılandı: {tut.handOffset}. Resetleniyor...");
-                        lastTrackedOffset = tut.handOffset;
-                        StartTutorial();
-                    }
-                    break;
-                }
-            }
+            if (tut.levelAsset != null && tut.levelAsset == currentLevel) { currentTut = tut; hasTut = true; break; }
+            if (tut.levelIndex == spawner.currentLevelIndex) { currentTut = tut; hasTut = true; break; }
+        }
+
+        if (levelChanged || (hasTut && currentTut.handOffset != lastTrackedOffset))
+        {
+            lastTrackedLevelIndex = spawner.currentLevelIndex;
+            if (hasTut) lastTrackedOffset = currentTut.handOffset;
+            
+            Debug.Log($"<color=cyan>[Tutorial]</color> Değişiklik Algılandı (Level: {lastTrackedLevelIndex}). Tutorial başlatılıyor...");
+            StartTutorial();
         }
     }
 
+    [ContextMenu("Force Start Tutorial")]
     public void StartTutorial()
     {
         GridSpawner spawner = FindObjectOfType<GridSpawner>();
-        if (spawner == null) return;
+        if (spawner == null || spawner.levels == null) return;
+
+        LevelData currentLevel = (spawner.currentLevelIndex < spawner.levels.Count) ? spawner.levels[spawner.currentLevelIndex] : null;
 
         bool found = false;
         foreach (var tut in levelTutorials)
         {
+            if (tut.levelAsset != null && tut.levelAsset == currentLevel)
+            {
+                activeTutorial = tut;
+                lastTrackedOffset = tut.handOffset;
+                found = true;
+                break;
+            }
             if (tut.levelIndex == spawner.currentLevelIndex)
             {
                 activeTutorial = tut;
@@ -116,26 +120,44 @@ public class TutorialManager : MonoBehaviour
             if (currentSeq != null) currentSeq.Kill();
             currentSeq = DOTween.Sequence();
             
+            // --- HEDEF POZİSYON HESAPLAMA (Nesne Odaklı) ---
+            System.Func<int, Vector3> getPathScreenPos = (idx) => {
+                Vector2Int gp = activeTutorial.path[Mathf.Clamp(idx, 0, activeTutorial.path.Length - 1)];
+                DragObject piece = spawner.GetPieceAt(gp);
+                Vector3 worldPos = (piece != null) ? piece.transform.position : spawner.GetWorldPosition(gp);
+                return cam.WorldToScreenPoint(worldPos) + (Vector3)activeTutorial.handOffset;
+            };
+
             currentSeq.AppendInterval(0.2f);
             currentSeq.AppendCallback(() => {
-                if (spawner == null) return;
-                Vector3 basePos = cam.WorldToScreenPoint(spawner.GetWorldPosition(activeTutorial.path[0]));
-                handImage.position = basePos + (Vector3)activeTutorial.handOffset;
+                handImage.position = getPathScreenPos(0);
+                handImage.localScale = Vector3.one; 
             });
             
             currentSeq.Append(cg.DOFade(1f, 0.3f));
-            currentSeq.Join(handImage.DOScale(0.9f, 0.3f).SetEase(Ease.OutBack));
-            
-            for (int i = 1; i < activeTutorial.path.Length; i++)
+
+            if (activeTutorial.path.Length == 1)
             {
-                int nextIndex = i;
-                currentSeq.Append(handImage.DOMove(cam.WorldToScreenPoint(spawner.GetWorldPosition(activeTutorial.path[nextIndex])) + (Vector3)activeTutorial.handOffset, durationPerSegment)
-                    .SetEase(Ease.InOutSine));
+                // --- TIKLAMA (TAP) ANİMASYONU ---
+                // El sadece orada durur ve üzerine tıklıyormuş gibi küçülüp büyür.
+                currentSeq.Append(handImage.DOScale(0.8f, 0.4f).SetEase(Ease.InOutSine));
+                currentSeq.Append(handImage.DOScale(1.0f, 0.4f).SetEase(Ease.InOutSine));
+                currentSeq.AppendInterval(0.3f);
+            }
+            else
+            {
+                // --- SÜRÜKLEME (DRAG) ANİMASYONU ---
+                currentSeq.Append(handImage.DOScale(0.9f, 0.3f).SetEase(Ease.OutBack));
+                for (int i = 1; i < activeTutorial.path.Length; i++)
+                {
+                    int nextIndex = i;
+                    currentSeq.Append(handImage.DOMove(getPathScreenPos(nextIndex), durationPerSegment)
+                        .SetEase(Ease.InOutSine));
+                }
+                currentSeq.Append(handImage.DOScale(1f, 0.3f));
             }
             
-            currentSeq.Append(handImage.DOScale(1f, 0.3f));
-            currentSeq.Join(cg.DOFade(0f, 0.3f));
-            
+            currentSeq.Append(cg.DOFade(0f, 0.3f));
             currentSeq.SetLoops(-1);
         }
     }

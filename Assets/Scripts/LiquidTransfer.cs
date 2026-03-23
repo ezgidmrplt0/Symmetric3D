@@ -422,7 +422,7 @@ public class LiquidTransfer : MonoBehaviour
             if (match)
             {
                 Debug.Log($"<color=magenta>[LiquidTransfer]</color> Shadow Transfer Pair Triggered! Spawning Link {pair.shadowToSpawnLinkId}");
-                spawner.TrySpawnPending(pair.shadowToSpawnLinkId, this);
+                spawner.TrySpawnPending(pair.shadowToSpawnLinkId, this, other);
             }
         }
     }
