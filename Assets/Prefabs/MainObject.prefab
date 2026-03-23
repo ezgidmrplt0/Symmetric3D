@@ -125,7 +125,7 @@ MonoBehaviour:
   dragLift: 0.5
   collisionDistance: 0.45
   canRotate: 1
-  rotateIconSprite: {fileID: -1162935304264728111, guid: bdd455275ad5e0d4ca4bdae7242a35c5, type: 3}
+  rotateIconSprite: {fileID: -2102556321796791512, guid: e762de87d1306ea4080247cc6ca79b41, type: 3}
   wrapThreshold: 1.2
   linkId: 0
 --- !u!114 &213917902098604090

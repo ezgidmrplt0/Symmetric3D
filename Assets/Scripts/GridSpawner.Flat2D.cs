@@ -196,7 +196,11 @@ public partial class GridSpawner
             bgTile.name = $"GridBG_{pos.x}_{pos.y}";
             bgTile.transform.localRotation = Quaternion.identity;
             bgTile.transform.localPosition = localPos;
-            bgTile.transform.localScale = new Vector3(plateSize, plateSize, 0.01f);
+            
+            // Eğer prefab varsa onun scale'ini koru, yoksa default ata
+            if (backgroundPlatePrefab == null)
+                bgTile.transform.localScale = new Vector3(plateSize, plateSize, 0.01f);
+            
             activeSpawnedObjects.Add(bgTile);
         }
 

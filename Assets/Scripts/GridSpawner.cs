@@ -100,6 +100,11 @@ public partial class GridSpawner : MonoBehaviour
     // LEVEL AKIŞ YÖNETİMİ
     // ──────────────────────────────────────────────────────────────
 
+    public void RestartLevel()
+    {
+        SpawnCurrentLevel();
+    }
+
     public void SpawnCurrentLevel()
     {
         ClearCurrentLevel();

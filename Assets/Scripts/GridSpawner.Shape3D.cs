@@ -125,9 +125,12 @@ public partial class GridSpawner
                 gridObj.transform.localPosition = localPos;
                 gridObj.transform.localRotation = Quaternion.identity;
 
-                // Üçgen yüzlerde biraz küçült; diagonal kenara taşmasın
-                float gridVisualScale = isTriangle ? 0.8f : 0.7f;
-                gridObj.transform.localScale = new Vector3(stepX * gridVisualScale, stepY * gridVisualScale, 0.05f);
+                // Eğer prefab varsa onun scale'ini koru, yoksa default ata
+                if (gridPrefab == null)
+                {
+                    float gridVisualScale = (marker.surfaceType == ShapeFaceMarker.FaceSurfaceType.Triangle) ? 0.8f : 0.7f;
+                    gridObj.transform.localScale = new Vector3(stepX * gridVisualScale, stepY * gridVisualScale, 0.05f);
+                }
 
                 activeSpawnedObjects.Add(gridObj);
             }

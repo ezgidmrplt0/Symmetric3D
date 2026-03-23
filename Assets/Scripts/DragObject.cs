@@ -81,8 +81,8 @@ public partial class DragObject : MonoBehaviour
     {
         if (rotateIcon != null)
         {
-            float size = transform.lossyScale.x;
-            rotateIcon.transform.position = transform.position + new Vector3(-size * 0.4f, -size * 0.4f, -0.3f);
+            // İkonu merkeze al, parçanın biraz önünde durması için z değerini koru
+            rotateIcon.transform.position = transform.position + new Vector3(0, 0, -0.3f);
             rotateIcon.transform.rotation = Quaternion.identity;
         }
     }
