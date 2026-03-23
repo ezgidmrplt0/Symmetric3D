@@ -26,6 +26,8 @@ MonoBehaviour:
   - levelType: 32
     unlockAtProgress: 0
   levels:
+  - {fileID: 11400000, guid: 07cc547b1fdcc3548b858f8983cb9043, type: 2}
+  - {fileID: 11400000, guid: f7951d89aa6186f4a807476ce07028b4, type: 2}
   - {fileID: 11400000, guid: 5d583454f56773a418ff626f3453ff60, type: 2}
   - {fileID: 11400000, guid: 512ccf2c2fe1323448bfa872859b8dc3, type: 2}
   - {fileID: 11400000, guid: 680a76eaba95d48aeb3e9fe98a1b1040, type: 2}
@@ -46,8 +48,6 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 330b10fbabf90864eb673d38f47742c9, type: 2}
   - {fileID: 11400000, guid: 5dedb936d9cec9040af1fd25148b0fb1, type: 2}
   - {fileID: 11400000, guid: dc0b779391793be4a9b95574e7296f14, type: 2}
-  - {fileID: 11400000, guid: f7951d89aa6186f4a807476ce07028b4, type: 2}
-  - {fileID: 11400000, guid: 07cc547b1fdcc3548b858f8983cb9043, type: 2}
   - {fileID: 11400000, guid: 5d369d20083aedc4cb8e2ba9e7416a11, type: 2}
   - {fileID: 11400000, guid: ac9e60d63a52490489e89ceff7eb156f, type: 2}
   - {fileID: 11400000, guid: af4d78954ec1a194e94ef08a2dba51db, type: 2}
