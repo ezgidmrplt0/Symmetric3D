@@ -14,7 +14,7 @@ public class LevelDesignerWindow : EditorWindow
     private bool brushIsShadowTrigger = false;
     private int brushLinkId = 0;
     private int brushSpawnShadowAfterLinkID = 0;
-    private bool brushCanRotate = true;
+    private bool brushCanRotate = false;
 
 
     private bool isGridEditMode = false;
@@ -254,7 +254,7 @@ public class LevelDesignerWindow : EditorWindow
 
         GUILayout.Space(6);
         DrawSectionHeader("🔗 Shadow Transfer Triggers");
-        
+
         GUI.backgroundColor = isShadowPairMode ? Color.magenta : Color.white;
         if (GUILayout.Button(isShadowPairMode ? "✅ Shadow Pair Seçme Modu: AÇIK" : "⬛ Shadow Pair Seçme Modu: KAPALI", GUILayout.Height(30)))
         {
@@ -272,7 +272,7 @@ public class LevelDesignerWindow : EditorWindow
                 EditorGUILayout.HelpBox($"1. Obje Seçildi: ({firstPickPos.x},{firstPickPos.y}). 2/3. TETİKLEYİCİ - İkinci Objeyi Seçin.", MessageType.Warning);
             else
                 EditorGUILayout.HelpBox($"İki Tetikleyici Seçildi. 3/3. GÖLGE - Doğacak Shadow parçasına (S) tıklayın.", MessageType.Error);
-            
+
             if (GUILayout.Button("Seçimi Sıfırla")) { isPickingFirst = true; isPickingAB = true; }
         }
 
@@ -282,10 +282,10 @@ public class LevelDesignerWindow : EditorWindow
             {
                 var pair = currentLevel.shadowTransferPairs[i];
                 EditorGUILayout.BeginHorizontal(EditorStyles.helpBox);
-                
+
                 string label = $"Pair {i+1}: ({pair.posA.x},{pair.posA.y})[F{pair.faceA}] ↔ ({pair.posB.x},{pair.posB.y})[F{pair.faceB}]";
                 EditorGUILayout.LabelField(label);
-                
+
                 EditorGUI.BeginChangeCheck();
                 int newSpawnId = EditorGUILayout.IntSlider("Spawn LinkID", pair.shadowToSpawnLinkId, 0, 99);
                 if (EditorGUI.EndChangeCheck())
@@ -433,7 +433,7 @@ public class LevelDesignerWindow : EditorWindow
         }
         else
         {
-            brushCanRotate = true;
+            brushCanRotate = false;
         }
 
         GUILayout.Space(6);

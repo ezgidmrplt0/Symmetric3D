@@ -405,24 +405,38 @@ public class LiquidTransfer : MonoBehaviour
         if (spawner == null || spawner.levels == null || spawner.currentLevelIndex >= spawner.levels.Count) return;
 
         LevelData level = spawner.levels[spawner.currentLevelIndex];
+
         if (level.shadowTransferPairs == null || level.shadowTransferPairs.Count == 0) return;
 
         foreach (var pair in level.shadowTransferPairs)
         {
             bool match = false;
-            // Bu obje A, diğeri B mi?
             if (this.initialGridPos == pair.posA && this.initialFaceIndex == pair.faceA &&
                 other.initialGridPos == pair.posB && other.initialFaceIndex == pair.faceB)
                 match = true;
-            // Veya tam tersi mi?
             else if (this.initialGridPos == pair.posB && this.initialFaceIndex == pair.faceB &&
                      other.initialGridPos == pair.posA && other.initialFaceIndex == pair.faceA)
                 match = true;
 
-            if (match)
+            if (!match) continue;
+
+            if (pair.isDynamic)
             {
+                // Alıcı (this) = birleşim sonucu; verilerini yakala, animasyon bittikten sonra spawn et.
+                // Değer tiplerini yerel değişkene kopyala — giver yok edilmeden önce yakala.
+                Color capturedColor = this.liquidColor;
+                int capturedSlices = this.currentSlices; // takeAmount eklendikten SONRA (2 slice)
+                float capturedRot = this.transform.eulerAngles.z;
+                Debug.Log($"<color=magenta>[LiquidTransfer]</color> Dynamic Shadow Triggered! Slice:{capturedSlices} Rot:{capturedRot}→{(capturedRot+180f)%360f}");
+                DG.Tweening.DOVirtual.DelayedCall(0.75f, () => spawner.SpawnDynamicShadow(capturedColor, capturedSlices, capturedRot));
+            }
+            else
+            {
+                // Klasik sistem: sadece alıcıyı (this) mirror olarak geç.
+                // Giver transfer sonrası 0 slice'a düşer; TrySpawnPending'e geçilirse
+                // sıralama giver'ı önce seçip Clamp(0,1,3)=1 → yanlış çeyrek shadow üretir.
                 Debug.Log($"<color=magenta>[LiquidTransfer]</color> Shadow Transfer Pair Triggered! Spawning Link {pair.shadowToSpawnLinkId}");
-                spawner.TrySpawnPending(pair.shadowToSpawnLinkId, this, other);
+                spawner.TrySpawnPending(pair.shadowToSpawnLinkId, this, null);
             }
         }
     }

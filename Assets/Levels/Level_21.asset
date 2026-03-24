@@ -21,31 +21,38 @@ MonoBehaviour:
   shapePrefab: {fileID: 0}
   shapeFaces: []
   pieces:
-  - gridPosition: {x: 0, y: 2}
-    faceIndex: 0
-    liquidColor: {r: 0, g: 0, b: 1, a: 1}
-    currentSlices: 1
-    rotationZ: 180
-    isShadowTrigger: 0
-    spawnShadowAfterLinkID: 2
-    linkId: 0
-    canRotate: 1
-  - gridPosition: {x: 0, y: 0}
+  - gridPosition: {x: 0, y: 1}
     faceIndex: 0
     liquidColor: {r: 1, g: 1, b: 0, a: 1}
     currentSlices: 1
-    rotationZ: 0
+    rotationZ: 90
     isShadowTrigger: 0
-    spawnShadowAfterLinkID: 2
+    spawnShadowAfterLinkID: 0
     linkId: 0
-    canRotate: 1
+    canRotate: 0
+  - gridPosition: {x: 1, y: 2}
+    faceIndex: 0
+    liquidColor: {r: 1, g: 0, b: 0, a: 1}
+    currentSlices: 1
+    rotationZ: -90
+    isShadowTrigger: 0
+    spawnShadowAfterLinkID: 0
+    linkId: 0
+    canRotate: 0
   - gridPosition: {x: 2, y: 2}
     faceIndex: 0
-    liquidColor: {r: 0.5, g: 0, b: 0.5, a: 1}
+    liquidColor: {r: 0.08, g: 0.08, b: 0.08, a: 1}
     currentSlices: 1
     rotationZ: 0
     isShadowTrigger: 1
     spawnShadowAfterLinkID: 0
     linkId: 0
-    canRotate: 1
-  shadowTransferPairs: []
+    canRotate: 0
+  shadowTransferPairs:
+  - posA: {x: 1, y: 2}
+    faceA: 0
+    posB: {x: 0, y: 1}
+    faceB: 0
+    shadowToSpawnLinkId: 0
+    isDynamic: 0
+  lastRemainingShadow: 0

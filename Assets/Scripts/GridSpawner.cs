@@ -50,6 +50,7 @@ public partial class GridSpawner : MonoBehaviour
     private List<GameObject> activeFrameSegments = new List<GameObject>();
     private Dictionary<int, Transform> spawnedFaceRoots = new Dictionary<int, Transform>();
     private List<LevelData.PieceData> pendingPieces = new List<LevelData.PieceData>();
+    private bool lastRemainingTriggered = false;
 
     // ──────────────────────────────────────────────────────────────
     // KOLAYLIK ÖZELLİKLERİ
@@ -189,6 +190,7 @@ public partial class GridSpawner : MonoBehaviour
             if (seg != null) Destroy(seg);
         activeFrameSegments.Clear();
         pendingPieces.Clear();
+        lastRemainingTriggered = false;
     }
 
     /// <summary>Board moduna göre 2D veya 3D spawn'ı başlatır.</summary>
@@ -290,6 +292,16 @@ public partial class GridSpawner : MonoBehaviour
 
     public void SpawnShadowFor(LiquidTransfer trigger)
     {
+        SpawnDynamicShadow(trigger.liquidColor, trigger.currentSlices, trigger.transform.eulerAngles.z);
+    }
+
+    /// <summary>
+    /// Dinamik shadow spawn: renk/dilim/rotasyon veriden üretilir.
+    /// Rotasyon otomatik olarak +180° (tam zıt yön) uygulanır.
+    /// Spawn sonrası sahneyi CheckSymmetry ile tarar.
+    /// </summary>
+    public void SpawnDynamicShadow(Color color, int slices, float sourceRotationZ)
+    {
         if (levels == null || levels.Count == 0 || currentLevelIndex >= levels.Count) return;
 
         List<Transform> validGrids = new List<Transform>();
@@ -322,14 +334,15 @@ public partial class GridSpawner : MonoBehaviour
         }
 
         Transform targetGrid = emptyGrids[Random.Range(0, emptyGrids.Count)];
-
-        float triggerRot = trigger.transform.localRotation.eulerAngles.z;
-        float shadowRot = (triggerRot + 180f) % 360f;
+        float shadowRot = (sourceRotationZ + 180f) % 360f;
 
         GameObject shadowObj = Instantiate(objectPrefab, targetGrid.parent);
         shadowObj.transform.localPosition = new Vector3(targetGrid.localPosition.x, targetGrid.localPosition.y, -objectOffset);
         shadowObj.transform.localRotation = Quaternion.Euler(0, 0, shadowRot);
         activeSpawnedObjects.Add(shadowObj);
+
+        DragObject shadowDrag = shadowObj.GetComponent<DragObject>();
+        if (shadowDrag != null) shadowDrag.canRotate = false;
 
         Vector3 targetScale = objectPrefab.transform.localScale;
         shadowObj.transform.localScale = Vector3.zero;
@@ -338,11 +351,17 @@ public partial class GridSpawner : MonoBehaviour
         LiquidTransfer lt = shadowObj.GetComponentInChildren<LiquidTransfer>();
         if (lt != null)
         {
-            lt.liquidColor = trigger.liquidColor;
-            lt.currentSlices = trigger.currentSlices;
+            lt.liquidColor = color;
+            lt.currentSlices = slices;
             lt.isShadowChild = true;
             lt.UpdateVisuals();
         }
+    }
+
+    private bool HasLastRemainingRule()
+    {
+        if (levels == null || currentLevelIndex >= levels.Count) return false;
+        return levels[currentLevelIndex].lastRemainingShadow;
     }
 
     public void TrySpawnPending(int clearedLinkId, LiquidTransfer mirrorSource = null, LiquidTransfer mirrorOther = null)
@@ -422,7 +441,7 @@ public partial class GridSpawner : MonoBehaviour
             {
                 activeSpawnedObjects.Add(newObj);
                 DragObject dobj = newObj.GetComponent<DragObject>();
-                if(dobj != null) dobj.linkId = piece.linkId;
+                if(dobj != null) { dobj.linkId = piece.linkId; dobj.canRotate = false; }
 
                 LiquidTransfer lt = newObj.GetComponentInChildren<LiquidTransfer>();
                 if (lt != null)
@@ -443,7 +462,7 @@ public partial class GridSpawner : MonoBehaviour
                         // Akıllı Miktar
                         lt.currentSlices = Mathf.Clamp(mirror.currentSlices, 1, mirror.maxSlices - 1);
                         // SIVI AKTARIMI İÇİN TAM ZITTI (+180)
-                        float mRotZ = mirror.transform.localEulerAngles.z;
+                        float mRotZ = mirror.transform.eulerAngles.z;
                         newObj.transform.localRotation = Quaternion.Euler(0, 0, (mRotZ + 180f) % 360f);
                     }
                     else
@@ -524,8 +543,30 @@ public partial class GridSpawner : MonoBehaviour
         if (pendingPieces.Exists(p => p.spawnShadowAfterLinkID == 0))
         {
             TrySpawnPending(0);
-            DOVirtual.DelayedCall(0.6f, CheckForFail); // Spawn animasyonu biter bitmez tekrar kontrol et
+            DOVirtual.DelayedCall(0.6f, CheckForFail);
             return;
+        }
+
+        // LastRemaining shadow kuralı: tek obje kaldıysa tam zıttını spawn et
+        if (!lastRemainingTriggered && HasLastRemainingRule())
+        {
+            LiquidTransfer[] allLt = FindObjectsOfType<LiquidTransfer>();
+            List<LiquidTransfer> active = new List<LiquidTransfer>();
+            foreach (var lt in allLt)
+                if (lt != null && lt.gameObject.activeInHierarchy && !lt.transferring) active.Add(lt);
+
+            if (active.Count == 1)
+            {
+                lastRemainingTriggered = true;
+                LiquidTransfer remaining = active[0];
+                Color c = remaining.liquidColor;
+                int s = remaining.currentSlices;
+                float r = remaining.transform.eulerAngles.z;
+
+                Debug.Log($"<color=magenta>[GridSpawner]</color> LastRemaining Shadow tetiklendi! Renk: {c}, Dilim: {s}, Rot: {r}");
+                DOVirtual.DelayedCall(0.3f, () => SpawnDynamicShadow(c, s, r));
+                return;
+            }
         }
 
         Debug.Log("[GridSpawner] Oynanabilir hamle kalmadı, FAIL tetikleniyor.");

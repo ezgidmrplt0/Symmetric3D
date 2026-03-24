@@ -55,6 +55,7 @@ public class LevelData : ScriptableObject
         public Vector2Int posB;
         public int faceB;
         public int shadowToSpawnLinkId; // Bu Link ID'ye sahip gölge parçaları spawn olur
+        public bool isDynamic;          // true → shadow renk/rotasyonu birleşim sonucundan otomatik türetilir
     }
 
     [Header("Level Bilgileri")]
@@ -78,6 +79,7 @@ public class LevelData : ScriptableObject
 
     [Header("Shadow Tansfer Triggers")]
     public List<ShadowTransferPair> shadowTransferPairs = new List<ShadowTransferPair>();
+    public bool lastRemainingShadow; // true → gridde tek obje kalınca tam zıttı spawn olur
 
     public bool IsUnlocked(LevelSequenceData sequence, int currentProgress)
     {

@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Level_01
   m_EditorClassIdentifier: 
   levelDisplayName: Level_01
-  levelType: 17
+  levelType: 1
   boardMode: 0
   gridX: 2
   gridY: 2
@@ -40,3 +40,4 @@ MonoBehaviour:
     linkId: 0
     canRotate: 1
   shadowTransferPairs: []
+  lastRemainingShadow: 0
