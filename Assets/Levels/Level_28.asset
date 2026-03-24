@@ -132,13 +132,13 @@ MonoBehaviour:
     canRotate: 0
   - gridPosition: {x: 4, y: 2}
     faceIndex: 0
-    liquidColor: {r: 0.5, g: 0, b: 0.6, a: 1}
+    liquidColor: {r: 0.5, g: 0, b: 0.5, a: 1}
     currentSlices: 2
     rotationZ: 180
     isShadowTrigger: 0
     spawnShadowAfterLinkID: 0
     linkId: 0
-    canRotate: 0
+    canRotate: 1
   - gridPosition: {x: 2, y: 1}
     faceIndex: 0
     liquidColor: {r: 1, g: 0.5, b: 0, a: 1}
