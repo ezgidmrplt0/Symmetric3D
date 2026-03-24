@@ -336,7 +336,8 @@ public partial class GridSpawner : MonoBehaviour
         Transform targetGrid = emptyGrids[Random.Range(0, emptyGrids.Count)];
         float shadowRot = (sourceRotationZ + 180f) % 360f;
 
-        GameObject shadowObj = Instantiate(objectPrefab, targetGrid.parent);
+        Transform parentTransform = targetGrid.parent != null ? targetGrid.parent : transform;
+        GameObject shadowObj = Instantiate(objectPrefab, parentTransform);
         shadowObj.transform.localPosition = new Vector3(targetGrid.localPosition.x, targetGrid.localPosition.y, -objectOffset);
         shadowObj.transform.localRotation = Quaternion.Euler(0, 0, shadowRot);
         activeSpawnedObjects.Add(shadowObj);
@@ -344,7 +345,43 @@ public partial class GridSpawner : MonoBehaviour
         DragObject shadowDrag = shadowObj.GetComponent<DragObject>();
         if (shadowDrag != null) shadowDrag.canRotate = false;
 
-        Vector3 targetScale = objectPrefab.transform.localScale;
+        // Shape3D modunda yüzey marker'ı varsa lossyScale ile scale hesapla
+        ShapeFaceMarker sfm = parentTransform.GetComponent<ShapeFaceMarker>();
+        Vector3 targetScale;
+        if (sfm != null && levels != null && currentLevelIndex < levels.Count)
+        {
+            LevelData level = levels[currentLevelIndex];
+            int faceIdx = -1;
+            foreach (var kvp in spawnedFaceRoots)
+                if (kvp.Value == parentTransform) { faceIdx = kvp.Key; break; }
+
+            if (faceIdx >= 0 && faceIdx < level.shapeFaces.Count)
+            {
+                LevelData.FaceLayoutData fd = level.shapeFaces[faceIdx];
+                bool isTri = sfm.surfaceType == ShapeFaceMarker.FaceSurfaceType.Triangle;
+                int gy = isTri ? fd.gridX : fd.gridY;
+                float area = isTri ? 0.82f : 1f;
+                float sx = area / fd.gridX;
+                float sy = area / gy;
+                Vector3 ws = parentTransform.lossyScale;
+                float worldS = Mathf.Min(sx * Mathf.Abs(ws.x), sy * Mathf.Abs(ws.y)) * 0.68f;
+                targetScale = new Vector3(worldS / Mathf.Abs(ws.x), worldS / Mathf.Abs(ws.y), worldS);
+                shadowObj.transform.localPosition = new Vector3(
+                    targetGrid.localPosition.x,
+                    targetGrid.localPosition.y,
+                    -(worldS * 0.5f + sfm.surfaceOffset)
+                );
+            }
+            else
+            {
+                targetScale = objectPrefab.transform.localScale;
+            }
+        }
+        else
+        {
+            targetScale = objectPrefab.transform.localScale;
+        }
+
         shadowObj.transform.localScale = Vector3.zero;
         shadowObj.transform.DOScale(targetScale, 0.5f).SetEase(Ease.OutBack);
 
@@ -424,7 +461,7 @@ public partial class GridSpawner : MonoBehaviour
                     newObj.transform.localRotation = Quaternion.Euler(0,0,piece.rotationZ);
 
                     Vector3 ws = marker.lossyScale;
-                    float worldS = Mathf.Min(sx*Mathf.Abs(ws.x), sy*Mathf.Abs(ws.y))*0.55f;
+                    float worldS = Mathf.Min(sx*Mathf.Abs(ws.x), sy*Mathf.Abs(ws.y))*0.68f;
                     newObj.transform.localScale = new Vector3(worldS/Mathf.Abs(ws.x), worldS/Mathf.Abs(ws.y), worldS);
                     newObj.transform.localPosition = new Vector3(lPos.x, lPos.y, -(worldS*0.5f + sfm.surfaceOffset));
                 }

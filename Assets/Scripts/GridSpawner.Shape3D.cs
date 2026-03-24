@@ -125,11 +125,18 @@ public partial class GridSpawner
                 gridObj.transform.localPosition = localPos;
                 gridObj.transform.localRotation = Quaternion.identity;
 
-                // Eğer prefab varsa onun scale'ini koru, yoksa default ata
-                if (gridPrefab == null)
+                // Grid scale: marker'ın lossyScale'ine göre hücre boyutunu hesapla
                 {
-                    float gridVisualScale = (marker.surfaceType == ShapeFaceMarker.FaceSurfaceType.Triangle) ? 0.8f : 0.7f;
-                    gridObj.transform.localScale = new Vector3(stepX * gridVisualScale, stepY * gridVisualScale, 0.05f);
+                    Vector3 ws = marker.transform.lossyScale;
+                    float cellWorldW = stepX * Mathf.Abs(ws.x);
+                    float cellWorldH = stepY * Mathf.Abs(ws.y);
+                    float worldSize = Mathf.Min(cellWorldW, cellWorldH) * 0.70f;
+                    float zS = gridPrefab != null ? gridPrefab.transform.localScale.z : 0.05f;
+                    gridObj.transform.localScale = new Vector3(
+                        worldSize / Mathf.Abs(ws.x),
+                        worldSize / Mathf.Abs(ws.y),
+                        zS
+                    );
                 }
 
                 activeSpawnedObjects.Add(gridObj);
@@ -193,7 +200,7 @@ public partial class GridSpawner
                 Vector3 ws = marker.transform.lossyScale;
                 float cellWorldW = (triAreaScale / faceData.gridX) * Mathf.Abs(ws.x);
                 float cellWorldH = (triAreaScale / effectiveGridY) * Mathf.Abs(ws.y);
-                float worldSize  = Mathf.Min(cellWorldW, cellWorldH) * 0.55f;
+                float worldSize  = Mathf.Min(cellWorldW, cellWorldH) * 0.68f;
                 newObj.transform.localScale = new Vector3(
                     worldSize / Mathf.Abs(ws.x),
                     worldSize / Mathf.Abs(ws.y),
