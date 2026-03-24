@@ -22,12 +22,20 @@ public static class ColorMixData
     }
 
     // ── Temel Renkler (Tarif renkleriyle tam eşleşmesi için bunları kullan) ────
-    public static readonly Color Mavi     = new Color(0f, 0f, 1f, 1f);
-    public static readonly Color Kirmizi  = new Color(1f, 0f, 0f, 1f);
-    public static readonly Color Sari     = new Color(1f, 1f, 0f, 1f);
-    public static readonly Color Mor      = new Color(0.5f, 0f,   0.5f, 1f);
-    public static readonly Color Turuncu  = new Color(1f,   0.5f, 0f, 1f);
-    public static readonly Color Yesil    = new Color(0f,   1f,   0f, 1f);
+    public static readonly Color Mavi      = new Color(0f,    0f,    1f,    1f);
+    public static readonly Color Kirmizi   = new Color(1f,    0f,    0f,    1f);
+    public static readonly Color Sari      = new Color(1f,    1f,    0f,    1f);
+    public static readonly Color Mor       = new Color(0.5f,  0f,    0.5f,  1f);
+    public static readonly Color Turuncu   = new Color(1f,    0.5f,  0f,    1f);
+    public static readonly Color Yesil     = new Color(0f,    1f,    0f,    1f);
+
+    // ── Ek Renkler (Level 21+ için) ──────────────────────────────────────────
+    public static readonly Color AcikMavi  = new Color(0f,    0.935f, 1f,   1f);
+    public static readonly Color Pembe     = new Color(1f,    0f,    0.84f, 1f);
+    public static readonly Color Siyah     = new Color(0.08f, 0.08f, 0.08f, 1f);
+    public static readonly Color KoyuKirm  = new Color(0.8f,  0.1f,  0.1f,  1f);
+    public static readonly Color KoyuYesil = new Color(0f,    0.6f,  0f,    1f);
+    public static readonly Color KoyuMor   = new Color(0.5f,  0f,    0.6f,  1f);
 
     // ── Tarifler ─────────────────────────────────────────────
     public static readonly List<Recipe> Recipes = new List<Recipe>

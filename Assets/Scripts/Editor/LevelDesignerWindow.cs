@@ -327,6 +327,16 @@ public class LevelDesignerWindow : EditorWindow
         DrawColorPreset("🟢 Yeşil",   ColorMixData.Yesil);
 
         EditorGUILayout.EndHorizontal();
+        EditorGUILayout.BeginHorizontal();
+
+        DrawColorPreset("🩵 Açık Mavi",   ColorMixData.AcikMavi);
+        DrawColorPreset("🩷 Pembe",        ColorMixData.Pembe);
+        DrawColorPreset("⚫ Siyah",        ColorMixData.Siyah);
+        DrawColorPreset("🔻 K.Kırmızı",   ColorMixData.KoyuKirm);
+        DrawColorPreset("🌿 K.Yeşil",     ColorMixData.KoyuYesil);
+        DrawColorPreset("🔮 K.Mor",       ColorMixData.KoyuMor);
+
+        EditorGUILayout.EndHorizontal();
         GUILayout.Space(4);
 
         brushColor = EditorGUILayout.ColorField("Renk (manuel)", brushColor);
