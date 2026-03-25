@@ -140,6 +140,9 @@ public class LevelPanelManager : MonoBehaviour
         }
 
         if (TutorialManager.Instance != null) TutorialManager.Instance.HideTutorial();
+        
+        // Timer'ı durdur
+        LevelTimer.Instance?.StopTimer();
 
         completePanelRoot.SetActive(true);
         completePanelRoot.transform.localScale = Vector3.zero;
@@ -204,6 +207,9 @@ public class LevelPanelManager : MonoBehaviour
         failPanelRoot.SetActive(true);
         failPanelRoot.transform.localScale = Vector3.zero;
         failPanelRoot.transform.DOScale(1f, 0.35f).SetEase(Ease.OutBack).SetUpdate(true);
+
+        // Timer'ı durdur
+        LevelTimer.Instance?.StopTimer();
     }
 
     void OnRetryClicked()

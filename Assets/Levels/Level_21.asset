@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Level_21
   m_EditorClassIdentifier: 
   levelDisplayName: Level_21
-  levelType: 31
+  levelType: 15
   boardMode: 0
   gridX: 3
   gridY: 3

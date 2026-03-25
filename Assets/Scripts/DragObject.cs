@@ -34,7 +34,7 @@ public partial class DragObject : MonoBehaviour
 
     [Header("Çarpışma (Collision)")]
     [Tooltip("Görsel izdüşüm üzerinden diğer objelere ne kadar yaklaşabileceğini belirler.")]
-    public float collisionDistance = 0.25f;
+    public float collisionDistance = 1.0f;
 
     [Header("Rotation")]
     [Tooltip("Rotation levellerinde bu parça döndürülebilir mi?")]

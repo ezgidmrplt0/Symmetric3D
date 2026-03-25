@@ -61,6 +61,7 @@ public class LevelData : ScriptableObject
     [Header("Level Bilgileri")]
     public string levelDisplayName = "Yeni Level";
     public LevelType levelType = LevelType.Classic;
+    public float timeLimit = 150f;
 
     [Header("Board Mode")]
     public BoardMode boardMode = BoardMode.Flat2D;

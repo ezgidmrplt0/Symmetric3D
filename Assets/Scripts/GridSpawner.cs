@@ -33,14 +33,16 @@ public partial class GridSpawner : MonoBehaviour
     public Camera mainCamera;
     public float frameThickness = 0.15f;
     public float framePadding = 0.15f;
-    public float cameraPadding = 0.8f;
-    public float cameraZoomFactor = 0.75f;
-    public float cameraVerticalOffset = 0.5f;
+    public float cameraPadding = 0.2f;
+    public float cameraZoomFactor = 0.65f;
+    public float cameraVerticalOffset = 0.1f;
     [Tooltip("3D şekil spawn Z offseti — negatif değer şekli kameraya yaklaştırır.")]
     public float shapeZOffset = -1f;
 
     [Header("UI Referansları")]
     public TextMeshProUGUI levelText;
+    public TMP_FontAsset globalFont;
+    public TextMeshProUGUI timerText; // Geri sayım sayacı metni
 
     // ──────────────────────────────────────────────────────────────
     // ÖZEL DURUM (partial dosyalar da erişir)
@@ -199,7 +201,19 @@ public partial class GridSpawner : MonoBehaviour
         GameManager.Instance?.ResetLevelState();
 
         if (levelText != null)
+        {
             levelText.text = "LEVEL " + (currentLevelIndex + 1);
+            if (globalFont != null) levelText.font = globalFont;
+        }
+
+        // --- TIMER BAŞLATMA ---
+        LevelTimer timer = LevelTimer.Instance;
+        if (timer == null) timer = FindObjectOfType<LevelTimer>();
+        if (timer != null)
+        {
+            if (timerText != null) timer.timerText = timerText;
+            timer.ResetTimer(level.timeLimit);
+        }
 
         float gridSize = gridPrefab.transform.localScale.x;
 

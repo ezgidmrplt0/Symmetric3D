@@ -16,7 +16,7 @@ public partial class DragObject
     {
         // Çarpışma mesafesini parça dünya boyutuna göre ayarla:
         // sabit collisionDistance yüzey scale'i küçüldüğünde hücre aralığını aşabiliyor.
-        float shapeDist = cachedWorldSize * 0.45f;
+        float shapeDist = cachedWorldSize * 1.0f;
 
         Vector3 currentPos = transform.position;
         Vector3 moveDir = desiredPos - currentPos;
