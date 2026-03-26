@@ -37,7 +37,6 @@ public partial class DragObject
                 float d = Vector3.Distance(nextPos, obj.transform.position);
                 if (d < shapeDist)
                 {
-                    Debug.Log($"[COLL3D] {gameObject.name} ← {obj.name} engel | dist={d:F3} shapeDist={shapeDist:F3}");
                     collisionFound = true;
                     break;
                 }
@@ -102,13 +101,11 @@ public partial class DragObject
 
             if (rotAxis != Vector3.zero && rotator != null && !rotator.IsRotating)
             {
-                Debug.Log($"<color=orange>[DRAG3D] Şekil döndürülüyor: axis={rotAxis} | screenOffset=({offset.x:F0},{offset.y:F0})</color>");
                 rotator.RotateByAngle(rotAxis, 90f);
                 wrapCooldown = rotator.rotationDuration * 0.8f;
             }
             else if (rotAxis != Vector3.zero && rotator != null && rotator.IsRotating)
             {
-                Debug.Log($"[DRAG3D] Dönüş isteği bekleniyor (zaten animasyonda)");
             }
         }
     }
@@ -124,8 +121,6 @@ public partial class DragObject
 
         float oz = -(cachedWorldSize * 0.5f + surfaceOff);
 
-        Debug.Log($"[DROP3D] {gameObject.name} → grid: {targetGrid.name} | face: {targetGrid.parent?.name} | oz={oz:F3} | cachedWorldSize={cachedWorldSize:F3} | surfaceOff={surfaceOff:F3}");
-        Debug.Log($"[DROP3D] startParent={startParent?.name} | targetParent={targetGrid.parent?.name} | sameParent={targetGrid.parent == startParent}");
 
         transform.SetParent(targetGrid.parent, true);
 
@@ -147,7 +142,6 @@ public partial class DragObject
         // Dünya rotasyonunu yüzeyin local uzayına çevir — küp dönse de yön korunur
         Quaternion localRot = Quaternion.Inverse(targetGrid.parent.rotation) * cachedWorldRotation;
         float snappedZ = Mathf.Round(localRot.eulerAngles.z / 90f) * 90f;
-        Debug.Log($"[DROP3D] Rot: cachedWorld={cachedWorldRotation.eulerAngles:F1} | localRot={localRot.eulerAngles:F1} | snappedZ={snappedZ:F0}");
 
         transform.DOLocalMove(new Vector3(targetGrid.localPosition.x, targetGrid.localPosition.y, oz), 0.25f)
             .SetEase(Ease.OutCubic);

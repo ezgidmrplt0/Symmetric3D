@@ -94,7 +94,6 @@ public class GameManager : MonoBehaviour
         if (lifetimeProgress >= 100 && !newMechanicUnlocked)
         {
             newMechanicUnlocked = true;
-            Debug.Log("Yeni Mechanic Açıldı!");
         }
 
         SaveProgress();
@@ -111,7 +110,6 @@ public class GameManager : MonoBehaviour
         if (levelCompleting) return;
         levelCompleting = true;
 
-        Debug.Log("Level Başarısız! Hamle kalmadı.");
         OnLevelFailed.Invoke();
     }
 
@@ -191,6 +189,5 @@ public class GameManager : MonoBehaviour
         PlayerPrefs.DeleteKey("CurrentLevelIndex");
         PlayerPrefs.DeleteKey(ANNOUNCED_TYPES_KEY);
         SaveProgress();
-        Debug.Log("Tüm progress ve level kaydı sıfırlandı.");
     }
 }

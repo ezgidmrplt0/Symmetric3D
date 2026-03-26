@@ -17,7 +17,6 @@ public partial class GridSpawner
     {
         if (level.shapePrefab == null)
         {
-            Debug.LogWarning("Shape3D level ama shapePrefab atanmamış.");
             return;
         }
 
@@ -31,7 +30,6 @@ public partial class GridSpawner
         ShapeDefinition def = shapeRoot.GetComponent<ShapeDefinition>();
         if (def == null)
         {
-            Debug.LogWarning("Spawn edilen shape prefabında ShapeDefinition yok.");
             return;
         }
         def.RefreshFaces();

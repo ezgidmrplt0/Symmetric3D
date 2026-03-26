@@ -34,7 +34,6 @@ public class GlobalFontManager : MonoBehaviour
     {
         if (targetFont == null)
         {
-            Debug.LogError("[GlobalFontManager] Lütfen önce bir 'Target Font' (SDF Asset) atayın!");
             return;
         }
 
@@ -62,7 +61,6 @@ public class GlobalFontManager : MonoBehaviour
             }
         }
 
-        Debug.Log($"<color=green>[GlobalFontManager]</color> Toplam {count} text öğesine '{targetFont.name}' fontu uygulandı.");
     }
 
     private bool IsPrefabInstance(GameObject go)

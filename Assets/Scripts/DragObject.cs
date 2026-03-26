@@ -144,7 +144,6 @@ public partial class DragObject : MonoBehaviour
 
         if (Physics.Raycast(ray, out hit))
         {
-            Debug.Log($"[PICK] Raycast hit: {hit.transform.name} | tag: {hit.transform.tag} | parent: {hit.transform.parent?.name}");
 
             if (hit.transform == transform || hit.transform.IsChildOf(transform))
             {
@@ -157,10 +156,8 @@ public partial class DragObject : MonoBehaviour
                 if (parentMarker != null)
                 {
                     float dot = Vector3.Dot(transform.parent.forward, cam.transform.forward);
-                    Debug.Log($"[PICK] Face dot check: face.forward={transform.parent.forward:F2} cam.transform.forward={cam.transform.forward:F2} |dot|={Mathf.Abs(dot):F2}");
                     if (Mathf.Abs(dot) < 0.45f)
                     {
-                        Debug.Log($"<color=gray>[PICK] DENIED: Yan yüzey (|dot|={Mathf.Abs(dot):F2})</color>");
                         return;
                     }
                 }
@@ -187,16 +184,13 @@ public partial class DragObject : MonoBehaviour
                     worldGrabOffset = Vector3.zero;
 
                 if (TutorialManager.Instance != null) TutorialManager.Instance.HideTutorial();
-                Debug.Log($"<color=yellow>[PICK] OK: {gameObject.name} | worldPos={startPosition:F2} | parent={startParent?.name} | worldSize={cachedWorldSize:F3}</color>");
             }
             else
             {
-                Debug.Log($"[PICK] Miss: hit {hit.transform.name} ama bu obje değil ({gameObject.name})");
             }
         }
         else
         {
-            Debug.Log($"[PICK] Raycast boş isabet yok — {gameObject.name} deneniyordu");
         }
     }
 
@@ -258,13 +252,11 @@ public partial class DragObject : MonoBehaviour
         Transform targetGrid = null;
         float minGridDist = float.MaxValue;
 
-        Debug.Log($"[DROP] {gameObject.name} bırakıldı. Obje pozisyonu: {transform.position:F2}");
         GameObject[] gridCells = GameObject.FindGameObjectsWithTag("Grid");
         foreach (GameObject cellObj in gridCells)
         {
             if (!cellObj.activeInHierarchy) continue;
             float d = Vector3.Distance(transform.position, cellObj.transform.position);
-            Debug.Log($"[DROP]   grid: {cellObj.name} | pos: {cellObj.transform.position:F2} | dist: {d:F3}");
             if (d < minGridDist)
             {
                 minGridDist = d;
@@ -274,17 +266,14 @@ public partial class DragObject : MonoBehaviour
 
         if (targetGrid == null)
         {
-            Debug.LogWarning($"[DROP] FAIL: Hiç Grid tag'li obje bulunamadı. Geri dönüyor.");
             ReturnToStart();
             return;
         }
 
-        Debug.Log($"[DROP] Hedef grid: {targetGrid.name} | parent: {targetGrid.parent?.name} | pos: {targetGrid.position:F2}");
 
         // Engelli hücre kontrolü
         if (targetGrid.name.Contains("Blocked"))
         {
-            Debug.LogWarning("[DROP] FAIL: Engelli hücre.");
             ReturnToStart();
             return;
         }
@@ -300,13 +289,11 @@ public partial class DragObject : MonoBehaviour
             float d = Vector3.Distance(o.transform.position, targetGrid.position);
             if (d < fullThreshold)
             {
-                Debug.LogWarning($"[DROP] FAIL: Dolu hücre — {o.name} dist={d:F3} < eşik={fullThreshold:F3}");
                 ReturnToStart();
                 return;
             }
         }
 
-        Debug.Log($"[DROP] OK — {(IsShape3DMode() ? "Shape3D" : "Flat2D")} modunda yerleştiriliyor.");
         if (IsShape3DMode())
             DropShape3D(targetGrid, spawner);
         else

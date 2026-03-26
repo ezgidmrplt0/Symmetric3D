@@ -164,7 +164,6 @@ public class CubeRotator : MonoBehaviour
 
         isAnimating = true;
         discreteRotation = Quaternion.Euler(axis * angle) * discreteRotation;
-        Debug.Log($"[ROTATE] axis={axis} angle={angle} prismRect={prismViewingRect} → {discreteRotation.eulerAngles:F0}");
 
         transform.DOLocalRotateQuaternion(discreteRotation, rotationDuration)
             .SetEase(Ease.InOutCubic)

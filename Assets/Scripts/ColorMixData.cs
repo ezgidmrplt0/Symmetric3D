@@ -61,7 +61,6 @@ public static class ColorMixData
         }
         
         // Eşleşme bulunamadıysa neyle neyi karşılaştırdığımızı yazdıralim
-        Debug.Log($"[ColorMix] Eşleşme yok: {a} ve {b}");
         result = Color.white;
         return false;
     }

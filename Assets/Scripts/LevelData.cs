@@ -97,7 +97,6 @@ public class LevelData : ScriptableObject
         ShapeDefinition def = shapePrefab.GetComponent<ShapeDefinition>();
         if (def == null)
         {
-            Debug.LogWarning($"'{shapePrefab.name}' prefabında ShapeDefinition yok.");
             return;
         }
 

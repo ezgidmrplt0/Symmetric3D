@@ -114,14 +114,11 @@ public partial class GridSpawner : MonoBehaviour
 
         if (levels == null || levels.Count == 0)
         {
-            Debug.LogWarning("GridSpawner: LevelSequenceData atanmamış veya boş!");
             return;
         }
 
         if (currentLevelIndex < levels.Count && levels[currentLevelIndex] != null)
             SpawnLevel(levels[currentLevelIndex]);
-        else
-            Debug.LogWarning("GridSpawner: Geçersiz level index!");
     }
 
     public void NextLevel()
@@ -130,7 +127,6 @@ public partial class GridSpawner : MonoBehaviour
 
         if (levels == null || levels.Count == 0)
         {
-            Debug.LogError("[GridSpawner] Levels listesi boş! NextLevel çalışamaz.");
             return;
         }
 
@@ -138,7 +134,6 @@ public partial class GridSpawner : MonoBehaviour
             ? GameManager.Instance.lifetimeProgress
             : 0;
 
-        Debug.Log($"[GridSpawner] NextLevel() | Mevcut Index: {currentLevelIndex} | Lifetime Progress: {effectiveProgress}");
 
         int startIndex = currentLevelIndex;
         int next = currentLevelIndex;
@@ -150,30 +145,23 @@ public partial class GridSpawner : MonoBehaviour
 
             if (candidate == startIndex)
             {
-                Debug.Log("[GridSpawner] Tüm liste tarandı, başka açık level bulunamadı. Mevcut seviye tekrarlanacak.");
                 next = candidate;
                 break;
             }
 
             if (candidateLevel == null)
             {
-                Debug.LogWarning($"[GridSpawner] Index {candidate} boş (null)! Geçiliyor...");
                 continue;
             }
 
             if (sequence != null && !sequence.IsLevelUnlocked(candidateLevel, effectiveProgress))
             {
-                Debug.Log($"[GridSpawner] '{candidateLevel.levelDisplayName}' (Index: {candidate}) kilitli! Gerekli: {sequence.GetUnlockProgress(candidateLevel.levelType)}");
                 continue;
             }
 
-            Debug.Log($"[GridSpawner] Yeni level bulundu: {candidateLevel.levelDisplayName} (Index: {candidate})");
             next = candidate;
             break;
         }
-
-        if (next == startIndex && next == currentLevelIndex)
-            Debug.Log("<color=orange>[GridSpawner] Oyun Bitti veya Tüm leveller kilitli!</color>");
 
         currentLevelIndex = next;
         PlayerPrefs.SetInt("CurrentLevelIndex", currentLevelIndex);
@@ -343,7 +331,6 @@ public partial class GridSpawner : MonoBehaviour
 
         if (emptyGrids.Count == 0)
         {
-            Debug.LogWarning("Shadow için boş yer bulunamadı!");
             return;
         }
 
@@ -614,13 +601,11 @@ public partial class GridSpawner : MonoBehaviour
                 int s = remaining.currentSlices;
                 float r = remaining.transform.eulerAngles.z;
 
-                Debug.Log($"<color=magenta>[GridSpawner]</color> LastRemaining Shadow tetiklendi! Renk: {c}, Dilim: {s}, Rot: {r}");
                 DOVirtual.DelayedCall(0.3f, () => SpawnDynamicShadow(c, s, r));
                 return;
             }
         }
 
-        Debug.Log("[GridSpawner] Oynanabilir hamle kalmadı, FAIL tetikleniyor.");
         GameManager.Instance?.LevelFail();
     }
 
@@ -629,13 +614,11 @@ public partial class GridSpawner : MonoBehaviour
         LiquidTransfer[] all = FindObjectsOfType<LiquidTransfer>();
         List<LiquidTransfer> activePieces = new List<LiquidTransfer>();
 
-        Debug.Log($"<color=cyan>[GridSpawner]</color> Fail Kontrolü başladı. Sahnede toplam {all.Length} LiquidTransfer bulundu.");
 
         foreach (var lt in all)
         {
             if (lt.transferring)
             {
-                Debug.Log($"<color=yellow>[GridSpawner]</color> '{lt.name}' şu an transfer halinde. Kontrol erteleniyor.");
                 return true;
             }
             if (lt != null && lt.gameObject.activeInHierarchy)
@@ -644,17 +627,11 @@ public partial class GridSpawner : MonoBehaviour
 
         if (activePieces.Count == 0)
         {
-            Debug.Log("<color=green>[GridSpawner]</color> Aktif parça kalmadı, temiz kazanıldı.");
             return true;
         }
 
-        string piecesLog = "[GridSpawner] Aktif Parçalar Listesi:\n";
-        foreach (var ap in activePieces) piecesLog += $"- {ap.name} | Renk: {ap.liquidColor} | Dilim: {ap.currentSlices}/{ap.maxSlices} | Shadow: {ap.isShadowTrigger}\n";
-        Debug.Log(piecesLog);
-
         if (activePieces.Count == 1)
         {
-            Debug.Log($"<color=red>[GridSpawner]</color> Tek parça kaldı ve eşleşme imkansız!");
             return false;
         }
 
@@ -664,13 +641,11 @@ public partial class GridSpawner : MonoBehaviour
             {
                 if (CanInteractionsExist(activePieces[i], activePieces[j]))
                 {
-                    Debug.Log($"<color=green>[GridSpawner]</color> Potansiyel Eşleşme Bulundu: {activePieces[i].name} <-> {activePieces[j].name}");
                     return true;
                 }
             }
         }
 
-        Debug.Log($"<color=red>[GridSpawner]</color> {activePieces.Count} parça arasında hiçbir geçerli etkileşim bulunamadı. FAIL KOŞULU!");
         return false;
     }
 

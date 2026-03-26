@@ -51,7 +51,6 @@ public class LevelTimer : MonoBehaviour
         if (currentTime > 0)
         {
             isRunning = true;
-            Debug.Log("<color=yellow>[TIMER]</color> Başlatıldı!");
         }
     }
 
@@ -86,7 +85,6 @@ public class LevelTimer : MonoBehaviour
 
     private void TimeExpired()
     {
-        Debug.Log("<color=red>[TIMER]</color> Süre bitti!");
         GameManager.Instance?.LevelFail();
     }
 }

@@ -151,7 +151,6 @@ public class LiquidTransfer : MonoBehaviour
                 }
                 else
                 {
-                    // Debug.Log($"[ColorMix] Karışım bulundu ({this.liquidColor} + {other.liquidColor}) ama bakış yönleri veya mesafe uygun değil!");
                 }
             }
         }
@@ -186,7 +185,6 @@ public class LiquidTransfer : MonoBehaviour
 
         if (dot1 && dot2)
         {
-            Debug.Log($"<color=cyan>[LiquidTransfer]</color> Symmetry MATCH: {gameObject.name} <-> {other.gameObject.name} | Dist: {dist:F2}");
             return true;
         }
 
@@ -200,7 +198,6 @@ public class LiquidTransfer : MonoBehaviour
         giver.transferring = true;
 
         VibrationManager.TryVibrate();
-        Debug.Log("<color=yellow>[HAPTIC]</color> Vibration Triggered (Color Mix)");
 
         int needed = maxSlices - this.currentSlices;
         int takeAmount = Mathf.Min(needed, giver.currentSlices);
@@ -282,7 +279,6 @@ public class LiquidTransfer : MonoBehaviour
         giver.transferring = true;
 
         VibrationManager.TryVibrate();
-        Debug.Log("<color=yellow>[HAPTIC]</color> Vibration Triggered (Classic Transfer)");
 
         int needed = maxSlices - this.currentSlices;
         int takeAmount = Mathf.Min(needed, giver.currentSlices);
@@ -368,7 +364,6 @@ public class LiquidTransfer : MonoBehaviour
                 bool anyTransferring = false;
                 foreach(var l in allLiquids) if(l != null && l.transferring) anyTransferring = true;
 
-                Debug.Log($"<color=green>[LiquidTransfer]</color> Kalan parça yok. Transferring var mı: {anyTransferring}");
 
                 if (!anyTransferring)
                 {
@@ -381,7 +376,6 @@ public class LiquidTransfer : MonoBehaviour
             // Hâlâ parça var or some pieces are still transferring
             if (remaining.Count > 0)
             {
-                Debug.Log($"<color=orange>[LiquidTransfer]</color> Level devam ediyor. Kalan aktif parça sayısı: {remaining.Count}");
                 
                 GridSpawner spawner = FindObjectOfType<GridSpawner>();
                 DragObject[] allObjectsOnBoard = FindObjectsOfType<DragObject>();
@@ -433,7 +427,6 @@ public class LiquidTransfer : MonoBehaviour
                 Color capturedColor = this.liquidColor;
                 int capturedSlices = this.currentSlices; // takeAmount eklendikten SONRA (2 slice)
                 float capturedRot = this.transform.eulerAngles.z;
-                Debug.Log($"<color=magenta>[LiquidTransfer]</color> Dynamic Shadow Triggered! Slice:{capturedSlices} Rot:{capturedRot}→{(capturedRot+180f)%360f}");
                 DG.Tweening.DOVirtual.DelayedCall(0.75f, () => spawner.SpawnDynamicShadow(capturedColor, capturedSlices, capturedRot));
             }
             else
@@ -441,7 +434,6 @@ public class LiquidTransfer : MonoBehaviour
                 // Klasik sistem: sadece alıcıyı (this) mirror olarak geç.
                 // Giver transfer sonrası 0 slice'a düşer; TrySpawnPending'e geçilirse
                 // sıralama giver'ı önce seçip Clamp(0,1,3)=1 → yanlış çeyrek shadow üretir.
-                Debug.Log($"<color=magenta>[LiquidTransfer]</color> Shadow Transfer Pair Triggered! Spawning Link {pair.shadowToSpawnLinkId}");
                 spawner.TrySpawnPending(pair.shadowToSpawnLinkId, this, null);
             }
         }
