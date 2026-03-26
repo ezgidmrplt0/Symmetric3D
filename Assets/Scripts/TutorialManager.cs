@@ -68,9 +68,10 @@ public class TutorialManager : MonoBehaviour
         {
             lastTrackedLevelIndex = spawner.currentLevelIndex;
             if (hasTut) lastTrackedOffset = currentTut.handOffset;
-            
+
             Debug.Log($"<color=cyan>[Tutorial]</color> Değişiklik Algılandı (Level: {lastTrackedLevelIndex}). Tutorial başlatılıyor...");
-            StartTutorial();
+            CancelInvoke("StartTutorial");
+            Invoke("StartTutorial", 0.5f);
         }
     }
 

@@ -14,6 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   levelDisplayName: Level_21
   levelType: 15
+  timeLimit: 150
   boardMode: 0
   gridX: 3
   gridY: 3
@@ -21,24 +22,6 @@ MonoBehaviour:
   shapePrefab: {fileID: 0}
   shapeFaces: []
   pieces:
-  - gridPosition: {x: 0, y: 1}
-    faceIndex: 0
-    liquidColor: {r: 1, g: 1, b: 0, a: 1}
-    currentSlices: 1
-    rotationZ: 90
-    isShadowTrigger: 0
-    spawnShadowAfterLinkID: 0
-    linkId: 0
-    canRotate: 0
-  - gridPosition: {x: 1, y: 2}
-    faceIndex: 0
-    liquidColor: {r: 1, g: 0, b: 0, a: 1}
-    currentSlices: 1
-    rotationZ: -90
-    isShadowTrigger: 0
-    spawnShadowAfterLinkID: 0
-    linkId: 0
-    canRotate: 0
   - gridPosition: {x: 2, y: 2}
     faceIndex: 0
     liquidColor: {r: 0.08, g: 0.08, b: 0.08, a: 1}
@@ -48,10 +31,28 @@ MonoBehaviour:
     spawnShadowAfterLinkID: 0
     linkId: 0
     canRotate: 0
+  - gridPosition: {x: 1, y: 1}
+    faceIndex: 0
+    liquidColor: {r: 1, g: 1, b: 0, a: 1}
+    currentSlices: 1
+    rotationZ: 90
+    isShadowTrigger: 0
+    spawnShadowAfterLinkID: 0
+    linkId: 0
+    canRotate: 0
+  - gridPosition: {x: 0, y: 0}
+    faceIndex: 0
+    liquidColor: {r: 1, g: 0, b: 0, a: 1}
+    currentSlices: 1
+    rotationZ: -90
+    isShadowTrigger: 0
+    spawnShadowAfterLinkID: 0
+    linkId: 0
+    canRotate: 0
   shadowTransferPairs:
-  - posA: {x: 1, y: 2}
+  - posA: {x: 0, y: 0}
     faceA: 0
-    posB: {x: 0, y: 1}
+    posB: {x: 1, y: 1}
     faceB: 0
     shadowToSpawnLinkId: 0
     isDynamic: 0

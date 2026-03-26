@@ -355,7 +355,7 @@ MonoBehaviour:
     path:
     - {x: 0, y: 2}
     - {x: 0, y: 1}
-    handOffset: {x: 0, y: 20}
+    handOffset: {x: 0, y: 0}
   - levelDisplayName: level 16
     levelAsset: {fileID: 11400000, guid: f1cf99b3fd8b4374c97a5549d7c55ceb, type: 2}
     levelIndex: 15
@@ -394,7 +394,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &98113297
 RectTransform:
   m_ObjectHideFlags: 0
