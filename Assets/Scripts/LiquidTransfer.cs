@@ -199,9 +199,7 @@ public class LiquidTransfer : MonoBehaviour
         transferring = true;
         giver.transferring = true;
 
-        #if !UNITY_EDITOR && (UNITY_IOS || UNITY_ANDROID)
-        Handheld.Vibrate();
-        #endif
+        VibrationManager.TryVibrate();
         Debug.Log("<color=yellow>[HAPTIC]</color> Vibration Triggered (Color Mix)");
 
         int needed = maxSlices - this.currentSlices;
@@ -283,9 +281,7 @@ public class LiquidTransfer : MonoBehaviour
         transferring = true;
         giver.transferring = true;
 
-        #if !UNITY_EDITOR && (UNITY_IOS || UNITY_ANDROID)
-        Handheld.Vibrate();
-        #endif
+        VibrationManager.TryVibrate();
         Debug.Log("<color=yellow>[HAPTIC]</color> Vibration Triggered (Classic Transfer)");
 
         int needed = maxSlices - this.currentSlices;
