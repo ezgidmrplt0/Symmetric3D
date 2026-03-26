@@ -59,7 +59,18 @@ public partial class DragObject : MonoBehaviour
         activeSpawner = FindObjectOfType<GridSpawner>();
         targetRotZ = transform.localEulerAngles.z;
 
-        if (canRotate && activeSpawner != null &&
+        if (canRotate && linkId == 0 && activeSpawner != null &&
+            activeSpawner.CurrentLevelType.HasFlag(LevelData.LevelType.Rotation))
+        {
+            CreateRotateIcon();
+        }
+    }
+
+    public void OnUnlinked()
+    {
+        enabled = true;
+        linkId = 0;
+        if (canRotate && rotateIcon == null && activeSpawner != null &&
             activeSpawner.CurrentLevelType.HasFlag(LevelData.LevelType.Rotation))
         {
             CreateRotateIcon();

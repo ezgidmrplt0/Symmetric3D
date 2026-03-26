@@ -132,7 +132,14 @@ public class LinkedObjectGroup : MonoBehaviour
         // Temizle (Destroy olan objeler null olur)
         childDrags.RemoveAll(item => item == null);
         
-        // Sadece 1 obje kalırsa ya da obje kalmazsa tabakayı yok et
+        // Sadece 1 obje kalırsa linked grubunu çöz, objeyi serbest bırak
+        if (childDrags.Count == 1 && childDrags[0] != null)
+        {
+            childDrags[0].OnUnlinked();
+            childDrags.Clear();
+        }
+
+        // Obje kalmazsa tabakayı yok et
         if (childDrags.Count <= 1 && backPanel != null && !backPanelFading)
         {
             backPanelFading = true;
