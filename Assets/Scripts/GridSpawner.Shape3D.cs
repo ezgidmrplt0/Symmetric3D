@@ -356,14 +356,15 @@ public partial class GridSpawner
 
             cam.DOOrthoSize(targetSize, 0.6f).SetEase(Ease.OutCubic);
 
-            Vector3 target = b.center;
+            // shapePivot mesh bounds center'ına konumlandırıldığı için b.center yerine onu kullan
+            // (grid tile'lar asimetrik olduğunda b.center kayabilir)
+            Vector3 target = new Vector3(shapeRoot.position.x, shapeRoot.position.y, cam.transform.position.z);
             target.y += cameraVerticalOffset;
-            target.z = cam.transform.position.z;
             cam.transform.DOMove(target, 0.6f).SetEase(Ease.OutCubic);
         }
         else
         {
-            Vector3 target = b.center;
+            Vector3 target = new Vector3(shapeRoot.position.x, shapeRoot.position.y, b.center.z);
             target.y += cameraVerticalOffset;
 
             float maxSize = Mathf.Max(b.size.x, b.size.y, b.size.z);

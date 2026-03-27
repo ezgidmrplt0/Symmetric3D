@@ -14,6 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   levelDisplayName: Level_15
   levelType: 7
+  timeLimit: 150
   boardMode: 1
   gridX: 3
   gridY: 3
