@@ -154,8 +154,13 @@ public class LevelPanelManager : MonoBehaviour
             nextLevelButton.interactable = true;
         }
 
-        SetFill(GameManager.Instance.previousTotalProgress / 100f);
+        bool showBar = GameManager.Instance.HadMechanicsToUnlock();
+        if (progressBarImage != null) progressBarImage.gameObject.SetActive(showBar);
+        if (progressText != null) progressText.gameObject.SetActive(showBar);
         if (newMechanicUnlockBanner != null) newMechanicUnlockBanner.SetActive(false);
+        if (!showBar) return;
+
+        SetFill(GameManager.Instance.previousTotalProgress / 100f);
 
         DOVirtual.DelayedCall(0.5f, () =>
         {
@@ -163,18 +168,19 @@ public class LevelPanelManager : MonoBehaviour
                 .SetEase(Ease.OutCubic).SetUpdate(true)
                 .OnComplete(() =>
                 {
-                    if (GameManager.Instance.newMechanicUnlocked && newMechanicUnlockBanner != null)
+                    LevelData.LevelType displayType = LevelData.LevelType.Classic;
+                    bool hasNewUnlock = GameManager.Instance.hitProgressHundred &&
+                                       GameManager.Instance.GetTypeForProgress(GameManager.Instance.lifetimeProgress, out displayType);
+
+                    if (hasNewUnlock && newMechanicUnlockBanner != null)
                     {
                         newMechanicUnlockBanner.SetActive(true);
                         newMechanicUnlockBanner.transform.localScale = Vector3.zero;
                         newMechanicUnlockBanner.transform.DOScale(1f, 0.4f).SetEase(Ease.OutBack).SetUpdate(true);
                     }
 
-                    if (GameManager.Instance.hitProgressHundred)
-                    {
-                        GameManager.Instance.GetTypeForProgress(GameManager.Instance.lifetimeProgress, out LevelData.LevelType displayType);
+                    if (hasNewUnlock)
                         ShowUnlockPopup(displayType);
-                    }
                 });
         }).SetUpdate(true);
     }

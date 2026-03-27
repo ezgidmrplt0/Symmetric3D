@@ -172,6 +172,23 @@ public class GameManager : MonoBehaviour
         return false;
     }
 
+    /// <summary>
+    /// Bu level tamamlanmadan önce açılmamış mekanik var mıydı?
+    /// Bar ve unlock popup yalnızca true ise gösterilmeli.
+    /// </summary>
+    public bool HadMechanicsToUnlock()
+    {
+        GridSpawner spawner = FindObjectOfType<GridSpawner>();
+        if (spawner == null || spawner.sequence == null) return false;
+        int progressBefore = lifetimeProgress - progressPerLevel;
+        foreach (var cfg in spawner.sequence.typeConfigs)
+        {
+            if (cfg.unlockAtProgress > 0 && cfg.unlockAtProgress > progressBefore)
+                return true;
+        }
+        return false;
+    }
+
     public bool ShouldUseNewMechanic(int levelIndex)
     {
         if (!newMechanicUnlocked) return false;
