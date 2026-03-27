@@ -43,9 +43,14 @@ public class LevelPanelManager : MonoBehaviour
     }
     public List<MechanicIconData> mechanicIcons = new List<MechanicIconData>();
 
+    [Header("Next Mechanic Preview")]
+    public Image nextMechanicPreviewImage;
+    public Sprite shufflePreviewSprite;
+
     // ── PRIVATE ──────────────────────────────────────────────────
     private GridSpawner gridSpawner;
     private Material barMat;
+    private Material silhouetteMat;
     private float currentFill = 0f;
     private bool nextLevelClickedOnce = false;
 
@@ -72,6 +77,13 @@ public class LevelPanelManager : MonoBehaviour
         if (unlockOkButton != null) unlockOkButton.onClick.AddListener(HideUnlockPopup);
 
         if (resetLevelButton != null) resetLevelButton.onClick.AddListener(OnResetLevelClicked);
+
+        Shader silhouetteShader = Shader.Find("UI/Silhouette");
+        if (silhouetteShader != null)
+            silhouetteMat = new Material(silhouetteShader);
+
+        if (nextMechanicPreviewImage != null)
+            nextMechanicPreviewImage.gameObject.SetActive(false);
 
         GameManager.OnLevelCompleted.AddListener(ShowCompletePanel);
         GameManager.OnLevelFailed.AddListener(ShowFailPanel);
@@ -158,6 +170,9 @@ public class LevelPanelManager : MonoBehaviour
         if (progressBarImage != null) progressBarImage.gameObject.SetActive(showBar);
         if (progressText != null) progressText.gameObject.SetActive(showBar);
         if (newMechanicUnlockBanner != null) newMechanicUnlockBanner.SetActive(false);
+
+        UpdateNextMechanicPreview();
+
         if (!showBar) return;
 
         SetFill(GameManager.Instance.previousTotalProgress / 100f);
@@ -279,8 +294,57 @@ public class LevelPanelManager : MonoBehaviour
         unlockPanelRoot.transform.DOScale(0f, 0.25f).SetEase(Ease.InBack).SetUpdate(true).OnComplete(() =>
         {
             unlockPanelRoot.SetActive(false);
-            // Şimdi next level butonunu aç
             if (nextLevelButton != null) nextLevelButton.interactable = true;
+            // Popup kapandıktan sonra preview'ı güncelle (artık bir sonraki mekanik değişmiş olabilir)
+            UpdateNextMechanicPreview();
         });
+    }
+
+    // ── NEXT MEKANİK PREVİEW ─────────────────────────────────────
+
+    void UpdateNextMechanicPreview()
+    {
+        if (nextMechanicPreviewImage == null) return;
+
+        if (GameManager.Instance.GetNextMechanicToUnlock(out LevelData.LevelType nextType))
+        {
+            // Henüz açılmamış mekanik var → gri silüet göster
+            Sprite previewSprite = null;
+            foreach (var item in mechanicIcons)
+                if (nextType.HasFlag(item.levelType)) { previewSprite = item.icon; break; }
+
+            if (previewSprite != null)
+            {
+                nextMechanicPreviewImage.sprite   = previewSprite;
+                nextMechanicPreviewImage.material = silhouetteMat;
+                nextMechanicPreviewImage.color    = Color.white;
+                nextMechanicPreviewImage.gameObject.SetActive(true);
+            }
+            else
+            {
+                ShowShufflePreview();
+            }
+        }
+        else
+        {
+            // Tüm mekanikler açıldı → shuffle resmi
+            ShowShufflePreview();
+        }
+    }
+
+    void ShowShufflePreview()
+    {
+        if (nextMechanicPreviewImage == null) return;
+        if (shufflePreviewSprite != null)
+        {
+            nextMechanicPreviewImage.sprite   = shufflePreviewSprite;
+            nextMechanicPreviewImage.material = null;   // silüet yok, normal göster
+            nextMechanicPreviewImage.color    = Color.white;
+            nextMechanicPreviewImage.gameObject.SetActive(true);
+        }
+        else
+        {
+            nextMechanicPreviewImage.gameObject.SetActive(false);
+        }
     }
 }

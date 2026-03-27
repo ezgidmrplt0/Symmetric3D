@@ -176,6 +176,28 @@ public class GameManager : MonoBehaviour
     /// Bu level tamamlanmadan önce açılmamış mekanik var mıydı?
     /// Bar ve unlock popup yalnızca true ise gösterilmeli.
     /// </summary>
+    /// Henüz açılmamış, en yakın eşik değerine sahip mekaniği döner.
+    public bool GetNextMechanicToUnlock(out LevelData.LevelType nextType)
+    {
+        nextType = LevelData.LevelType.Classic;
+        GridSpawner spawner = FindObjectOfType<GridSpawner>();
+        if (spawner == null || spawner.sequence == null) return false;
+
+        int lowestThreshold = int.MaxValue;
+        bool found = false;
+        foreach (var cfg in spawner.sequence.typeConfigs)
+        {
+            if (cfg.unlockAtProgress > 0 && cfg.unlockAtProgress > lifetimeProgress
+                && cfg.unlockAtProgress < lowestThreshold)
+            {
+                lowestThreshold = cfg.unlockAtProgress;
+                nextType = cfg.levelType;
+                found = true;
+            }
+        }
+        return found;
+    }
+
     public bool HadMechanicsToUnlock()
     {
         GridSpawner spawner = FindObjectOfType<GridSpawner>();
