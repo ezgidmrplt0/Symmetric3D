@@ -218,6 +218,7 @@ MonoBehaviour:
     icon: {fileID: 21300000, guid: 544cfab31d5c268f9933b5afa2da5fb0, type: 3}
   nextMechanicPreviewImage: {fileID: 1787539203}
   shufflePreviewSprite: {fileID: 21300000, guid: dbaaa5d7211bf3558b78cd348b4a2436, type: 3}
+  nextMechanicLabel: {fileID: 1539384557}
 --- !u!114 &83771860
 MonoBehaviour:
   m_ObjectHideFlags: 0

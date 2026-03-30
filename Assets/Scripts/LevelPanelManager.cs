@@ -46,6 +46,7 @@ public class LevelPanelManager : MonoBehaviour
     [Header("Next Mechanic Preview")]
     public Image nextMechanicPreviewImage;
     public Sprite shufflePreviewSprite;
+    public TMP_Text nextMechanicLabel;
 
     // ── PRIVATE ──────────────────────────────────────────────────
     private GridSpawner gridSpawner;
@@ -310,6 +311,7 @@ public class LevelPanelManager : MonoBehaviour
 
             if (previewSprite != null)
             {
+                if (nextMechanicLabel != null) nextMechanicLabel.text = "NEXT MECHANIC";
                 nextMechanicPreviewImage.sprite   = previewSprite;
                 nextMechanicPreviewImage.material = null;
                 nextMechanicPreviewImage.color    = Color.white;
@@ -329,6 +331,7 @@ public class LevelPanelManager : MonoBehaviour
 
     void ShowShufflePreview()
     {
+        if (nextMechanicLabel != null) nextMechanicLabel.text = "SHUFFLE";
         if (nextMechanicPreviewImage == null) return;
         if (shufflePreviewSprite != null)
         {
