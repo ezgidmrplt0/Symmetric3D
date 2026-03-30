@@ -50,7 +50,6 @@ public class LevelPanelManager : MonoBehaviour
     // ── PRIVATE ──────────────────────────────────────────────────
     private GridSpawner gridSpawner;
     private Material barMat;
-    private Material silhouetteMat;
     private float currentFill = 0f;
     private bool nextLevelClickedOnce = false;
 
@@ -77,10 +76,6 @@ public class LevelPanelManager : MonoBehaviour
         if (unlockOkButton != null) unlockOkButton.onClick.AddListener(HideUnlockPopup);
 
         if (resetLevelButton != null) resetLevelButton.onClick.AddListener(OnResetLevelClicked);
-
-        Shader silhouetteShader = Shader.Find("UI/Silhouette");
-        if (silhouetteShader != null)
-            silhouetteMat = new Material(silhouetteShader);
 
         if (nextMechanicPreviewImage != null)
             nextMechanicPreviewImage.gameObject.SetActive(false);
@@ -316,7 +311,7 @@ public class LevelPanelManager : MonoBehaviour
             if (previewSprite != null)
             {
                 nextMechanicPreviewImage.sprite   = previewSprite;
-                nextMechanicPreviewImage.material = silhouetteMat;
+                nextMechanicPreviewImage.material = null;
                 nextMechanicPreviewImage.color    = Color.white;
                 nextMechanicPreviewImage.gameObject.SetActive(true);
             }
