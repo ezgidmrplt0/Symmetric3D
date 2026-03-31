@@ -15,7 +15,6 @@ public partial class DragObject
     private void DragShape3D(Vector3 screenPos, Vector3 desiredPos, DragObject[] allObjects)
     {
         // Çarpışma mesafesini parça dünya boyutuna göre ayarla:
-        // sabit collisionDistance yüzey scale'i küçüldüğünde hücre aralığını aşabiliyor.
         float shapeDist = cachedWorldSize * 1.0f;
 
         Vector3 currentPos = transform.position;
@@ -24,16 +23,21 @@ public partial class DragObject
         int steps = Mathf.Max(1, Mathf.CeilToInt(dist / 0.04f));
         Vector3 stepVec = moveDir / steps;
 
+        // PERFORMANCE: Filter objects on the same face once at the start
+        System.Collections.Generic.List<DragObject> localObjects = new System.Collections.Generic.List<DragObject>();
+        foreach(var obj in allObjects)
+        {
+            if (obj != null && obj != this && obj.gameObject.activeInHierarchy && (obj.transform.parent == startParent || startParent == null))
+                localObjects.Add(obj);
+        }
+
         for (int s = 0; s < steps; s++)
         {
             Vector3 nextPos = currentPos + stepVec;
             bool collisionFound = false;
 
-            // 3D'de sadece aynı yüzeydeki (aynı parent) objelerle çarpış
-            foreach (DragObject obj in allObjects)
+            foreach (DragObject obj in localObjects)
             {
-                if (obj == this || !obj.gameObject.activeInHierarchy) continue;
-                if (obj.transform.parent != startParent && startParent != null) continue;
                 float d = Vector3.Distance(nextPos, obj.transform.position);
                 if (d < shapeDist)
                 {
@@ -43,7 +47,7 @@ public partial class DragObject
             }
 
             if (!collisionFound)
-                collisionFound = IsDiagonallyBlocked(currentPos, nextPos, allObjects, sameParentOnly: true);
+                collisionFound = IsDiagonallyBlockedCached(currentPos, nextPos, localObjects);
 
             if (collisionFound)
             {
@@ -51,16 +55,14 @@ public partial class DragObject
                 Vector3 tryY = currentPos + new Vector3(0f, stepVec.y, 0f);
                 bool blockX = false, blockY = false;
 
-                foreach (DragObject obj in allObjects)
+                foreach (DragObject obj in localObjects)
                 {
-                    if (obj == this || !obj.gameObject.activeInHierarchy) continue;
-                    if (obj.transform.parent != startParent && startParent != null) continue;
                     if (Vector3.Distance(tryX, obj.transform.position) < shapeDist) blockX = true;
                     if (Vector3.Distance(tryY, obj.transform.position) < shapeDist) blockY = true;
                 }
 
-                if (!blockX) blockX = IsDiagonallyBlocked(currentPos, tryX, allObjects, sameParentOnly: true);
-                if (!blockY) blockY = IsDiagonallyBlocked(currentPos, tryY, allObjects, sameParentOnly: true);
+                if (!blockX) blockX = IsDiagonallyBlockedCached(currentPos, tryX, localObjects);
+                if (!blockY) blockY = IsDiagonallyBlockedCached(currentPos, tryY, localObjects);
 
                 if (!blockX && Mathf.Abs(stepVec.x) > 0.001f) nextPos = tryX;
                 else if (!blockY && Mathf.Abs(stepVec.y) > 0.001f) nextPos = tryY;

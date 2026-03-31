@@ -19,6 +19,9 @@ public class LiquidTransfer : MonoBehaviour
     public bool isShadowChild = false;
     public bool shadowSpawned = false;
 
+    private static MaterialPropertyBlock _propBlock;
+    private Renderer[] _renderers;
+
 
     [HideInInspector]
     public bool transferring = false;
@@ -29,48 +32,43 @@ public class LiquidTransfer : MonoBehaviour
 
     void Start()
     {
+        if (_propBlock == null) _propBlock = new MaterialPropertyBlock();
+        _renderers = GetComponentsInChildren<Renderer>();
         UpdateVisuals();
     }
 
     public void UpdateVisuals()
     {
-        // Başlangıç doluluğunu -0.5 (boş) ile 0.5 (dolu) arasına oranla
         fillAmount = Mathf.Lerp(-0.5f, 0.5f, (float)currentSlices / maxSlices);
 
-        if (liquidMat != null)
+        if (_renderers == null) _renderers = GetComponentsInChildren<Renderer>();
+        if (_propBlock == null) _propBlock = new MaterialPropertyBlock();
+
+        foreach (Renderer r in _renderers)
         {
-            // Runtime'da her zaman instance üzerinden çalışmalıyız
-            if (Application.isPlaying && !liquidMat.name.Contains("(Instance)"))
-            {
-                liquidMat = new Material(liquidMat);
-            }
-            
-            liquidMat.SetFloat("_FillAmount", fillAmount);
-            liquidMat.SetColor("_LiquidColor", liquidColor);
-            liquidMat.SetColor("_ColorA", liquidColor);
+            r.GetPropertyBlock(_propBlock);
+            _propBlock.SetFloat("_FillAmount", fillAmount);
+            _propBlock.SetColor("_LiquidColor", liquidColor);
+            _propBlock.SetColor("_ColorA", liquidColor);
+            r.SetPropertyBlock(_propBlock);
+        }
 
-            Renderer[] renderers = GetComponentsInChildren<Renderer>();
-            foreach (Renderer r in renderers)
-            {
-                Material[] sharedMats = r.sharedMaterials;
-                bool changed = false;
-                for (int i = 0; i < sharedMats.Length; i++)
-                {
-                    // Shader ismine göre hedef materyali bul ve değiştir
-                    if (sharedMats[i] != null && sharedMats[i].shader.name == "Custom/LiquidFullControl")
-                    {
-                        if (sharedMats[i] != liquidMat)
-                        {
-                            sharedMats[i] = liquidMat;
-                            changed = true;
-                        }
-                    }
-                }
-                if (changed) r.sharedMaterials = sharedMats;
-            }
+        LiquidTilt tiltCode = GetComponent<LiquidTilt>();
+        if (tiltCode != null) tiltCode.liquidMat = liquidMat;
+    }
 
-            LiquidTilt tiltCode = GetComponent<LiquidTilt>();
-            if (tiltCode != null) tiltCode.liquidMat = liquidMat;
+    public void ApplyPropertyBlock()
+    {
+        if (_renderers == null) _renderers = GetComponentsInChildren<Renderer>();
+        if (_propBlock == null) _propBlock = new MaterialPropertyBlock();
+
+        foreach (Renderer r in _renderers)
+        {
+            r.GetPropertyBlock(_propBlock);
+            _propBlock.SetFloat("_FillAmount", fillAmount);
+            _propBlock.SetColor("_LiquidColor", liquidColor);
+            _propBlock.SetColor("_ColorA", liquidColor);
+            r.SetPropertyBlock(_propBlock);
         }
     }
 
@@ -224,11 +222,11 @@ public class LiquidTransfer : MonoBehaviour
 
         // Giver boşalsın
         seq.Join(DOTween.To(() => giver.fillAmount, x => giver.fillAmount = x, giverTargetFill, transferDuration)
-            .OnUpdate(() => { if (giver != null && giver.liquidMat != null) giver.liquidMat.SetFloat("_FillAmount", giver.fillAmount); }));
+            .OnUpdate(() => { if (giver != null) giver.ApplyPropertyBlock(); }));
 
         // Receiver yeni rengiyle dolsun
         seq.Join(DOTween.To(() => this.fillAmount, x => this.fillAmount = x, myTargetFill, transferDuration)
-            .OnUpdate(() => { if (this != null && this.liquidMat != null) this.liquidMat.SetFloat("_FillAmount", this.fillAmount); }));
+            .OnUpdate(() => { if (this != null) this.ApplyPropertyBlock(); }));
 
         seq.OnComplete(() =>
         {
@@ -294,10 +292,10 @@ public class LiquidTransfer : MonoBehaviour
         Sequence seq = DOTween.Sequence();
 
         seq.Join(DOTween.To(() => giver.fillAmount, x => giver.fillAmount = x, giverTargetFill, transferDuration)
-            .OnUpdate(() => { if (giver != null && giver.liquidMat != null) giver.liquidMat.SetFloat("_FillAmount", giver.fillAmount); }));
+            .OnUpdate(() => { if (giver != null) giver.ApplyPropertyBlock(); }));
 
         seq.Join(DOTween.To(() => this.fillAmount, x => this.fillAmount = x, myTargetFill, transferDuration)
-            .OnUpdate(() => { if (this != null && this.liquidMat != null) this.liquidMat.SetFloat("_FillAmount", this.fillAmount); }));
+            .OnUpdate(() => { if (this != null) this.ApplyPropertyBlock(); }));
 
         seq.OnComplete(() =>
         {

@@ -25,6 +25,8 @@ public partial class DragObject : MonoBehaviour
     private GameObject rotateIcon;
     private Quaternion cachedWorldRotation;
     private Vector3 cachedLocalScale;
+    private static DragObject[] cachedDragObjects;
+    private static Transform[] cachedGridCells;
 
     [Header("Görsel (Drag)")]
     [Tooltip("Sürüklerken objenin kameraya ne kadar yaklaşacağını belirler.")]
@@ -176,6 +178,12 @@ public partial class DragObject : MonoBehaviour
                 cachedLocalScale    = transform.localScale;
                 transform.SetParent(null, true);
 
+                // PERFORMANCE OPTIMIZATION: Cache all objects and grid cells once at the start of drag
+                cachedDragObjects = FindObjectsOfType<DragObject>();
+                var gridObjs = GameObject.FindGameObjectsWithTag("Grid");
+                cachedGridCells = new Transform[gridObjs.Length];
+                for (int i = 0; i < gridObjs.Length; i++) cachedGridCells[i] = gridObjs[i].transform;
+
                 dragPlane = new Plane(Vector3.forward, transform.position);
                 Ray grabRay = cam.ScreenPointToRay(screenPos);
                 if (dragPlane.Raycast(grabRay, out float grabEnter))
@@ -210,7 +218,8 @@ public partial class DragObject : MonoBehaviour
             desiredPos.z = transform.position.z;
         }
 
-        DragObject[] allObjects = FindObjectsOfType<DragObject>();
+        // Use cached array instead of FindObjectsOfType
+        DragObject[] allObjects = cachedDragObjects ?? FindObjectsOfType<DragObject>();
 
         if (IsShape3DMode())
             DragShape3D(screenPos, desiredPos, allObjects);
@@ -252,15 +261,23 @@ public partial class DragObject : MonoBehaviour
         Transform targetGrid = null;
         float minGridDist = float.MaxValue;
 
-        GameObject[] gridCells = GameObject.FindGameObjectsWithTag("Grid");
-        foreach (GameObject cellObj in gridCells)
+        // Use cached cells
+        Transform[] cellsToCheck = cachedGridCells;
+        if (cellsToCheck == null)
         {
-            if (!cellObj.activeInHierarchy) continue;
-            float d = Vector3.Distance(transform.position, cellObj.transform.position);
+            var gridObjs = GameObject.FindGameObjectsWithTag("Grid");
+            cellsToCheck = new Transform[gridObjs.Length];
+            for (int i = 0; i < gridObjs.Length; i++) cellsToCheck[i] = gridObjs[i].transform;
+        }
+
+        foreach (Transform cellT in cellsToCheck)
+        {
+            if (cellT == null || !cellT.gameObject.activeInHierarchy) continue;
+            float d = Vector3.Distance(transform.position, cellT.position);
             if (d < minGridDist)
             {
                 minGridDist = d;
-                targetGrid = cellObj.transform;
+                targetGrid = cellT;
             }
         }
 
@@ -279,13 +296,11 @@ public partial class DragObject : MonoBehaviour
         }
 
         // Doluluk kontrolü
-        // Shape3D'de hücre aralığı ~0.46 dünya birimi — sabit 0.6f eşiği komşu hücreleri
-        // "dolu" sayıyordu. Parça dünya boyutuna göre dinamik eşik kullan.
         float fullThreshold = cachedWorldSize > 0.001f ? cachedWorldSize * 0.9f : 0.4f;
-        DragObject[] all = FindObjectsOfType<DragObject>();
+        DragObject[] all = cachedDragObjects ?? FindObjectsOfType<DragObject>();
         foreach (var o in all)
         {
-            if (o == this) continue;
+            if (o == null || o == this) continue;
             float d = Vector3.Distance(o.transform.position, targetGrid.position);
             if (d < fullThreshold)
             {
@@ -293,6 +308,10 @@ public partial class DragObject : MonoBehaviour
                 return;
             }
         }
+
+        // Clear cache
+        cachedDragObjects = null;
+        cachedGridCells = null;
 
         if (IsShape3DMode())
             DropShape3D(targetGrid, spawner);
@@ -338,9 +357,37 @@ public partial class DragObject : MonoBehaviour
     }
 
     /// <summary>
-    /// İki obje çapraz komşuysa aralarındaki segmentten geçişi engeller.
-    /// sameParentOnly=true → sadece aynı parent'taki objeler kontrol edilir (3D yüzey modu).
+    /// Optimized version that uses a pre-filtered list of objects.
     /// </summary>
+    private bool IsDiagonallyBlockedCached(Vector3 from, Vector3 to, System.Collections.Generic.List<DragObject> objectsOnFace)
+    {
+        float gridStep = GetGridStep();
+        float diagDist = gridStep * Mathf.Sqrt(2f);
+        float tolerance = gridStep * 0.35f;
+
+        Vector2 p1 = new Vector2(from.x, from.y);
+        Vector2 p2 = new Vector2(to.x, to.y);
+
+        for (int i = 0; i < objectsOnFace.Count; i++)
+        {
+            for (int j = i + 1; j < objectsOnFace.Count; j++)
+            {
+                DragObject a = objectsOnFace[i];
+                DragObject b = objectsOnFace[j];
+
+                Vector2 pa = new Vector2(a.transform.position.x, a.transform.position.y);
+                Vector2 pb = new Vector2(b.transform.position.x, b.transform.position.y);
+
+                float distAB = Vector2.Distance(pa, pb);
+                if (Mathf.Abs(distAB - diagDist) > tolerance) continue;
+
+                if (SegmentsIntersect2D(p1, p2, pa, pb))
+                    return true;
+            }
+        }
+        return false;
+    }
+
     private bool IsDiagonallyBlocked(Vector3 from, Vector3 to, DragObject[] allObjects, bool sameParentOnly)
     {
         float gridStep = GetGridStep();
