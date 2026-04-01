@@ -39,8 +39,41 @@ public class VibrationManager : MonoBehaviour
     public static void TryVibrate()
     {
         if (!IsEnabled) return;
-#if !UNITY_EDITOR && (UNITY_IOS || UNITY_ANDROID)
+
+#if UNITY_EDITOR
+        Debug.Log("Vibration Triggered (Editor)");
+#elif UNITY_IOS
+        // iOS için daha hafif (Light) haptic feedback
+        _iOS_VibrateLight();
+#elif UNITY_ANDROID
+        // Android için çok kısa (15ms) bir darbe
+        _Android_VibrateShort(15);
+#else
         Handheld.Vibrate();
 #endif
     }
+
+#if UNITY_IOS && !UNITY_EDITOR
+    [System.Runtime.InteropServices.DllImport("__Internal")]
+    private static extern void _iOS_VibrateLight(); 
+    // Not: Bu kısım genelde bir .mm plugin gerektirir, 
+    // eğer yoksa fallback olarak Handheld.Vibrate() çalışır.
+#endif
+
+#if UNITY_ANDROID && !UNITY_EDITOR
+    private static void _Android_VibrateShort(long milliseconds)
+    {
+        try {
+            AndroidJavaClass unityPlayer = new AndroidJavaClass("com.unity3d.player.UnityPlayer");
+            AndroidJavaObject currentActivity = unityPlayer.GetStatic<AndroidJavaObject>("currentActivity");
+            AndroidJavaObject vibrator = currentActivity.Call<AndroidJavaObject>("getSystemService", "vibrator");
+
+            if (vibrator.Call<bool>("hasVibrator")) {
+                vibrator.Call("vibrate", milliseconds);
+            }
+        } catch (System.Exception e) {
+            Debug.LogWarning("Android vibration failed: " + e.Message);
+        }
+    }
+#endif
 }
