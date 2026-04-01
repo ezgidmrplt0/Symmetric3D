@@ -39,15 +39,13 @@ public class VibrationManager : MonoBehaviour
     public static void TryVibrate()
     {
         if (!IsEnabled) return;
-
 #if UNITY_EDITOR
         Debug.Log("Vibration Triggered (Editor)");
 #elif UNITY_IOS
-        // iOS için 'Light' haptic feedback (VibrationPlugin.mm kullanılır)
         _iOS_VibrateLight();
 #elif UNITY_ANDROID
-        // Android için minimum 'tick' hissi için 30ms idealdir
-        _Android_VibrateShort(30);
+        // 20ms: Minimum hissedilebilir, hafif tık
+        _Android_VibrateShort(20);
 #endif
     }
 
@@ -57,9 +55,10 @@ public class VibrationManager : MonoBehaviour
 #if UNITY_EDITOR
         Debug.Log("Vibration Success (Editor)");
 #elif UNITY_IOS
-        _iOS_VibrateMedium();
+        _iOS_VibrateLight();
 #elif UNITY_ANDROID
-        _Android_VibrateShort(80);
+        // 40ms: Başarı için kısa tık
+        _Android_VibrateShort(40);
 #endif
     }
 
@@ -69,9 +68,10 @@ public class VibrationManager : MonoBehaviour
 #if UNITY_EDITOR
         Debug.Log("Vibration Fail (Editor)");
 #elif UNITY_IOS
-        _iOS_VibrateHeavy();
+        _iOS_VibrateMedium();
 #elif UNITY_ANDROID
-        _Android_VibrateShort(150);
+        // 60ms: Hata için biraz daha belirgin ama yine de hafif
+        _Android_VibrateShort(60);
 #endif
     }
 
