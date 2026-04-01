@@ -48,16 +48,14 @@ public class VibrationManager : MonoBehaviour
 #elif UNITY_ANDROID
         // Android için çok kısa (15ms) bir darbe
         _Android_VibrateShort(15);
-#else
-        Handheld.Vibrate();
 #endif
     }
 
 #if UNITY_IOS && !UNITY_EDITOR
     [System.Runtime.InteropServices.DllImport("__Internal")]
     private static extern void _iOS_VibrateLight(); 
-    // Not: Bu kısım genelde bir .mm plugin gerektirir, 
-    // eğer yoksa fallback olarak Handheld.Vibrate() çalışır.
+    // Not: Bu kısım .mm plugin'i gerektirir.
+    // Mobil dışı platformlarda Handheld.Vibrate() hata verdiği için kaldırıldı.
 #endif
 
 #if UNITY_ANDROID && !UNITY_EDITOR
