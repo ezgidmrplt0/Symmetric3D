@@ -68,9 +68,15 @@ public class LevelTimer : MonoBehaviour
         UpdateDisplay();
     }
 
+    private int lastUpdateSecond = -1;
+
     private void UpdateDisplay()
     {
         if (timerText == null) return;
+
+        int currentSecond = Mathf.CeilToInt(currentTime);
+        if (currentSecond == lastUpdateSecond) return;
+        lastUpdateSecond = currentSecond;
 
         TimeSpan time = TimeSpan.FromSeconds(currentTime);
         // "02.30" formatında (noktalı) gösterim

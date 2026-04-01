@@ -28,15 +28,22 @@ public class LiquidTilt : MonoBehaviour
         float targetTiltX = -velocity.x * tiltAmount;
         float targetTiltZ = -velocity.z * tiltAmount;
 
-        currentTiltX = Mathf.Lerp(currentTiltX, targetTiltX, Time.deltaTime * smoothSpeed);
-        currentTiltZ = Mathf.Lerp(currentTiltZ, targetTiltZ, Time.deltaTime * smoothSpeed);
+        float nextX = Mathf.Lerp(currentTiltX, targetTiltX, Time.deltaTime * smoothSpeed);
+        float nextZ = Mathf.Lerp(currentTiltZ, targetTiltZ, Time.deltaTime * smoothSpeed);
 
-        if (_renderer != null)
+        // OPTIMIZATION: Only update property block if there's significant change
+        if (Mathf.Abs(nextX - currentTiltX) > 0.001f || Mathf.Abs(nextZ - currentTiltZ) > 0.001f)
         {
-            _renderer.GetPropertyBlock(_propBlock);
-            _propBlock.SetFloat("_TiltX", currentTiltX);
-            _propBlock.SetFloat("_TiltZ", currentTiltZ);
-            _renderer.SetPropertyBlock(_propBlock);
+            currentTiltX = nextX;
+            currentTiltZ = nextZ;
+
+            if (_renderer != null)
+            {
+                _renderer.GetPropertyBlock(_propBlock);
+                _propBlock.SetFloat("_TiltX", currentTiltX);
+                _propBlock.SetFloat("_TiltZ", currentTiltZ);
+                _renderer.SetPropertyBlock(_propBlock);
+            }
         }
     }
 }

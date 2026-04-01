@@ -24,6 +24,7 @@ public class LinkedObjectGroup : MonoBehaviour
     // Drag başında hesaplanan child world offset'leri (drag boyunca sabit kalır)
     private List<Vector3> dragChildOffsets = new List<Vector3>();
     private GridSpawner spawnerCache;
+    private DragObject[] cachedAllObjects; // NEW: Cache for objects during drag
 
     void Start()
     {
@@ -222,6 +223,9 @@ public class LinkedObjectGroup : MonoBehaviour
                 {
                     worldGrabOffset = Vector3.zero;
                 }
+
+                // OPTIMIZATION: Cache all objects once at the start of group drag
+                cachedAllObjects = FindObjectsOfType<DragObject>(true);
             }
         }
     }
@@ -234,7 +238,9 @@ public class LinkedObjectGroup : MonoBehaviour
         Vector3 worldPoint = ray.GetPoint(enter);
         Vector3 desiredPos = worldPoint + worldGrabOffset;
 
-        DragObject[] allObjects = FindObjectsOfType<DragObject>(true);
+        // Use cached objects instead of FindObjectsOfType every frame
+        if (cachedAllObjects == null) cachedAllObjects = FindObjectsOfType<DragObject>(true);
+        DragObject[] allObjects = cachedAllObjects;
 
         Vector3 currentPos = transform.position;
         Vector3 moveDir = desiredPos - currentPos;
@@ -398,6 +404,7 @@ public class LinkedObjectGroup : MonoBehaviour
     void Drop()
     {
         dragging = false;
+        cachedAllObjects = null; // Clear cache
 
         float screenDist = Vector2.Distance(Input.mousePosition, startScreenPos);
         float duration = Time.time - startTime;

@@ -27,6 +27,7 @@ public partial class DragObject : MonoBehaviour
     private Vector3 cachedLocalScale;
     private static DragObject[] cachedDragObjects;
     private static Transform[] cachedGridCells;
+    private static Vector3[] cachedGridCellPositions; // NEW: Fast position lookup
 
     [Header("Görsel (Drag)")]
     [Tooltip("Sürüklerken objenin kameraya ne kadar yaklaşacağını belirler.")]
@@ -182,7 +183,12 @@ public partial class DragObject : MonoBehaviour
                 cachedDragObjects = FindObjectsOfType<DragObject>();
                 var gridObjs = GameObject.FindGameObjectsWithTag("Grid");
                 cachedGridCells = new Transform[gridObjs.Length];
-                for (int i = 0; i < gridObjs.Length; i++) cachedGridCells[i] = gridObjs[i].transform;
+                cachedGridCellPositions = new Vector3[gridObjs.Length];
+                for (int i = 0; i < gridObjs.Length; i++)
+                {
+                    cachedGridCells[i] = gridObjs[i].transform;
+                    cachedGridCellPositions[i] = gridObjs[i].transform.position;
+                }
 
                 dragPlane = new Plane(Vector3.forward, transform.position);
                 Ray grabRay = cam.ScreenPointToRay(screenPos);
@@ -312,6 +318,7 @@ public partial class DragObject : MonoBehaviour
         // Clear cache
         cachedDragObjects = null;
         cachedGridCells = null;
+        cachedGridCellPositions = null;
 
         if (IsShape3DMode())
             DropShape3D(targetGrid, spawner);
