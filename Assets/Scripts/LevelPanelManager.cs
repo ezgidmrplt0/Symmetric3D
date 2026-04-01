@@ -155,6 +155,8 @@ public class LevelPanelManager : MonoBehaviour
         completePanelRoot.SetActive(true);
         completePanelRoot.transform.localScale = Vector3.zero;
         completePanelRoot.transform.DOScale(1f, 0.35f).SetEase(Ease.OutBack).SetUpdate(true);
+        
+        VibrationManager.VibrateSuccess();
 
         if (nextLevelButton != null)
         {
@@ -224,6 +226,8 @@ public class LevelPanelManager : MonoBehaviour
         failPanelRoot.SetActive(true);
         failPanelRoot.transform.localScale = Vector3.zero;
         failPanelRoot.transform.DOScale(1f, 0.35f).SetEase(Ease.OutBack).SetUpdate(true);
+        
+        VibrationManager.VibrateFail();
 
         // Timer'ı durdur
         LevelTimer.Instance?.StopTimer();

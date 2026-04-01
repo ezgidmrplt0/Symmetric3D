@@ -43,19 +43,46 @@ public class VibrationManager : MonoBehaviour
 #if UNITY_EDITOR
         Debug.Log("Vibration Triggered (Editor)");
 #elif UNITY_IOS
-        // iOS için daha hafif (Light) haptic feedback
+        // iOS için 'Light' haptic feedback (VibrationPlugin.mm kullanılır)
         _iOS_VibrateLight();
 #elif UNITY_ANDROID
-        // Android için çok kısa (15ms) bir darbe
-        _Android_VibrateShort(15);
+        // Android için minimum 'tick' hissi için 30ms idealdir
+        _Android_VibrateShort(30);
+#endif
+    }
+
+    public static void VibrateSuccess()
+    {
+        if (!IsEnabled) return;
+#if UNITY_EDITOR
+        Debug.Log("Vibration Success (Editor)");
+#elif UNITY_IOS
+        _iOS_VibrateMedium();
+#elif UNITY_ANDROID
+        _Android_VibrateShort(80);
+#endif
+    }
+
+    public static void VibrateFail()
+    {
+        if (!IsEnabled) return;
+#if UNITY_EDITOR
+        Debug.Log("Vibration Fail (Editor)");
+#elif UNITY_IOS
+        _iOS_VibrateHeavy();
+#elif UNITY_ANDROID
+        _Android_VibrateShort(150);
 #endif
     }
 
 #if UNITY_IOS && !UNITY_EDITOR
     [System.Runtime.InteropServices.DllImport("__Internal")]
     private static extern void _iOS_VibrateLight(); 
-    // Not: Bu kısım .mm plugin'i gerektirir.
-    // Mobil dışı platformlarda Handheld.Vibrate() hata verdiği için kaldırıldı.
+    [System.Runtime.InteropServices.DllImport("__Internal")]
+    private static extern void _iOS_VibrateMedium(); 
+    [System.Runtime.InteropServices.DllImport("__Internal")]
+    private static extern void _iOS_VibrateHeavy(); 
+    // Not: Bu kısım Assets/Plugins/iOS/VibrationPlugin.mm dosyasını kullanır.
 #endif
 
 #if UNITY_ANDROID && !UNITY_EDITOR
