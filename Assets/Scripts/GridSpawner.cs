@@ -186,7 +186,6 @@ public partial class GridSpawner : MonoBehaviour
     /// <summary>Board moduna göre 2D veya 3D spawn'ı başlatır.</summary>
     void SpawnLevel(LevelData level)
     {
-        GameManager.Instance?.ResetLevelState();
 
         if (levelText != null)
         {

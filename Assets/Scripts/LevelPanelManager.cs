@@ -99,6 +99,14 @@ public class LevelPanelManager : MonoBehaviour
         Canvas canvas = GetComponentInParent<Canvas>();
         if (canvas != null && canvas.GetComponent<GraphicRaycaster>() == null)
             canvas.gameObject.AddComponent<GraphicRaycaster>();
+
+        // Uygulama kapanıp açılma: level tamamlandı ama Next'e basılmamıştı → win paneli tekrar göster
+        if (GameManager.Instance != null && GameManager.Instance.IsLevelCompleting)
+        {
+            GameManager.Instance.previousTotalProgress =
+                (GameManager.Instance.totalProgress - GameManager.Instance.progressPerLevel + 100) % 100;
+            ShowCompletePanel();
+        }
     }
 
     void Update()
@@ -245,9 +253,11 @@ public class LevelPanelManager : MonoBehaviour
 
     void OnResetLevelClicked()
     {
-        // Açık paneller varsa kapat
+        // Win paneli açıkken reset engelle
         if (completePanelRoot != null && completePanelRoot.activeInHierarchy)
-            completePanelRoot.SetActive(false);
+            return;
+
+        // Fail paneli açıksa kapat
         if (failPanelRoot != null && failPanelRoot.activeInHierarchy)
             failPanelRoot.SetActive(false);
 

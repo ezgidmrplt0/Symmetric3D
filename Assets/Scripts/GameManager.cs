@@ -15,6 +15,7 @@ public class GameManager : MonoBehaviour
     private const string PROGRESS_KEY          = "TotalProgress";
     private const string LIFETIME_PROGRESS_KEY  = "LifetimeProgress";
     private const string MECHANIC_UNLOCKED_KEY  = "NewMechanicUnlocked";
+    private const string LEVEL_COMPLETING_KEY   = "LevelCompleting";
 
     [HideInInspector] public int totalProgress;         // 0-100 döngüsel (bar animasyonu için)
     [HideInInspector] public int previousTotalProgress; // Artıştan önceki değer
@@ -29,6 +30,8 @@ public class GameManager : MonoBehaviour
     private bool levelCompleting = false;
 
     [HideInInspector] public bool hitProgressHundred;   // Bu level'da 100% barajı aşıldı mı?
+
+    public bool IsLevelCompleting => levelCompleting;
 
     // Level durum eventleri
     public static UnityEvent OnLevelCompleted = new UnityEvent();
@@ -56,6 +59,7 @@ public class GameManager : MonoBehaviour
         lifetimeProgress = PlayerPrefs.GetInt(LIFETIME_PROGRESS_KEY, 0);
         newMechanicUnlocked = PlayerPrefs.GetInt(MECHANIC_UNLOCKED_KEY, 0) == 1;
         announcedTypesList = PlayerPrefs.GetString(ANNOUNCED_TYPES_KEY, "");
+        levelCompleting = PlayerPrefs.GetInt(LEVEL_COMPLETING_KEY, 0) == 1;
     }
 
     void SaveProgress()
@@ -64,6 +68,7 @@ public class GameManager : MonoBehaviour
         PlayerPrefs.SetInt(LIFETIME_PROGRESS_KEY, lifetimeProgress);
         PlayerPrefs.SetInt(MECHANIC_UNLOCKED_KEY, newMechanicUnlocked ? 1 : 0);
         PlayerPrefs.SetString(ANNOUNCED_TYPES_KEY, announcedTypesList);
+        PlayerPrefs.SetInt(LEVEL_COMPLETING_KEY, levelCompleting ? 1 : 0);
         PlayerPrefs.Save();
     }
 
@@ -120,6 +125,8 @@ public class GameManager : MonoBehaviour
     {
         levelCompleting = false;
         hitProgressHundred = false;
+        PlayerPrefs.SetInt(LEVEL_COMPLETING_KEY, 0);
+        PlayerPrefs.Save();
     }
 
     /// <summary>
