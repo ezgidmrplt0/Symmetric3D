@@ -21,10 +21,16 @@ public class LiquidTransfer : MonoBehaviour
 
     private static MaterialPropertyBlock _propBlock;
     private Renderer[] _renderers;
-
+    private DragObject _parentDrag;
 
     [HideInInspector]
     public bool transferring = false;
+    
+    private bool IsParentDragging()
+    {
+        if (_parentDrag == null) _parentDrag = GetComponentInParent<DragObject>();
+        return _parentDrag != null && _parentDrag.IsDragging;
+    }
     
     [Header("Başlangıç Konumu (Trigger İçin)")]
     public Vector2Int initialGridPos;
@@ -76,7 +82,7 @@ public class LiquidTransfer : MonoBehaviour
 
     public void CheckSymmetry()
     {
-        if (this == null || transferring) return;
+        if (this == null || transferring || IsParentDragging()) return;
 
         // Aktif level türünü al
         GridSpawner spawner = FindObjectOfType<GridSpawner>();
@@ -110,7 +116,7 @@ public class LiquidTransfer : MonoBehaviour
 
         foreach (LiquidTransfer other in allLiquids)
         {
-            if (other == this || other == null || other.transferring || other.currentSlices <= 0) continue;
+            if (other == this || other == null || other.transferring || other.IsParentDragging() || other.currentSlices <= 0) continue;
 
             // Aynı renk, aynı dilim sayısı
             if (!ColorMixData.ColorsMatch(other.liquidColor, this.liquidColor) ||
@@ -133,7 +139,7 @@ public class LiquidTransfer : MonoBehaviour
 
         foreach (LiquidTransfer other in allLiquids)
         {
-            if (other == this || other == null || other.transferring || other.currentSlices <= 0) continue;
+            if (other == this || other == null || other.transferring || other.IsParentDragging() || other.currentSlices <= 0) continue;
 
             // Aynı renk birleşmez (Kullanıcı isteğiyle kapatıldı)
             if (ColorMixData.ColorsMatch(other.liquidColor, this.liquidColor)) continue;

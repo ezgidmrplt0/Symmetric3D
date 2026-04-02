@@ -524,7 +524,6 @@ public class LevelDesignerWindow : EditorWindow
                 
                 // --- PRO TRIANGLE UI LAYOUT (Centered Pyramid) ---
                 bool isVisualCellDisabled = false;
-                float uiXOffset = 0;
 
                 if (currentLevel.boardMode == LevelData.BoardMode.Shape3D && currentLevel.shapeFaces.Count > currentFaceIndex)
                 {

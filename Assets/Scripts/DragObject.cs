@@ -10,6 +10,7 @@ public partial class DragObject : MonoBehaviour
 {
     private Camera cam;
     private bool dragging = false;
+    public bool IsDragging => dragging;
     private GridSpawner activeSpawner;
 
     private Plane dragPlane;
@@ -164,6 +165,9 @@ public partial class DragObject : MonoBehaviour
                         return;
                     }
                 }
+
+                LiquidTransfer transfer = GetComponentInChildren<LiquidTransfer>();
+                if (transfer != null && transfer.transferring) return;
 
                 dragging = true;
                 startPosition = transform.position;
