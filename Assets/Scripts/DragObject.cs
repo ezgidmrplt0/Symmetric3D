@@ -151,6 +151,10 @@ public partial class DragObject : MonoBehaviour
 
             if (hit.transform == transform || hit.transform.IsChildOf(transform))
             {
+                // Transfer animasyonu devam ediyorsa hiçbir şey yapma (tween'i öldürme!)
+                LiquidTransfer transfer = GetComponentInChildren<LiquidTransfer>();
+                if (transfer != null && transfer.transferring) return;
+
                 activeTouchIndex = touchIndex;
                 DOTween.Kill(transform);
 
@@ -165,9 +169,6 @@ public partial class DragObject : MonoBehaviour
                         return;
                     }
                 }
-
-                LiquidTransfer transfer = GetComponentInChildren<LiquidTransfer>();
-                if (transfer != null && transfer.transferring) return;
 
                 dragging = true;
                 startPosition = transform.position;
