@@ -373,6 +373,8 @@ public partial class DragObject : MonoBehaviour
     /// </summary>
     private bool IsDiagonallyBlockedCached(Vector3 from, Vector3 to, System.Collections.Generic.List<DragObject> objectsOnFace)
     {
+        if (objectsOnFace == null) return false;
+
         float gridStep = GetGridStep();
         float diagDist = gridStep * Mathf.Sqrt(2f);
         float tolerance = gridStep * 0.35f;
@@ -382,10 +384,13 @@ public partial class DragObject : MonoBehaviour
 
         for (int i = 0; i < objectsOnFace.Count; i++)
         {
+            DragObject a = objectsOnFace[i];
+            if (a == null) continue;
+
             for (int j = i + 1; j < objectsOnFace.Count; j++)
             {
-                DragObject a = objectsOnFace[i];
                 DragObject b = objectsOnFace[j];
+                if (b == null) continue;
 
                 Vector2 pa = new Vector2(a.transform.position.x, a.transform.position.y);
                 Vector2 pb = new Vector2(b.transform.position.x, b.transform.position.y);
@@ -402,6 +407,8 @@ public partial class DragObject : MonoBehaviour
 
     private bool IsDiagonallyBlocked(Vector3 from, Vector3 to, DragObject[] allObjects, bool sameParentOnly)
     {
+        if (allObjects == null) return false;
+
         float gridStep = GetGridStep();
         float diagDist = gridStep * Mathf.Sqrt(2f);
         float tolerance = gridStep * 0.35f;
@@ -411,11 +418,14 @@ public partial class DragObject : MonoBehaviour
 
         for (int i = 0; i < allObjects.Length; i++)
         {
+            DragObject a = allObjects[i];
+            if (a == null || a == this) continue;
+
             for (int j = i + 1; j < allObjects.Length; j++)
             {
-                DragObject a = allObjects[i];
                 DragObject b = allObjects[j];
-                if (a == this || b == this) continue;
+                if (b == null || b == this) continue;
+
                 if (!a.gameObject.activeInHierarchy || !b.gameObject.activeInHierarchy) continue;
                 if (sameParentOnly && startParent != null)
                 {

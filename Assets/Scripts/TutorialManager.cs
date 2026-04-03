@@ -1,6 +1,7 @@
 using UnityEngine;
 using System.Collections.Generic;
 using DG.Tweening;
+using TMPro;
 
 public class TutorialManager : MonoBehaviour
 {
@@ -19,6 +20,11 @@ public class TutorialManager : MonoBehaviour
 
     [Header("UI Tanımlamaları")]
     public RectTransform handImage; 
+
+    [Header("Özel Seviye 6 Tutorial")]
+    public GameObject specialTutorialPanel;
+    public TextMeshProUGUI specialTutorialText;
+    private bool specialTutorialClosedForThisLevel = false;
 
     [Header("Seviye Bazlı Eğitimler")]
     public List<LevelTutorial> levelTutorials = new List<LevelTutorial>();
@@ -67,6 +73,8 @@ public class TutorialManager : MonoBehaviour
         if (levelChanged || (hasTut && currentTut.handOffset != lastTrackedOffset))
         {
             lastTrackedLevelIndex = spawner.currentLevelIndex;
+            specialTutorialClosedForThisLevel = false;
+
             if (hasTut) lastTrackedOffset = currentTut.handOffset;
 
             CancelInvoke("StartTutorial");
@@ -79,6 +87,28 @@ public class TutorialManager : MonoBehaviour
     {
         GridSpawner spawner = FindObjectOfType<GridSpawner>();
         if (spawner == null || spawner.levels == null) return;
+
+        // --- ÖZEL SEVİYE 6 KONTROLÜ ---
+        if (spawner.currentLevelIndex == 5 && !specialTutorialClosedForThisLevel)
+        {
+            if (specialTutorialPanel != null)
+            {
+                specialTutorialPanel.SetActive(true);
+                if (specialTutorialText != null)
+                {
+                    specialTutorialText.text = "Sıvı aktarımı hareket ettirilen objeye yapılır.";
+                }
+                
+                // Normal tutorial elini gizle
+                if (handImage != null) handImage.gameObject.SetActive(false);
+                if (currentSeq != null) currentSeq.Kill();
+                return; // Normal tutorial'a devam etme
+            }
+        }
+        else
+        {
+            if (specialTutorialPanel != null) specialTutorialPanel.SetActive(false);
+        }
 
         LevelData currentLevel = (spawner.currentLevelIndex < spawner.levels.Count) ? spawner.levels[spawner.currentLevelIndex] : null;
 
@@ -170,5 +200,16 @@ public class TutorialManager : MonoBehaviour
             handImage.DOKill();
             handImage.gameObject.SetActive(false);
         }
+
+        if (specialTutorialPanel != null) specialTutorialPanel.SetActive(false);
+    }
+
+    public void OnSpecialTutorialOKPressed()
+    {
+        specialTutorialClosedForThisLevel = true;
+        if (specialTutorialPanel != null) specialTutorialPanel.SetActive(false);
+        
+        // Şimdi normal el eğitimini başlat
+        StartTutorial();
     }
 }
