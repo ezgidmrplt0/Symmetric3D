@@ -16,6 +16,11 @@ public class TutorialManager : MonoBehaviour
         public Vector2Int[] path;
         [Tooltip("Elin merkezden ne kadar sapacağını belirler (Pixel cinsinden)")]
         public Vector2 handOffset; 
+
+        [Header("Özel Panel Ayarları")]
+        public bool showSpecialPanel;
+        [TextArea(3, 5)]
+        public string specialText;
     }
 
     [Header("UI Tanımlamaları")]
@@ -88,44 +93,22 @@ public class TutorialManager : MonoBehaviour
         GridSpawner spawner = FindObjectOfType<GridSpawner>();
         if (spawner == null || spawner.levels == null) return;
 
-        // --- ÖZEL SEVİYE 6 KONTROLÜ ---
-        if (spawner.currentLevelIndex == 5 && !specialTutorialClosedForThisLevel)
-        {
-            if (specialTutorialPanel != null)
-            {
-                specialTutorialPanel.SetActive(true);
-                if (specialTutorialText != null)
-                {
-                    specialTutorialText.text = "Sıvı aktarımı hareket ettirilen objeye yapılır.";
-                }
-                
-                // Normal tutorial elini gizle
-                if (handImage != null) handImage.gameObject.SetActive(false);
-                if (currentSeq != null) currentSeq.Kill();
-                return; // Normal tutorial'a devam etme
-            }
-        }
-        else
-        {
-            if (specialTutorialPanel != null) specialTutorialPanel.SetActive(false);
-        }
-
+        // --- MEVCUT LEVELİN TUTORIAL VERİSİNİ BUL ---
         LevelData currentLevel = (spawner.currentLevelIndex < spawner.levels.Count) ? spawner.levels[spawner.currentLevelIndex] : null;
 
+        activeTutorial = default;
         bool found = false;
         foreach (var tut in levelTutorials)
         {
             if (tut.levelAsset != null && tut.levelAsset == currentLevel)
             {
                 activeTutorial = tut;
-                lastTrackedOffset = tut.handOffset;
                 found = true;
                 break;
             }
             if (tut.levelIndex == spawner.currentLevelIndex)
             {
                 activeTutorial = tut;
-                lastTrackedOffset = tut.handOffset;
                 found = true;
                 break;
             }
@@ -134,8 +117,34 @@ public class TutorialManager : MonoBehaviour
         if (!found)
         {
             if (handImage != null) handImage.gameObject.SetActive(false);
+            if (specialTutorialPanel != null) specialTutorialPanel.SetActive(false);
             return;
         }
+
+        // --- ÖZEL PANEL KONTROLÜ ---
+        if (activeTutorial.showSpecialPanel && !specialTutorialClosedForThisLevel)
+        {
+            if (specialTutorialPanel != null)
+            {
+                specialTutorialPanel.SetActive(true);
+                if (specialTutorialText != null && !string.IsNullOrEmpty(activeTutorial.specialText))
+                {
+                    specialTutorialText.text = activeTutorial.specialText;
+                }
+                
+                // Normal tutorial elini gizle
+                if (handImage != null) handImage.gameObject.SetActive(false);
+                if (currentSeq != null) currentSeq.Kill();
+                return; // Normal tutorial'a devam etme (OK butonuna basınca gelicek)
+            }
+        }
+        else
+        {
+            if (specialTutorialPanel != null) specialTutorialPanel.SetActive(false);
+        }
+
+        lastTrackedOffset = activeTutorial.handOffset;
+
 
         if (handImage != null && activeTutorial.path.Length > 0)
         {

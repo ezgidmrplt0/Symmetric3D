@@ -361,6 +361,8 @@ MonoBehaviour:
     - {x: 1, y: 0}
     - {x: 0, y: 0}
     handOffset: {x: 0, y: 0}
+    showSpecialPanel: 0
+    specialText: 
   - levelDisplayName: 'level 6 '
     levelAsset: {fileID: 11400000, guid: d6c6dbffb0804a24db712756e2b7ed6f, type: 2}
     levelIndex: 5
@@ -368,6 +370,8 @@ MonoBehaviour:
     - {x: 4, y: 1}
     - {x: 0, y: 1}
     handOffset: {x: 0, y: 100}
+    showSpecialPanel: 1
+    specialText: 
   - levelDisplayName: level 11
     levelAsset: {fileID: 11400000, guid: 3145c75249bb51b40997cf1e0d163aef, type: 2}
     levelIndex: 10
@@ -375,6 +379,8 @@ MonoBehaviour:
     - {x: 0, y: 2}
     - {x: 0, y: 1}
     handOffset: {x: 0, y: 0}
+    showSpecialPanel: 0
+    specialText: 
   - levelDisplayName: level 16
     levelAsset: {fileID: 11400000, guid: f1cf99b3fd8b4374c97a5549d7c55ceb, type: 2}
     levelIndex: 15
@@ -382,6 +388,8 @@ MonoBehaviour:
     - {x: 1, y: 0}
     - {x: 0, y: 1}
     handOffset: {x: 0, y: -40}
+    showSpecialPanel: 0
+    specialText: 
   - levelDisplayName: level 21
     levelAsset: {fileID: 11400000, guid: 07cc547b1fdcc3548b858f8983cb9043, type: 2}
     levelIndex: 20
@@ -389,12 +397,16 @@ MonoBehaviour:
     - {x: 0, y: 0}
     - {x: 0, y: 1}
     handOffset: {x: 40, y: -40}
+    showSpecialPanel: 0
+    specialText: 
   - levelDisplayName: level 26
     levelAsset: {fileID: 11400000, guid: 5d583454f56773a418ff626f3453ff60, type: 2}
     levelIndex: 25
     path:
     - {x: 0, y: 1}
     handOffset: {x: 0, y: 0}
+    showSpecialPanel: 0
+    specialText: 
   durationPerSegment: 0.8
 --- !u!1 &98113296
 GameObject:
@@ -697,7 +709,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &156266059
 RectTransform:
   m_ObjectHideFlags: 0
