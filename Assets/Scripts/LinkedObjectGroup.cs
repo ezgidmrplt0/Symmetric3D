@@ -53,17 +53,14 @@ public class LinkedObjectGroup : MonoBehaviour
 
         backPanel = new GameObject("LinkedTabaka");
         backPanel.transform.parent = this.transform;
-        
-        // Z ekseninde objelerin (-0.33) arkasına, grid (-0) önüne alalım
         backPanel.transform.localPosition = new Vector3(0, 0, -0.15f);
-        
-        LineRenderer lr = backPanel.AddComponent<LineRenderer>();
-        lr.useWorldSpace = false;
-        
-        // Cisimleri sıraya dizerek sürekli bir çizgi (pill/oval) yapalım
+        backPanel.transform.localRotation = Quaternion.identity;
+        backPanel.transform.localScale = Vector3.one;
+
+        // Objeleri en yakın komşu sırasına diz (aynı mantık)
         List<Vector3> pts = new List<Vector3>();
         List<DragObject> unvisited = new List<DragObject>(childDrags);
-        
+
         DragObject current = unvisited[0];
         pts.Add(current.transform.localPosition);
         unvisited.Remove(current);
@@ -75,57 +72,131 @@ public class LinkedObjectGroup : MonoBehaviour
             foreach (var u in unvisited)
             {
                 float d = Vector3.Distance(current.transform.localPosition, u.transform.localPosition);
-                if (d < minDist)
-                {
-                    minDist = d;
-                    closest = u;
-                }
+                if (d < minDist) { minDist = d; closest = u; }
             }
             pts.Add(closest.transform.localPosition);
             current = closest;
             unvisited.Remove(closest);
         }
 
-        lr.positionCount = pts.Count;
-        for (int i = 0; i < pts.Count; i++)
+        // LineRenderer yerine sabit flat mesh kullan (kameraya dönmez)
+        MeshFilter mf = backPanel.AddComponent<MeshFilter>();
+        mf.mesh = BuildCapsuleChainMesh(pts, 0.31f);
+
+        MeshRenderer mr = backPanel.AddComponent<MeshRenderer>();
+        // Sprites/Default: unlit, ışıkla etkileşimi yok, objeleri karartmaz
+        Material mat = new Material(Shader.Find("Sprites/Default"));
+        mat.color = new Color(0.2f, 0.25f, 0.3f, 0.55f);
+        mr.material = mat;
+        mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        mr.receiveShadows = false;
+        // Objelerin altında render et (objeler genellikle sortingOrder=0)
+        mr.sortingOrder = -1;
+    }
+
+    Mesh BuildCapsuleChainMesh(List<Vector3> pts, float radius)
+    {
+        int capSegs = 12; // her yarım daire kaç segmentten oluşsun
+        int N = pts.Count;
+
+        var p = new Vector2[N];
+        for (int i = 0; i < N; i++) p[i] = new Vector2(pts[i].x, pts[i].y);
+
+        var outline = new List<Vector2>();
+
+        if (N == 1)
         {
-            Vector3 p = pts[i];
-            p.z = 0; // backPanel'in 0'ına (yani parent'ın -0.15'ine) göre
-            lr.SetPosition(i, p);
+            // Tek nokta: tam daire
+            for (int i = 0; i < capSegs * 2; i++)
+            {
+                float a = (float)i / (capSegs * 2) * Mathf.PI * 2f;
+                outline.Add(p[0] + new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * radius);
+            }
+        }
+        else
+        {
+            // Segment yönleri
+            var dirs = new Vector2[N - 1];
+            for (int i = 0; i < N - 1; i++)
+                dirs[i] = (p[i + 1] - p[i]).normalized;
+
+            // Başlangıç kapağı: p[0]'ın sağ perpine göre geriye doğru yarım daire
+            {
+                Vector2 rp = new Vector2(dirs[0].y, -dirs[0].x);
+                float a0 = Mathf.Atan2(rp.y, rp.x);
+                for (int i = 0; i <= capSegs; i++)
+                {
+                    float a = a0 - (float)i / capSegs * Mathf.PI;
+                    outline.Add(p[0] + new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * radius);
+                }
+            }
+
+            // Sol kenar: p[1] → p[N-1], iç köşelerde miter birleşimi
+            for (int vi = 1; vi < N; vi++)
+            {
+                Vector2 lp;
+                if (vi < N - 1)
+                {
+                    Vector2 l1 = new Vector2(-dirs[vi - 1].y, dirs[vi - 1].x);
+                    Vector2 l2 = new Vector2(-dirs[vi].y, dirs[vi].x);
+                    lp = (l1 + l2).normalized;
+                    float dot = Vector2.Dot(l1, lp);
+                    if (dot > 0.1f) lp /= dot;
+                }
+                else
+                {
+                    lp = new Vector2(-dirs[vi - 1].y, dirs[vi - 1].x);
+                }
+                outline.Add(p[vi] + lp * radius);
+            }
+
+            // Bitiş kapağı: p[N-1]'in sol perpinden ileriye doğru yarım daire
+            {
+                Vector2 lp = new Vector2(-dirs[N - 2].y, dirs[N - 2].x);
+                float a0 = Mathf.Atan2(lp.y, lp.x);
+                for (int i = 1; i <= capSegs; i++) // i=0 zaten sol kenarda eklendi
+                {
+                    float a = a0 - (float)i / capSegs * Mathf.PI;
+                    outline.Add(p[N - 1] + new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * radius);
+                }
+            }
+
+            // Sağ kenar: p[N-2] → p[1] geriye doğru, iç köşelerde miter
+            for (int vi = N - 2; vi >= 1; vi--)
+            {
+                Vector2 r1 = new Vector2(dirs[vi - 1].y, -dirs[vi - 1].x);
+                Vector2 r2 = new Vector2(dirs[vi].y, -dirs[vi].x);
+                Vector2 rp = (r1 + r2).normalized;
+                float dot = Vector2.Dot(r1, rp);
+                if (dot > 0.1f) rp /= dot;
+                outline.Add(p[vi] + rp * radius);
+            }
+            // p[0] sağ perpi başlangıç kapağının ilk noktasıyla örtüşür → polygon kapanır
         }
 
-        // Genişliği grid hücrelerine ve objelere daha uyumlu hale getirelim.
-        float width = 0.62f;
-        lr.startWidth = width;
-        lr.endWidth = width;
-        
-        // Oval / Yuvarlatılmış köşeler
-        lr.numCapVertices = 15;
-        lr.numCornerVertices = 15;
+        // Merkez noktasından fan triangulation (konveks şekiller için geçerli)
+        Vector2 centroid = Vector2.zero;
+        foreach (var v in outline) centroid += v;
+        centroid /= outline.Count;
 
-        // Temaya uygun Premium Şeffaf Materyal (Buzlu Cam / Jelibon Taban)
-        Material mat = new Material(Shader.Find("Standard"));
+        var verts = new List<Vector3> { new Vector3(centroid.x, centroid.y, 0) };
+        foreach (var v in outline) verts.Add(new Vector3(v.x, v.y, 0));
 
-        // Arkayı %100 kapatmaması ve gridlerle harmanlanması için saydam mod (Transparent)
-        mat.SetFloat("_Mode", 3); 
-        mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
-        mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
-        mat.SetInt("_ZWrite", 0);
-        mat.DisableKeyword("_ALPHATEST_ON");
-        mat.EnableKeyword("_ALPHABLEND_ON");
-        mat.DisableKeyword("_ALPHAPREMULTIPLY_ON");
-        mat.renderQueue = 3000;
+        int n = outline.Count;
+        var tris = new List<int>();
+        for (int i = 0; i < n; i++)
+        {
+            tris.Add(0);
+            tris.Add(1 + i);
+            tris.Add(1 + (i + 1) % n);
+        }
 
-        // Temadaki pastel mavi ve saf beyaz grid ortamında "Dokulu, Koyu Buzlu Cam" etkisi yaratır
-        mat.color = new Color(0.2f, 0.25f, 0.3f, 0.55f); 
-        
-        // Parlamasını şık durması için korudum
-        mat.SetFloat("_Glossiness", 0.7f); 
-        mat.SetFloat("_Metallic", 0.1f);
-        
-        lr.material = mat;
-        lr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-        lr.receiveShadows = false;
+        Mesh mesh = new Mesh();
+        mesh.vertices = verts.ToArray();
+        mesh.triangles = tris.ToArray();
+        mesh.RecalculateNormals();
+        mesh.RecalculateBounds();
+        return mesh;
     }
 
     void Update()
@@ -144,23 +215,11 @@ public class LinkedObjectGroup : MonoBehaviour
         if (childDrags.Count <= 1 && backPanel != null && !backPanelFading)
         {
             backPanelFading = true;
-            LineRenderer lr = backPanel.GetComponent<LineRenderer>();
-            if (lr != null)
-            {
-                float startW = lr.startWidth;
-                DOTween.To(() => startW, x =>
-                {
-                    startW = x;
-                    if (lr != null) { lr.startWidth = x; lr.endWidth = x; }
-                }, 0f, 0.25f)
+            GameObject panelToDestroy = backPanel;
+            backPanel = null;
+            panelToDestroy.transform.DOScale(Vector3.zero, 0.25f)
                 .SetEase(Ease.InBack)
-                .OnComplete(() => { if (backPanel != null) Destroy(backPanel); backPanel = null; });
-            }
-            else
-            {
-                Destroy(backPanel);
-                backPanel = null;
-            }
+                .OnComplete(() => { if (panelToDestroy != null) Destroy(panelToDestroy); });
         }
 
         if (childDrags.Count == 0) return;
