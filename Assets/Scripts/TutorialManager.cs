@@ -127,11 +127,14 @@ public class TutorialManager : MonoBehaviour
             if (specialTutorialPanel != null)
             {
                 specialTutorialPanel.SetActive(true);
+                specialTutorialPanel.transform.localScale = Vector3.zero;
+                specialTutorialPanel.transform.DOScale(1f, 0.35f).SetEase(Ease.OutBack).SetUpdate(true);
+
                 if (specialTutorialText != null && !string.IsNullOrEmpty(activeTutorial.specialText))
                 {
                     specialTutorialText.text = activeTutorial.specialText;
                 }
-                
+
                 // Normal tutorial elini gizle
                 if (handImage != null) handImage.gameObject.SetActive(false);
                 if (currentSeq != null) currentSeq.Kill();
@@ -204,21 +207,34 @@ public class TutorialManager : MonoBehaviour
     public void HideTutorial()
     {
         if (currentSeq != null) currentSeq.Kill();
-        if (handImage != null) 
+        if (handImage != null)
         {
             handImage.DOKill();
             handImage.gameObject.SetActive(false);
         }
 
-        if (specialTutorialPanel != null) specialTutorialPanel.SetActive(false);
+        if (specialTutorialPanel != null)
+        {
+            specialTutorialPanel.transform.DOKill();
+            specialTutorialPanel.SetActive(false);
+        }
     }
 
     public void OnSpecialTutorialOKPressed()
     {
         specialTutorialClosedForThisLevel = true;
-        if (specialTutorialPanel != null) specialTutorialPanel.SetActive(false);
-        
-        // Şimdi normal el eğitimini başlat
-        StartTutorial();
+        if (specialTutorialPanel != null)
+        {
+            specialTutorialPanel.transform.DOKill();
+            specialTutorialPanel.transform.DOScale(0f, 0.2f).SetEase(Ease.InBack).SetUpdate(true)
+                .OnComplete(() => {
+                    if (specialTutorialPanel != null) specialTutorialPanel.SetActive(false);
+                    StartTutorial();
+                });
+        }
+        else
+        {
+            StartTutorial();
+        }
     }
 }
