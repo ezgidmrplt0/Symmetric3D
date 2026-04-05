@@ -652,6 +652,12 @@ public partial class GridSpawner : MonoBehaviour
     {
         if (a == null || b == null) return false;
 
+        // Aynı linked grubundaki objeler hiçbir zaman birbirini tamamlayamaz
+        DragObject dobjA = a.GetComponentInParent<DragObject>();
+        DragObject dobjB = b.GetComponentInParent<DragObject>();
+        if (dobjA != null && dobjB != null && dobjA.linkId > 0 && dobjA.linkId == dobjB.linkId)
+            return false;
+
         bool capable = false;
         if (CurrentLevelType.HasFlag(LevelData.LevelType.ColorMix))
         {
