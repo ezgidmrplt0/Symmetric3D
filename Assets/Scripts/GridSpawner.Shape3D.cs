@@ -148,8 +148,7 @@ public partial class GridSpawner
 
     private void SpawnShapePieces(LevelData level, ShapeDefinition def, float gridSize)
     {
-        Dictionary<int, LinkedObjectGroup> groups = new Dictionary<int, LinkedObjectGroup>();
-
+        groups.Clear(); // Yeni level için grupları temizle
         foreach (var piece in level.pieces)
         {
             if (piece.isShadowTrigger)

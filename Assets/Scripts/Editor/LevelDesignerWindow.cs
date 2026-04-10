@@ -46,9 +46,9 @@ public class LevelDesignerWindow : EditorWindow
             bool changed = true;
             switch (eCurrent.keyCode)
             {
-                case KeyCode.UpArrow:    newRot = 180; break;
+                case KeyCode.UpArrow:    newRot = 0;   break;
                 case KeyCode.RightArrow: newRot = -90; break;
-                case KeyCode.DownArrow:  newRot = 0;   break;
+                case KeyCode.DownArrow:  newRot = 180; break;
                 case KeyCode.LeftArrow:  newRot = 90;  break;
                 default: changed = false; break;
             }
@@ -374,8 +374,8 @@ public class LevelDesignerWindow : EditorWindow
         EditorGUILayout.EndHorizontal();
         GUILayout.Space(2);
 
-        string[] rotOptions = { "Yukarı (180°)", "Sağa (-90°)", "Aşağı (0°)", "Sola (90°)" };
-        int[] rotValues = { 180, -90, 0, 90 };
+        string[] rotOptions = { "Yukarı (0°)", "Sağa (-90°)", "Aşağı (180°)", "Sola (90°)" };
+        int[] rotValues = { 0, -90, 180, 90 };
         int currentRotIndex = System.Array.IndexOf(rotValues, (int)brushRotationZ);
         if (currentRotIndex < 0) currentRotIndex = 0;
         currentRotIndex = EditorGUILayout.Popup("Baktığı Yön", currentRotIndex, rotOptions);
@@ -558,8 +558,9 @@ public class LevelDesignerWindow : EditorWindow
                         string yon = piece.rotationZ switch
                         {
                             -90   => "→",
-                            0     => "↓",
+                            0     => "↑",
                             90    => "←",
+                            180   => "↓",
                             _     => "↑"
                         };
                         string sliceLabel = piece.currentSlices switch {

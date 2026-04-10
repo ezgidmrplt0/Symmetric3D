@@ -441,7 +441,7 @@ public class LiquidTransfer : MonoBehaviour
                 // Klasik sistem: sadece alıcıyı (this) mirror olarak geç.
                 // Giver transfer sonrası 0 slice'a düşer; TrySpawnPending'e geçilirse
                 // sıralama giver'ı önce seçip Clamp(0,1,3)=1 → yanlış çeyrek shadow üretir.
-                spawner.TrySpawnPending(pair.shadowToSpawnLinkId, this, null);
+                spawner.TrySpawnPending(pair.shadowToSpawnLinkId, this, other);
             }
         }
     }

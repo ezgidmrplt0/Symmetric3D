@@ -53,6 +53,8 @@ public partial class GridSpawner : MonoBehaviour
     private Dictionary<int, Transform> spawnedFaceRoots = new Dictionary<int, Transform>();
     private List<LevelData.PieceData> pendingPieces = new List<LevelData.PieceData>();
     private bool lastRemainingTriggered = false;
+    private Dictionary<int, LinkedObjectGroup> groups = new Dictionary<int, LinkedObjectGroup>();
+    public Dictionary<int, LinkedObjectGroup> GroupsDictionary => groups;
 
     // ──────────────────────────────────────────────────────────────
     // KOLAYLIK ÖZELLİKLERİ
@@ -334,7 +336,7 @@ public partial class GridSpawner : MonoBehaviour
         }
 
         Transform targetGrid = emptyGrids[Random.Range(0, emptyGrids.Count)];
-        float shadowRot = (sourceRotationZ + 180f) % 360f;
+        float shadowRot = sourceRotationZ; // +180f kaldırıldı, kaynağı korur
 
         Transform parentTransform = targetGrid.parent != null ? targetGrid.parent : transform;
         GameObject shadowObj = Instantiate(objectPrefab, parentTransform);
@@ -426,13 +428,30 @@ public partial class GridSpawner : MonoBehaviour
         List<LevelData.PieceData> toSpawn = new List<LevelData.PieceData>();
         foreach(var p in pendingPieces) if(p.spawnShadowAfterLinkID == clearedLinkId) toSpawn.Add(p);
 
-        // --- SIRALI EŞLEŞME (ORDERED MATCHING) ---
-        toSpawn.Sort((a, b) => a.gridPosition.x != b.gridPosition.x ? a.gridPosition.x.CompareTo(b.gridPosition.x) : a.gridPosition.y.CompareTo(b.gridPosition.y));
-        
         List<LiquidTransfer> mirrors = new List<LiquidTransfer>();
         if (mirrorSource != null) mirrors.Add(mirrorSource);
         if (mirrorOther != null) mirrors.Add(mirrorOther);
-        mirrors.Sort((a, b) => a.initialGridPos.x != b.initialGridPos.x ? a.initialGridPos.x.CompareTo(b.initialGridPos.x) : a.initialGridPos.y.CompareTo(b.initialGridPos.y));
+
+        // Sort shadows Left-to-Right
+        toSpawn.Sort((a, b) => a.gridPosition.x != b.gridPosition.x ? a.gridPosition.x.CompareTo(b.gridPosition.x) : a.gridPosition.y.CompareTo(b.gridPosition.y));
+        
+        // --- AKILLI ASİMETRİ / SİMETRİ EŞLEŞTİRME ---
+        // Eğer gölgeler soldaysa, aynaları sağdan sola (descending) sırala ki "içerideki" ayna "içerideki" gölgeyle eşleşsin.
+        float gridCenter = (minX + maxX) / 2f;
+        float shadowCenter = 0;
+        foreach (var p in toSpawn) shadowCenter += p.gridPosition.x;
+        if (toSpawn.Count > 0) shadowCenter /= toSpawn.Count;
+
+        if (shadowCenter < gridCenter)
+        {
+            // Gölgeler sol tarafta -> Aynaları Sağdan-Sola sırala (Azalan X)
+            mirrors.Sort((a, b) => a.initialGridPos.x != b.initialGridPos.x ? b.initialGridPos.x.CompareTo(a.initialGridPos.x) : a.initialGridPos.y.CompareTo(b.initialGridPos.y));
+        }
+        else
+        {
+            // Gölgeler sağ tarafta veya ortada -> Aynaları Soldan-Sağa sırala (Artan X)
+            mirrors.Sort((a, b) => a.initialGridPos.x != b.initialGridPos.x ? a.initialGridPos.x.CompareTo(b.initialGridPos.x) : a.initialGridPos.y.CompareTo(b.initialGridPos.y));
+        }
 
         for (int pIdx = 0; pIdx < toSpawn.Count; pIdx++)
         {
@@ -498,9 +517,9 @@ public partial class GridSpawner : MonoBehaviour
                         lt.liquidColor = mirror.liquidColor;
                         // Akıllı Miktar
                         lt.currentSlices = Mathf.Clamp(mirror.currentSlices, 1, mirror.maxSlices - 1);
-                        // SIVI AKTARIMI İÇİN TAM ZITTI (+180)
+                        // SIVI AKTARIMI İÇİN AYNA ROTASYONUNU KORU (ZORLAMALI ZITLIK KALDIRILDI)
                         float mRotZ = mirror.transform.eulerAngles.z;
-                        newObj.transform.localRotation = Quaternion.Euler(0, 0, (mRotZ + 180f) % 360f);
+                        newObj.transform.localRotation = Quaternion.Euler(0, 0, mRotZ % 360f);
                     }
                     else
                     {
@@ -509,6 +528,21 @@ public partial class GridSpawner : MonoBehaviour
                     }
 
                     lt.UpdateVisuals();
+                }
+
+                // --- GRUPLAMA (LINKED) DESTEĞİ ---
+                if (piece.linkId > 0)
+                {
+                    if (!groups.ContainsKey(piece.linkId))
+                    {
+                        GameObject grpObj = new GameObject("LinkedGroup_Shadow_" + piece.linkId);
+                        grpObj.transform.parent = transform;
+                        grpObj.transform.position = transform.position;
+                        LinkedObjectGroup log = grpObj.AddComponent<LinkedObjectGroup>();
+                        groups[piece.linkId] = log;
+                        activeSpawnedObjects.Add(grpObj);
+                    }
+                    newObj.transform.SetParent(groups[piece.linkId].transform, true);
                 }
 
                 Vector3 targetS = newObj.transform.localScale;

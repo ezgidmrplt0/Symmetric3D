@@ -68,9 +68,7 @@ public partial class GridSpawner
             }
         }
 
-        // Oyuncu objelerini çiz
-        Dictionary<int, LinkedObjectGroup> groups = new Dictionary<int, LinkedObjectGroup>();
-
+        groups.Clear(); // Yeni level için grupları temizle
         foreach (var piece in level.pieces)
         {
             if (piece.isShadowTrigger)

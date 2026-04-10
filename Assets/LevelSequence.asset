@@ -26,6 +26,9 @@ MonoBehaviour:
   - levelType: 16
     unlockAtProgress: 500
   levels:
+  - {fileID: 11400000, guid: e5a104d6901f94f4cb37ed1eaa7db638, type: 2}
+  - {fileID: 11400000, guid: b085760a832120a44b4125481ff20132, type: 2}
+  - {fileID: 11400000, guid: 207171a9156dcb24d897f843cc23359e, type: 2}
   - {fileID: 11400000, guid: 512ccf2c2fe1323448bfa872859b8dc3, type: 2}
   - {fileID: 11400000, guid: 680a76eaba95d48aeb3e9fe98a1b1040, type: 2}
   - {fileID: 11400000, guid: 8865759d32f0a2f4cba2d07e5eae6814, type: 2}
