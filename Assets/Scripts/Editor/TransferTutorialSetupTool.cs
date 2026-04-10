@@ -68,6 +68,11 @@ public class TransferTutorialSetupTool : Editor
             DrawFieldStatus("transferArrowUI",          "Ok (Arrow Image)",         tm.transferArrowUI          != null);
             DrawFieldStatus("transferTutorialOverlay",  "Overlay (CanvasGroup)",     tm.transferTutorialOverlay  != null);
             DrawFieldStatus("tapToContinueText",        "Devam Yazısı (TMP)",        tm.tapToContinueText        != null);
+            DrawFieldStatus("forbiddenDropXIcon",       "Yanlış Hamle X İkonu",      tm.forbiddenDropXIcon       != null);
+
+            EditorGUILayout.Space(4);
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("forbiddenDropXIcon"),
+                new GUIContent("X İkonu", "Yanlış hamle olduğunda grid üzerinde çıkan X"));
 
             EditorGUILayout.Space(6);
 
@@ -233,16 +238,38 @@ public class TransferTutorialSetupTool : Editor
         tmp.color = Color.white;
         textGO.SetActive(false); // TutorialManager açacak
 
+        // ── X İkonu ───────────────────────────────────────────────
+        GameObject xIconGO = new GameObject("ForbiddenDropX");
+        Undo.RegisterCreatedObjectUndo(xIconGO, "Create ForbiddenDropX");
+        xIconGO.transform.SetParent(canvas.transform, false); // Canvas'a direkt ekle (root dışında, overlay etkilemesin)
+
+        RectTransform xIconRect = xIconGO.AddComponent<RectTransform>();
+        xIconRect.sizeDelta = new Vector2(80f, 80f);
+        xIconRect.anchorMin = new Vector2(0.5f, 0.5f);
+        xIconRect.anchorMax = new Vector2(0.5f, 0.5f);
+        xIconRect.pivot     = new Vector2(0.5f, 0.5f);
+
+        Image xIconImg = xIconGO.AddComponent<Image>();
+        xIconImg.raycastTarget = false;
+
+        // Close.png sprite'ını otomatik yükle
+        Sprite closeSprite = AssetDatabase.LoadAssetAtPath<Sprite>(
+            "Assets/Violet Theme Ui/Colored Icons/Close.png");
+        if (closeSprite != null)
+            xIconImg.sprite = closeSprite;
+
+        xIconGO.SetActive(false);
+
         // ── TutorialManager'a ata ─────────────────────────────────
         Undo.RecordObject(tm, "Assign Transfer Tutorial Fields");
         tm.transferArrowUI         = arrowRect;
         tm.transferTutorialOverlay = overlayCG;
         tm.tapToContinueText       = tmp;
+        tm.forbiddenDropXIcon      = xIconRect;
 
         Undo.CollapseUndoOperations(undoGroup);
         EditorUtility.SetDirty(tm);
 
-        Debug.Log("[TransferTutorialSetup] UI başarıyla oluşturuldu. " +
-                  "TransferArrow objesine Inspector'dan bir ok sprite'ı atamayı unutma!");
+        Debug.Log("[TransferTutorialSetup] UI başarıyla oluşturuldu.");
     }
 }

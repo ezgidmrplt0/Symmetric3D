@@ -38,6 +38,7 @@ public class TutorialManager : MonoBehaviour
     public int transferTutorialTriggerSlices = 1;
     [Tooltip("Bırakıldıktan kaç saniye sonra oyun donsun (sıvı animasyonunun yerleşmesi için)")]
     public float transferFreezeDelay = 0.35f;
+    public RectTransform forbiddenDropXIcon;    // Yanlış hamle X ikonu (UI Image)
     public RectTransform transferArrowUI;       // Yön oku (UI Image)
     public CanvasGroup transferTutorialOverlay; // Yarı saydam karartma paneli
     public TextMeshProUGUI tapToContinueText;   // "Devam için dokun" yazısı
@@ -46,6 +47,7 @@ public class TutorialManager : MonoBehaviour
     private LiquidTransfer _pendingGiver;
     private bool _waitingForTransferTap = false;
     private float _transferTutorialStartRealtime;
+    private LiquidTransfer _lastAdjacentQuarter; // Redirect sırasında tespit edilen komşu çeyrek
     private Vector3 _receiverOriginalScale;
 
     [Header("Seviye Bazlı Eğitimler")]
@@ -388,6 +390,175 @@ public class TutorialManager : MonoBehaviour
             if (capturedReceiver != null && capturedGiver != null)
                 capturedReceiver.StartTransfer(capturedGiver);
         });
+    }
+
+    // ──────────────────────────────────────────────────────────────
+    // DROP YÖNLENDİRME
+    // ──────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Yanlış hamle tespit edilirse hedef hücrenin karşı tarafındaki boş hücreyi döner.
+    /// null dönerse yönlendirme yok, normal drop devam eder.
+    /// </summary>
+    public Transform GetDropRedirect(DragObject piece, Transform targetGrid, GridSpawner spawner)
+    {
+        if (spawner.currentLevelIndex != transferTutorialLevelIndex) return null;
+
+        LiquidTransfer pieceLT = piece.GetComponentInChildren<LiquidTransfer>();
+        if (pieceLT == null || pieceLT.currentSlices != transferTutorialTriggerSlices) return null;
+
+        // Hedef hücrenin yanında aynı renkte başka bir çeyrek var mı?
+        LiquidTransfer adjacentQuarter = FindAdjacentQuarter(targetGrid.position, piece, spawner, pieceLT.liquidColor);
+        if (adjacentQuarter == null) { _lastAdjacentQuarter = null; return null; }
+        _lastAdjacentQuarter = adjacentQuarter;
+
+        float step = spawner.gridPrefab.transform.localScale.x + spawner.spacing;
+
+        // Parça komşu çeyreğin SAĞINA mı bırakılıyor? (yanlış yön → yönlendir)
+        // Soluna bırakılıyorsa doğru hamle → geçir
+        if (targetGrid.position.x > adjacentQuarter.transform.position.x - step * 0.5f)
+            return null;
+
+        // Çeyreğin hedef hücreye göre yönü
+        Vector3 dirToQuarter = (adjacentQuarter.transform.position - targetGrid.position).normalized;
+
+        GameObject[] gridObjs = GameObject.FindGameObjectsWithTag("Grid");
+        float occupied = step * 0.9f;
+
+        // 1. Önce karşı taraftaki bitişik boş hücreyi dene
+        Transform best = null;
+        float bestDist = float.MaxValue;
+
+        foreach (GameObject g in gridObjs)
+        {
+            if (!g.activeInHierarchy || g.name.Contains("Blocked")) continue;
+            Vector3 pos = g.transform.position;
+
+            float d = Vector3.Distance(pos, targetGrid.position);
+            if (d < 0.01f || d >= step * 1.4f) continue;
+
+            Vector3 dirToCell = (pos - targetGrid.position).normalized;
+            if (Vector3.Dot(dirToCell, dirToQuarter) > -0.3f) continue;
+
+            bool empty = true;
+            foreach (DragObject obj in FindObjectsOfType<DragObject>())
+            {
+                if (obj == piece) continue;
+                if (Vector3.Distance(obj.transform.position, pos) < occupied) { empty = false; break; }
+            }
+            if (!empty) continue;
+
+            if (d < bestDist) { bestDist = d; best = g.transform; }
+        }
+
+        if (best != null) return best;
+
+        // 2. Karşı taraf doluysa boarddaki en yakın boş hücreye kay
+        bestDist = float.MaxValue;
+        foreach (GameObject g in gridObjs)
+        {
+            if (!g.activeInHierarchy || g.name.Contains("Blocked")) continue;
+            Vector3 pos = g.transform.position;
+
+            float d = Vector3.Distance(pos, targetGrid.position);
+            if (d < 0.01f || d > bestDist) continue;
+
+            bool empty = true;
+            foreach (DragObject obj in FindObjectsOfType<DragObject>())
+            {
+                if (obj == piece) continue;
+                if (Vector3.Distance(obj.transform.position, pos) < occupied) { empty = false; break; }
+            }
+            if (!empty) continue;
+
+            best = g.transform;
+            bestDist = d;
+        }
+
+        return best; // Tüm board doluysa null (edge case)
+    }
+
+    /// <summary>
+    /// Redirect sonrası çağrılır. Komşu çeyrekten yönlendirilen hücreye el animasyonu başlatır.
+    /// </summary>
+    public void OnDropRedirected(Transform redirectCell, Transform originalTarget)
+    {
+        if (_lastAdjacentQuarter == null || cam == null) return;
+
+        LiquidTransfer quarter = _lastAdjacentQuarter;
+        _lastAdjacentQuarter = null;
+
+        // Orijinal hedefe X ikonu göster
+        ShowForbiddenX(originalTarget.position);
+
+        // DropFlat2D animasyonu bitsin (0.25s), sonra eli göster
+        DOVirtual.DelayedCall(0.3f, () =>
+        {
+            if (quarter == null) return;
+            Vector3 fromScreen = cam.WorldToScreenPoint(quarter.transform.position)
+                                 + (Vector3)activeTutorial.handOffset;
+            Vector3 toScreen   = cam.WorldToScreenPoint(redirectCell.position)
+                                 + (Vector3)activeTutorial.handOffset;
+            PlayHandAnimationFromTo(fromScreen, toScreen);
+        });
+    }
+
+    void ShowForbiddenX(Vector3 worldPos)
+    {
+        if (forbiddenDropXIcon == null || cam == null) return;
+
+        forbiddenDropXIcon.position   = cam.WorldToScreenPoint(worldPos);
+        forbiddenDropXIcon.localScale = Vector3.zero;
+        forbiddenDropXIcon.gameObject.SetActive(true);
+
+        forbiddenDropXIcon.DOKill();
+        Sequence seq = DOTween.Sequence();
+        seq.Append(forbiddenDropXIcon.DOScale(1f, 0.15f).SetEase(Ease.OutBack));
+        seq.AppendInterval(0.45f);
+        seq.Append(forbiddenDropXIcon.DOScale(0f, 0.2f).SetEase(Ease.InBack));
+        seq.OnComplete(() => forbiddenDropXIcon.gameObject.SetActive(false));
+    }
+
+    void PlayHandAnimationFromTo(Vector3 fromScreen, Vector3 toScreen)
+    {
+        if (handImage == null) return;
+        if (currentSeq != null) currentSeq.Kill();
+
+        handImage.gameObject.SetActive(true);
+        CanvasGroup cg = handImage.GetComponent<CanvasGroup>();
+        if (cg == null) cg = handImage.gameObject.AddComponent<CanvasGroup>();
+        cg.interactable   = false;
+        cg.blocksRaycasts = false;
+        cg.alpha = 0f;
+
+        currentSeq = DOTween.Sequence();
+        currentSeq.AppendInterval(0.15f);
+        currentSeq.AppendCallback(() => {
+            handImage.position   = fromScreen;
+            handImage.localScale = Vector3.one;
+        });
+        currentSeq.Append(cg.DOFade(1f, 0.3f));
+        currentSeq.Append(handImage.DOScale(0.9f, 0.25f).SetEase(Ease.OutBack));
+        currentSeq.Append(handImage.DOMove(toScreen, durationPerSegment * 2f).SetEase(Ease.InOutSine));
+        currentSeq.Append(handImage.DOScale(1f, 0.2f));
+        currentSeq.Append(cg.DOFade(0f, 0.3f));
+        currentSeq.SetLoops(-1);
+    }
+
+    LiquidTransfer FindAdjacentQuarter(Vector3 targetPos, DragObject excludePiece, GridSpawner spawner, Color matchColor)
+    {
+        float step      = spawner.gridPrefab.transform.localScale.x + spawner.spacing;
+        float threshold = step * 1.3f;
+
+        foreach (LiquidTransfer lt in FindObjectsOfType<LiquidTransfer>())
+        {
+            if (lt.GetComponentInParent<DragObject>() == excludePiece) continue;
+            if (lt.currentSlices != transferTutorialTriggerSlices) continue;
+            if (!ColorMixData.ColorsMatch(lt.liquidColor, matchColor)) continue;
+            if (Vector3.Distance(lt.transform.position, targetPos) < threshold)
+                return lt;
+        }
+        return null;
     }
 
     public void HideTutorial()

@@ -326,9 +326,18 @@ public partial class DragObject : MonoBehaviour
         cachedGridCellPositions = null;
 
         if (IsShape3DMode())
+        {
             DropShape3D(targetGrid, spawner);
+        }
         else
-            DropFlat2D(targetGrid, spawner);
+        {
+            Transform redirect = TutorialManager.Instance != null
+                ? TutorialManager.Instance.GetDropRedirect(this, targetGrid, spawner)
+                : null;
+            DropFlat2D(redirect ?? targetGrid, spawner);
+            if (redirect != null)
+                TutorialManager.Instance.OnDropRedirected(redirect, targetGrid);
+        }
     }
 
     // ──────────────────────────────────────────────────────────────
