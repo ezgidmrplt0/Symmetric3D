@@ -124,6 +124,9 @@ public class LiquidTransfer : MonoBehaviour
 
             if (IsAdjacentFaceToFace(other))
             {
+                if (TutorialManager.Instance != null && TutorialManager.Instance.TryInterceptTransfer(this, other))
+                    break; // Tutorial devreye girdi, transfer bekletiliyor
+
                 StartTransfer(other);
                 break;
             }
@@ -277,7 +280,7 @@ public class LiquidTransfer : MonoBehaviour
     }
 
     // ── Classic Transfer ─────────────────────────────────────────
-    void StartTransfer(LiquidTransfer giver)
+    public void StartTransfer(LiquidTransfer giver)
     {
         transferring = true;
         giver.transferring = true;
