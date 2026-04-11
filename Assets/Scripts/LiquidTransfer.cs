@@ -427,21 +427,21 @@ public class LiquidTransfer : MonoBehaviour
 
             if (!match) continue;
 
+            // Birleşim sonucunu (alıcı = this) şimdi yakala — giver yok edilmeden önce.
+            Color mergeColor  = this.liquidColor;
+            int   mergeSlices = this.currentSlices;
+            float mergeRotZ   = this.transform.eulerAngles.z;
+
             if (pair.isDynamic)
             {
-                // Alıcı (this) = birleşim sonucu; verilerini yakala, animasyon bittikten sonra spawn et.
-                // Değer tiplerini yerel değişkene kopyala — giver yok edilmeden önce yakala.
-                Color capturedColor = this.liquidColor;
-                int capturedSlices = this.currentSlices; // takeAmount eklendikten SONRA (2 slice)
-                float capturedRot = this.transform.eulerAngles.z;
-                DG.Tweening.DOVirtual.DelayedCall(0.75f, () => spawner.SpawnDynamicShadow(capturedColor, capturedSlices, capturedRot));
+                // Rastgele boş hücreye spawn et.
+                DG.Tweening.DOVirtual.DelayedCall(0.75f,
+                    () => spawner.SpawnDynamicShadow(mergeColor, mergeSlices, mergeRotZ));
             }
             else
             {
-                // Klasik sistem: sadece alıcıyı (this) mirror olarak geç.
-                // Giver transfer sonrası 0 slice'a düşer; TrySpawnPending'e geçilirse
-                // sıralama giver'ı önce seçip Clamp(0,1,3)=1 → yanlış çeyrek shadow üretir.
-                spawner.TrySpawnPending(pair.shadowToSpawnLinkId, this, other);
+                // Belirli pozisyona (pending piece) spawn et; tam zıttı kullan.
+                spawner.TrySpawnPendingAsMergeResult(pair.shadowToSpawnLinkId, mergeColor, mergeSlices, mergeRotZ);
             }
         }
     }
