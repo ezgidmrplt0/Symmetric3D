@@ -24,7 +24,7 @@ MonoBehaviour:
   - levelType: 8
     unlockAtProgress: 400
   - levelType: 16
-    unlockAtProgress: 0
+    unlockAtProgress: 500
   levels:
   - {fileID: 11400000, guid: 512ccf2c2fe1323448bfa872859b8dc3, type: 2}
   - {fileID: 11400000, guid: 680a76eaba95d48aeb3e9fe98a1b1040, type: 2}

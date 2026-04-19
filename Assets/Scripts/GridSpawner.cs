@@ -36,6 +36,10 @@ public partial class GridSpawner : MonoBehaviour
     public float cameraPadding = 0.2f;
     public float cameraZoomFactor = 0.65f;
     public float cameraVerticalOffset = 0.1f;
+    [Tooltip("Ekranın üst kısmında UI (buton, level yazısı vb.) tarafından kullanılan yükseklik oranı (0–1). " +
+             "Örn: 0.12 → ekranın %12'si UI'a ayrılmış. Kamera hesaplamaları bu alanı dışarıda tutar.")]
+    [Range(0f, 0.4f)]
+    public float uiTopMarginNormalized = 0.12f;
     [Tooltip("3D şekil spawn Z offseti — negatif değer şekli kameraya yaklaştırır.")]
     public float shapeZOffset = -1f;
 

@@ -45,7 +45,9 @@ public class LiquidTransfer : MonoBehaviour
 
     public void UpdateVisuals()
     {
-        fillAmount = Mathf.Lerp(-0.5f, 0.5f, (float)currentSlices / maxSlices);
+        float t = (float)currentSlices / maxSlices;
+        float visualT = t + 0.12f * (1f - t); // Az doluysa daha fazla boost, çok doluysa az boost
+        fillAmount = Mathf.Lerp(-0.5f, 0.5f, visualT);
 
         if (_renderers == null) _renderers = GetComponentsInChildren<Renderer>();
         if (_propBlock == null) _propBlock = new MaterialPropertyBlock();

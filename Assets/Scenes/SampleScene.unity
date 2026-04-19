@@ -2255,13 +2255,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 963194225}
   serializedVersion: 2
-  m_LocalRotation: {x: -0.17364825, y: 0, z: 0, w: 0.9848078}
+  m_LocalRotation: {x: -0.08715578, y: 0, z: 0, w: 0.9961947}
   m_LocalPosition: {x: 0, y: 0.17, z: -10.55}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: -20, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: -10, y: 0, z: 0}
 --- !u!114 &1006199567 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 5659027918565697179, guid: 48062912f29680864b86f7a4474afbec, type: 3}
@@ -3548,6 +3548,7 @@ MonoBehaviour:
   cameraPadding: 1
   cameraZoomFactor: 0.75
   cameraVerticalOffset: 0.5
+  uiTopMarginNormalized: 0.12
   shapeZOffset: 5
   levelText: {fileID: 1595179919}
   globalFont: {fileID: 11400000, guid: 5302535af1044152a457ed104f1f4b91, type: 2}

@@ -212,27 +212,38 @@ public partial class GridSpawner
             float h = combinedBounds.size.y + cameraPadding * 2f;
             float w = combinedBounds.size.x + cameraPadding * 2f;
 
+            // uiTopMarginNormalized: ekranın üst kısmında UI'ın kapladığı oran (0–1).
+            // Oyun alanı yalnızca kalan (1 - margin) yüksekliğe sığdırılır ve
+            // kamera merkezi aşağı kaydırılarak üst UI'ın altında ortalanır.
+            float uiMargin = Mathf.Clamp01(uiTopMarginNormalized);
+
             if (cam.orthographic)
             {
-                float sizeByHeight = h / 2f;
+                float playableHeightRatio = 1f - uiMargin;
+                float sizeByHeight = (h / 2f) / playableHeightRatio;
                 float sizeByWidth = (w / 2f) / cam.aspect;
                 float targetSize = Mathf.Max(sizeByHeight, sizeByWidth) * cameraZoomFactor;
 
                 cam.DOOrthoSize(targetSize, 0.6f).SetEase(Ease.OutCubic);
 
                 Vector3 camTarget = combinedBounds.center;
+                // Kamera merkezini UI yüksekliğinin yarısı kadar aşağı kaydır
+                camTarget.y -= targetSize * uiMargin;
                 camTarget.y += cameraVerticalOffset;
                 camTarget.z = cam.transform.position.z;
                 cam.transform.DOMove(camTarget, 0.6f).SetEase(Ease.OutCubic);
             }
             else
             {
+                float playableHeightRatio = 1f - uiMargin;
                 float halfFovRad = cam.fieldOfView * 0.5f * Mathf.Deg2Rad;
-                float distByHeight = (h / 2f) / Mathf.Tan(halfFovRad);
+                float distByHeight = (h / 2f) / (Mathf.Tan(halfFovRad) * playableHeightRatio);
                 float distByWidth  = (w / 2f) / (Mathf.Tan(halfFovRad) * cam.aspect);
                 float targetDistance = Mathf.Max(distByHeight, distByWidth) * cameraZoomFactor;
 
                 Vector3 baseTarget = combinedBounds.center;
+                // Perspektif kamerada da merkezi UI yüksekliğine orantılı kaydır
+                baseTarget.y -= (targetDistance * Mathf.Tan(halfFovRad)) * uiMargin;
                 baseTarget.y += cameraVerticalOffset;
                 cam.transform.DOMove(baseTarget - cam.transform.forward * targetDistance, 0.6f).SetEase(Ease.OutCubic);
             }
