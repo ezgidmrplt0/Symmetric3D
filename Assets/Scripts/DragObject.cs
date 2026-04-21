@@ -98,7 +98,7 @@ public partial class DragObject : MonoBehaviour
         {
             // İkonu merkeze al, parçanın biraz önünde durması için z değerini koru
             rotateIcon.transform.position = transform.position + new Vector3(0, 0, -0.3f);
-            rotateIcon.transform.rotation = Quaternion.identity;
+            rotateIcon.transform.rotation = transform.rotation;
         }
     }
 
