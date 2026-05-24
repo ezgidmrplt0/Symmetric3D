@@ -17,6 +17,8 @@ public class LevelTimer : MonoBehaviour
     private float currentTime;
     private bool isRunning = false;
 
+    public float CurrentTime => currentTime;
+
     void Awake()
     {
         Instance = this;

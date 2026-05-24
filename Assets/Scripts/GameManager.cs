@@ -29,6 +29,8 @@ public class GameManager : MonoBehaviour
     // Aynı level içinde çift tetiklenmeyi önler
     private bool levelCompleting = false;
 
+    private float levelStartTime = 0f;
+
     [HideInInspector] public bool hitProgressHundred;   // Bu level'da 100% barajı aşıldı mı?
 
     public bool IsLevelCompleting => levelCompleting;
@@ -103,6 +105,12 @@ public class GameManager : MonoBehaviour
 
         SaveProgress();
 
+        int levelIndex = PlayerPrefs.GetInt("CurrentLevelIndex", 0);
+        float duration = Time.realtimeSinceStartup - levelStartTime;
+        float timeRemaining = LevelTimer.Instance != null ? LevelTimer.Instance.CurrentTime : 0f;
+        FirebaseManager.Instance?.LogLevelComplete(levelIndex, duration, timeRemaining);
+        FirebaseManager.Instance?.SetTotalLevelsCompleted(lifetimeProgress / progressPerLevel);
+
         // Panel'i tetikle
         OnLevelCompleted.Invoke();
     }
@@ -115,6 +123,10 @@ public class GameManager : MonoBehaviour
         if (levelCompleting) return;
         levelCompleting = true;
 
+        int levelIndex = PlayerPrefs.GetInt("CurrentLevelIndex", 0);
+        float duration = Time.realtimeSinceStartup - levelStartTime;
+        FirebaseManager.Instance?.LogLevelFail(levelIndex, duration);
+
         OnLevelFailed.Invoke();
     }
 
@@ -125,8 +137,13 @@ public class GameManager : MonoBehaviour
     {
         levelCompleting = false;
         hitProgressHundred = false;
+        levelStartTime = Time.realtimeSinceStartup;
         PlayerPrefs.SetInt(LEVEL_COMPLETING_KEY, 0);
         PlayerPrefs.Save();
+
+        int levelIndex = PlayerPrefs.GetInt("CurrentLevelIndex", 0);
+        FirebaseManager.Instance?.LogLevelStart(levelIndex);
+        FirebaseManager.Instance?.SetCurrentLevel(levelIndex);
     }
 
     /// <summary>
