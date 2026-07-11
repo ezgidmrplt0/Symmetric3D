@@ -144,6 +144,7 @@ public class GameManager : MonoBehaviour
         int levelIndex = PlayerPrefs.GetInt("CurrentLevelIndex", 0);
         FirebaseManager.Instance?.LogLevelStart(levelIndex);
         FirebaseManager.Instance?.SetCurrentLevel(levelIndex);
+        FirebaseManager.Instance?.SetFarthestLevel(levelIndex);
     }
 
     /// <summary>
