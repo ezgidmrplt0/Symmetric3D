@@ -87,6 +87,9 @@ public partial class GridSpawner : MonoBehaviour
         if (levels != null && currentLevelIndex >= levels.Count)
             currentLevelIndex = 0;
 
+        // İlk açılışta mevcut level başlangıcını logla
+        GameManager.Instance?.ResetLevelState();
+
         if (levelText == null)
         {
             GameObject levelObj = GameObject.Find("LEVEL");
@@ -129,8 +132,6 @@ public partial class GridSpawner : MonoBehaviour
 
     public void NextLevel()
     {
-        GameManager.Instance?.ResetLevelState();
-
         if (levels == null || levels.Count == 0)
         {
             return;
@@ -172,6 +173,9 @@ public partial class GridSpawner : MonoBehaviour
         currentLevelIndex = next;
         PlayerPrefs.SetInt("CurrentLevelIndex", currentLevelIndex);
         PlayerPrefs.Save();
+
+        // Yeni level başlangıcını DOĞRU index ile logla
+        GameManager.Instance?.ResetLevelState();
 
         SpawnCurrentLevel();
     }

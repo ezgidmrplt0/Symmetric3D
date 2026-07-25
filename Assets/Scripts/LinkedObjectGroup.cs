@@ -20,6 +20,7 @@ public class LinkedObjectGroup : MonoBehaviour
     public List<DragObject> childDrags = new List<DragObject>();
     private GameObject backPanel;
     private bool backPanelFading = false;
+    private bool groupIsHorizontal = true;
 
     // Drag başında hesaplanan child world offset'leri (drag boyunca sabit kalır)
     private List<Vector3> dragChildOffsets = new List<Vector3>();
@@ -42,6 +43,12 @@ public class LinkedObjectGroup : MonoBehaviour
                 childDrags.Add(d);
                 d.enabled = false;
             }
+        }
+
+        if (childDrags.Count >= 2)
+        {
+            Vector3 diff = childDrags[1].transform.localPosition - childDrags[0].transform.localPosition;
+            groupIsHorizontal = Mathf.Abs(diff.x) >= Mathf.Abs(diff.y);
         }
 
         CreateBackPanel();
@@ -203,10 +210,12 @@ public class LinkedObjectGroup : MonoBehaviour
     {
         // Temizle (Destroy olan objeler null olur)
         childDrags.RemoveAll(item => item == null);
-        
+
         // Sadece 1 obje kalırsa linked grubunu çöz, objeyi serbest bırak
+        DragObject survivor = null;
         if (childDrags.Count == 1 && childDrags[0] != null)
         {
+            survivor = childDrags[0]; // Clear'dan önce kaydet
             childDrags[0].OnUnlinked();
             childDrags.Clear();
         }
@@ -217,9 +226,17 @@ public class LinkedObjectGroup : MonoBehaviour
             backPanelFading = true;
             GameObject panelToDestroy = backPanel;
             backPanel = null;
-            panelToDestroy.transform.DOScale(Vector3.zero, 0.25f)
-                .SetEase(Ease.InBack)
-                .OnComplete(() => { if (panelToDestroy != null) Destroy(panelToDestroy); });
+
+            MeshRenderer mr = panelToDestroy.GetComponent<MeshRenderer>();
+            if (mr != null)
+            {
+                mr.material.DOFade(0f, 0.35f)
+                    .OnComplete(() => { if (panelToDestroy != null) Destroy(panelToDestroy); });
+            }
+            else
+            {
+                Destroy(panelToDestroy);
+            }
         }
 
         if (childDrags.Count == 0) return;

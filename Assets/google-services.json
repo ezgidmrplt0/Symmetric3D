@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1072257512883",
+    "project_id": "colormatch3d",
+    "storage_bucket": "colormatch3d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1072257512883:android:b3f127feaa88a579c1c7c6",
+        "android_client_info": {
+          "package_name": "com.Fogbound.ColorMatch3D"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAWCNMt_Wsq9Ti82ygckuXjd0CwdT0WDyY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

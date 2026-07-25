@@ -243,6 +243,9 @@ public class LevelPanelManager : MonoBehaviour
 
     void OnRetryClicked()
     {
+        int levelIndex = PlayerPrefs.GetInt("CurrentLevelIndex", 0);
+        FirebaseManager.Instance?.LogLevelRetry(levelIndex);
+
         failPanelRoot.transform.DOScale(0f, 0.2f).SetEase(Ease.InBack).SetUpdate(true).OnComplete(() =>
         {
             failPanelRoot.SetActive(false);
@@ -260,6 +263,9 @@ public class LevelPanelManager : MonoBehaviour
         // Fail paneli açıksa kapat
         if (failPanelRoot != null && failPanelRoot.activeInHierarchy)
             failPanelRoot.SetActive(false);
+
+        int levelIndex = PlayerPrefs.GetInt("CurrentLevelIndex", 0);
+        FirebaseManager.Instance?.LogLevelReset(levelIndex);
 
         GameManager.Instance?.ResetLevelState();
         if (gridSpawner == null) gridSpawner = FindObjectOfType<GridSpawner>();
