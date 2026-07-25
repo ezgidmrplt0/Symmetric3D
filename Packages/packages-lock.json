@@ -10,6 +10,12 @@
       },
       "hash": "d76a8df311c48263872be0cd3e6a8ef1a0fa8e59"
     },
+    "com.fogboundgames.levelforge": {
+      "version": "file:com.fogboundgames.levelforge",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {}
+    },
     "com.unity.burst": {
       "version": "1.8.21",
       "depth": 1,
