@@ -49,28 +49,16 @@ public class Symmetric3DDifficultyEvaluator : IDifficultyEvaluator<Symmetric3DCa
                 distinctColors.Add(p.liquidColor);
         }
 
-        int mixablePairs = 0;
-        for (int i = 0; i < distinctColors.Count; i++)
-            for (int j = i + 1; j < distinctColors.Count; j++)
-                if (ColorMixData.TryGetMix(distinctColors[i], distinctColors[j], out _))
-                    mixablePairs++;
-
-        // ColorMix kapalıysa mix çiftleri oynanışı etkilemez (aynı renk gerekir), o yüzden sadece
-        // ColorMix açıkken karmaşıklığa eklenir.
-        float colorComplexity = distinctColors.Count + (level.levelType.HasFlag(LevelData.LevelType.ColorMix) ? mixablePairs : 0);
+        float colorComplexity = distinctColors.Count;
 
         int activeMechanicFlags = 0;
-        if (level.levelType.HasFlag(LevelData.LevelType.QuarterFill)) activeMechanicFlags++;
-        if (level.levelType.HasFlag(LevelData.LevelType.ColorMix)) activeMechanicFlags++;
-        if (level.levelType.HasFlag(LevelData.LevelType.Shadow)) activeMechanicFlags++;
         if (level.levelType.HasFlag(LevelData.LevelType.Rotation)) activeMechanicFlags++;
         if (level.levelType.HasFlag(LevelData.LevelType.Linked)) activeMechanicFlags++;
 
         int linkedCount = pieces.Count(p => p.linkId > 0);
         float linkedRatio = pieceCount > 0 ? (float)linkedCount / pieceCount : 0f;
-        int shadowPairCount = level.shadowTransferPairs?.Count ?? 0;
 
-        float mechanicComplexity = activeMechanicFlags + linkedRatio * 3f + shadowPairCount * 0.5f
+        float mechanicComplexity = activeMechanicFlags + linkedRatio * 3f
             + (level.boardMode == LevelData.BoardMode.Shape3D ? 1f : 0f);
 
         float avgSlicesNeeded = pieceCount > 0

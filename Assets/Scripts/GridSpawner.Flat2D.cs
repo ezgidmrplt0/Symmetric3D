@@ -71,12 +71,6 @@ public partial class GridSpawner
         groups.Clear(); // Yeni level için grupları temizle
         foreach (var piece in level.pieces)
         {
-            if (piece.isShadowTrigger)
-            {
-                pendingPieces.Add(piece);
-                continue;
-            }
-
             Vector3 piecePos = new Vector3(
                 piece.gridPosition.x * (gridSize + spacing) - offsetX,
                 piece.gridPosition.y * (gridSize + spacing) - offsetY,
@@ -94,18 +88,19 @@ public partial class GridSpawner
                 dobj.canRotate = piece.canRotate;
             }
 
+            // Group ekleme
             if (piece.linkId > 0)
             {
                 if (!groups.ContainsKey(piece.linkId))
                 {
-                    GameObject groupObj = new GameObject("LinkedGroup_" + piece.linkId);
-                    groupObj.transform.parent = transform;
-                    groupObj.transform.position = transform.position;
-                    LinkedObjectGroup log = groupObj.AddComponent<LinkedObjectGroup>();
+                    GameObject grpObj = new GameObject("LinkedGroup_" + piece.linkId);
+                    grpObj.transform.parent = transform;
+                    grpObj.transform.position = transform.position;
+                    LinkedObjectGroup log = grpObj.AddComponent<LinkedObjectGroup>();
                     groups[piece.linkId] = log;
-                    activeSpawnedObjects.Add(groupObj);
+                    activeSpawnedObjects.Add(grpObj);
                 }
-                newObj.transform.parent = groups[piece.linkId].transform;
+                newObj.transform.SetParent(groups[piece.linkId].transform, true);
             }
 
             LiquidTransfer lt = newObj.GetComponentInChildren<LiquidTransfer>();
@@ -113,8 +108,6 @@ public partial class GridSpawner
             {
                 lt.liquidColor     = piece.liquidColor;
                 lt.currentSlices   = piece.currentSlices;
-                lt.isShadowTrigger = piece.isShadowTrigger;
-                lt.spawnShadowAfterLinkID = piece.spawnShadowAfterLinkID;
                 lt.initialGridPos = piece.gridPosition;
                 lt.initialFaceIndex = piece.faceIndex;
             }

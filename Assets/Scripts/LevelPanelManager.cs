@@ -172,38 +172,71 @@ public class LevelPanelManager : MonoBehaviour
             nextLevelButton.interactable = true;
         }
 
-        bool showBar = GameManager.Instance.HadMechanicsToUnlock();
-        if (progressBarImage != null) progressBarImage.gameObject.SetActive(showBar);
-        if (progressText != null) progressText.gameObject.SetActive(showBar);
-        if (newMechanicUnlockBanner != null) newMechanicUnlockBanner.SetActive(false);
+        // Yeni mekanik kilit açılması var mı (%100 ulaşıldı mı?)
+        LevelData.LevelType unlockedType = LevelData.LevelType.Classic;
+        bool hasNewUnlock = GameManager.Instance.hitProgressHundred &&
+                           GameManager.Instance.GetTypeForProgress(GameManager.Instance.lifetimeProgress, out unlockedType);
 
-        UpdateNextMechanicPreview();
-
-        if (!showBar) return;
-
-        SetFill(GameManager.Instance.previousTotalProgress / 100f);
-
-        DOVirtual.DelayedCall(0.5f, () =>
+        if (hasNewUnlock)
         {
-            DOTween.To(() => currentFill, x => SetFill(x), GameManager.Instance.totalProgress / 100f, barAnimDuration)
-                .SetEase(Ease.OutCubic).SetUpdate(true)
-                .OnComplete(() =>
+            // %100 ULAŞILDI: Tek panelde Yeni Mekanik Açıldı bilgisini göster
+            if (newMechanicUnlockBanner != null)
+            {
+                newMechanicUnlockBanner.SetActive(true);
+                newMechanicUnlockBanner.transform.localScale = Vector3.zero;
+                newMechanicUnlockBanner.transform.DOScale(1f, 0.4f).SetEase(Ease.OutBack).SetUpdate(true);
+            }
+
+            if (nextMechanicLabel != null)
+            {
+                nextMechanicLabel.gameObject.SetActive(true);
+                nextMechanicLabel.text = "NEW MECHANIC UNLOCKED!";
+            }
+
+            if (progressBarImage != null) progressBarImage.gameObject.SetActive(true);
+            if (progressText != null)
+            {
+                progressText.gameObject.SetActive(true);
+                progressText.text = "%100";
+            }
+            SetFill(1f);
+
+            Sprite unlockSprite = GetIconForType(unlockedType);
+            if (nextMechanicPreviewImage != null)
+            {
+                if (unlockSprite != null)
                 {
-                    LevelData.LevelType displayType = LevelData.LevelType.Classic;
-                    bool hasNewUnlock = GameManager.Instance.hitProgressHundred &&
-                                       GameManager.Instance.GetTypeForProgress(GameManager.Instance.lifetimeProgress, out displayType);
+                    nextMechanicPreviewImage.sprite   = unlockSprite;
+                    nextMechanicPreviewImage.material = null;
+                    nextMechanicPreviewImage.color    = Color.white;
+                    nextMechanicPreviewImage.gameObject.SetActive(true);
+                }
+                else
+                {
+                    nextMechanicPreviewImage.gameObject.SetActive(false);
+                }
+            }
+        }
+        else
+        {
+            // ARA SEVİYELER (%20, %40, %60, %80):
+            // Mekanik kartını ve progress barı tamamen gizle. Sadece sade LEVEL COMPLETED + NEXT LEVEL göster.
+            if (progressBarImage != null) progressBarImage.gameObject.SetActive(false);
+            if (progressText != null) progressText.gameObject.SetActive(false);
+            if (newMechanicUnlockBanner != null) newMechanicUnlockBanner.SetActive(false);
+            if (nextMechanicPreviewImage != null) nextMechanicPreviewImage.gameObject.SetActive(false);
+            if (nextMechanicLabel != null) nextMechanicLabel.gameObject.SetActive(false);
+        }
+    }
 
-                    if (hasNewUnlock && newMechanicUnlockBanner != null)
-                    {
-                        newMechanicUnlockBanner.SetActive(true);
-                        newMechanicUnlockBanner.transform.localScale = Vector3.zero;
-                        newMechanicUnlockBanner.transform.DOScale(1f, 0.4f).SetEase(Ease.OutBack).SetUpdate(true);
-                    }
-
-                    if (hasNewUnlock)
-                        ShowUnlockPopup(displayType);
-                });
-        }).SetUpdate(true);
+    Sprite GetIconForType(LevelData.LevelType type)
+    {
+        foreach (var item in mechanicIcons)
+        {
+            if (item.levelType == type || type.HasFlag(item.levelType))
+                return item.icon;
+        }
+        return null;
     }
 
     void SetFill(float value)
@@ -322,12 +355,18 @@ public class LevelPanelManager : MonoBehaviour
     {
         if (nextMechanicPreviewImage == null) return;
 
-        if (GameManager.Instance.GetNextMechanicToUnlock(out LevelData.LevelType nextType))
+        if (GameManager.Instance != null && GameManager.Instance.GetNextMechanicToUnlock(out LevelData.LevelType nextType))
         {
-            // Henüz açılmamış mekanik var → gri silüet göster
+            // Henüz açılmamış mekanik var → ikonu göster
             Sprite previewSprite = null;
             foreach (var item in mechanicIcons)
-                if (nextType.HasFlag(item.levelType)) { previewSprite = item.icon; break; }
+            {
+                if (item.levelType == nextType || nextType.HasFlag(item.levelType))
+                {
+                    previewSprite = item.icon;
+                    break;
+                }
+            }
 
             if (previewSprite != null)
             {

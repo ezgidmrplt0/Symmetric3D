@@ -339,15 +339,9 @@ MonoBehaviour:
   unlockOkButton: {fileID: 439255492}
   mechanicIcons:
   - levelType: 2
-    icon: {fileID: 21300000, guid: 2deaf3ded09cf4d058b4f9c78f538eba, type: 3}
-  - levelType: 4
-    icon: {fileID: 21300000, guid: 69c30c879e8abfe41810d19faff5648b, type: 3}
-  - levelType: 8
-    icon: {fileID: 21300000, guid: ec7b2c57e3649425daf4e1306f07af04, type: 3}
-  - levelType: 32
-    icon: {fileID: 21300000, guid: 16b993c1039a756ae8dcd406da5cd102, type: 3}
-  - levelType: 16
     icon: {fileID: 21300000, guid: 544cfab31d5c268f9933b5afa2da5fb0, type: 3}
+  - levelType: 4
+    icon: {fileID: 21300000, guid: 16b993c1039a756ae8dcd406da5cd102, type: 3}
   nextMechanicPreviewImage: {fileID: 1787539203}
   shufflePreviewSprite: {fileID: 21300000, guid: dbaaa5d7211bf3558b78cd348b4a2436, type: 3}
   nextMechanicLabel: {fileID: 1539384557}
@@ -486,7 +480,7 @@ MonoBehaviour:
   specialTutorialPanel: {fileID: 1946927219}
   specialTutorialText: {fileID: 579435840}
   transferTutorialLevelIndex: 5
-  transferTutorialTriggerSlices: 1
+  transferTutorialTriggerSlices: 2
   transferFreezeDelay: 0.35
   forbiddenDropXIcon: {fileID: 25392587}
   transferArrowUI: {fileID: 1357163343}
@@ -501,51 +495,24 @@ MonoBehaviour:
     - {x: 0, y: 0}
     handOffset: {x: 0, y: 0}
     showSpecialPanel: 0
-    specialText: 
-  - levelDisplayName: 'level 6 '
-    levelAsset: {fileID: 11400000, guid: d6c6dbffb0804a24db712756e2b7ed6f, type: 2}
+    specialText: ''
+  - levelDisplayName: level 6
+    levelAsset: {fileID: 11400000, guid: a8e7637a56f4b3d42acdbb0a5f6fd9ba, type: 2}
     levelIndex: 5
     path:
-    - {x: 4, y: 1}
-    - {x: 0, y: 1}
-    handOffset: {x: 0, y: 100}
-    showSpecialPanel: 1
-    specialText: 
+    - {x: 0, y: 0}
+    handOffset: {x: 0, y: 0}
+    showSpecialPanel: 0
+    specialText: ''
   - levelDisplayName: level 11
     levelAsset: {fileID: 11400000, guid: 3145c75249bb51b40997cf1e0d163aef, type: 2}
     levelIndex: 10
     path:
-    - {x: 0, y: 2}
-    - {x: 0, y: 1}
+    - {x: 1, y: 1}
+    - {x: 2, y: 1}
     handOffset: {x: 0, y: 0}
     showSpecialPanel: 0
-    specialText: 
-  - levelDisplayName: level 16
-    levelAsset: {fileID: 11400000, guid: f1cf99b3fd8b4374c97a5549d7c55ceb, type: 2}
-    levelIndex: 15
-    path:
-    - {x: 1, y: 0}
-    - {x: 0, y: 1}
-    handOffset: {x: 0, y: -40}
-    showSpecialPanel: 0
-    specialText: 
-  - levelDisplayName: level 21
-    levelAsset: {fileID: 11400000, guid: 07cc547b1fdcc3548b858f8983cb9043, type: 2}
-    levelIndex: 20
-    path:
-    - {x: 0, y: 0}
-    - {x: 0, y: 1}
-    handOffset: {x: 40, y: -40}
-    showSpecialPanel: 0
-    specialText: 
-  - levelDisplayName: level 26
-    levelAsset: {fileID: 11400000, guid: 5d583454f56773a418ff626f3453ff60, type: 2}
-    levelIndex: 25
-    path:
-    - {x: 0, y: 1}
-    handOffset: {x: 0, y: 0}
-    showSpecialPanel: 0
-    specialText: 
+    specialText: ''
   durationPerSegment: 0.8
 --- !u!1 &98113296
 GameObject:

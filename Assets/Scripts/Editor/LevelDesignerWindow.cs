@@ -11,20 +11,11 @@ public class LevelDesignerWindow : EditorWindow
     private Color brushColor = new Color(0.8f, 0.1f, 0.1f);
     private int brushSlices = 1;
     private float brushRotationZ = 0f;
-    private bool brushIsShadowTrigger = false;
     private int brushLinkId = 0;
-    private int brushSpawnShadowAfterLinkID = 0;
     private bool brushCanRotate = false;
 
 
     private bool isGridEditMode = false;
-    private bool isShadowPairMode = false;
-    private bool isPickingFirst = true;
-    private bool isPickingAB = true;
-    private Vector2Int firstPickPos;
-    private int firstPickFace;
-    private Vector2Int secondPickPos;
-    private int secondPickFace;
 
     private int currentFaceIndex = 0;
 
@@ -112,22 +103,12 @@ public class LevelDesignerWindow : EditorWindow
             EditorUtility.SetDirty(currentLevel);
         }
 
-        // Türe göre açıklama göster
         if (currentLevel.levelType.HasFlag(LevelData.LevelType.Classic))
             EditorGUILayout.HelpBox("Classic — Kaydır ve eşleştir.  |  Açılma: Her zaman açık", MessageType.None);
-        
-        if (currentLevel.levelType.HasFlag(LevelData.LevelType.QuarterFill))
-            EditorGUILayout.HelpBox("QuarterFill — Çeyrek dolu obje mekaniği.  |  Açılma: %100", MessageType.None);
-        
-        if (currentLevel.levelType.HasFlag(LevelData.LevelType.ColorMix))
-            EditorGUILayout.HelpBox("ColorMix — Farklı renklerin birleşimiyle yeni renkler oluşturun.", MessageType.None);
-        
-        if (currentLevel.levelType.HasFlag(LevelData.LevelType.Shadow))
-            EditorGUILayout.HelpBox("Shadow — Tek kalan parçalar (isShadowTrigger) diğer eşleşmeler bittiğinde eşlerini doğurur.", MessageType.None);
-        
+
         if (currentLevel.levelType.HasFlag(LevelData.LevelType.Rotation))
             EditorGUILayout.HelpBox("Rotation — Parçalar tıklandığında 90 derece döner. Sürükleme de aktiftir.", MessageType.None);
-        
+
         if (currentLevel.levelType.HasFlag(LevelData.LevelType.Linked))
             EditorGUILayout.HelpBox("Linked — Aynı 'Bağlantı Grubu'na sahip objeler birbirine yapışır ve çoklu blok mantığıyla (2'li, 3'lü vb.) grup halinde hareket ederler.", MessageType.None);
 
@@ -253,64 +234,6 @@ public class LevelDesignerWindow : EditorWindow
         }
 
         GUILayout.Space(6);
-        DrawSectionHeader("🔗 Shadow Transfer Triggers");
-
-        GUI.backgroundColor = isShadowPairMode ? Color.magenta : Color.white;
-        if (GUILayout.Button(isShadowPairMode ? "✅ Shadow Pair Seçme Modu: AÇIK" : "⬛ Shadow Pair Seçme Modu: KAPALI", GUILayout.Height(30)))
-        {
-            isShadowPairMode = !isShadowPairMode;
-            isPickingFirst = true;
-            if (isShadowPairMode) isGridEditMode = false;
-        }
-        GUI.backgroundColor = oldGuiColor;
-
-        if (isShadowPairMode)
-        {
-            if (isPickingFirst)
-                EditorGUILayout.HelpBox("1/3. TETİKLEYİCİ - Birinci Objeyi Seçin (Haritadan tıklayın)", MessageType.Info);
-            else if (isPickingAB)
-                EditorGUILayout.HelpBox($"1. Obje Seçildi: ({firstPickPos.x},{firstPickPos.y}). 2/3. TETİKLEYİCİ - İkinci Objeyi Seçin.", MessageType.Warning);
-            else
-                EditorGUILayout.HelpBox($"İki Tetikleyici Seçildi. 3/3. GÖLGE - Doğacak Shadow parçasına (S) tıklayın.", MessageType.Error);
-
-            if (GUILayout.Button("Seçimi Sıfırla")) { isPickingFirst = true; isPickingAB = true; }
-        }
-
-        if (currentLevel.shadowTransferPairs.Count > 0)
-        {
-            for (int i = 0; i < currentLevel.shadowTransferPairs.Count; i++)
-            {
-                var pair = currentLevel.shadowTransferPairs[i];
-                EditorGUILayout.BeginHorizontal(EditorStyles.helpBox);
-
-                string label = $"Pair {i+1}: ({pair.posA.x},{pair.posA.y})[F{pair.faceA}] ↔ ({pair.posB.x},{pair.posB.y})[F{pair.faceB}]";
-                EditorGUILayout.LabelField(label);
-
-                EditorGUI.BeginChangeCheck();
-                int newSpawnId = EditorGUILayout.IntSlider("Spawn LinkID", pair.shadowToSpawnLinkId, 0, 99);
-                if (EditorGUI.EndChangeCheck())
-                {
-                    Undo.RecordObject(currentLevel, "Change Spawn LinkID");
-                    pair.shadowToSpawnLinkId = newSpawnId;
-                    EditorUtility.SetDirty(currentLevel);
-                }
-
-                if (GUILayout.Button("X", GUILayout.Width(20)))
-                {
-                    Undo.RecordObject(currentLevel, "Remove Pair");
-                    currentLevel.shadowTransferPairs.RemoveAt(i);
-                    EditorUtility.SetDirty(currentLevel);
-                    break;
-                }
-                EditorGUILayout.EndHorizontal();
-            }
-        }
-        else
-        {
-            EditorGUILayout.HelpBox("Henüz transfer trigger tanımlanmamış.", MessageType.None);
-        }
-
-        GUILayout.Space(6);
 
         // ── 4. BÖLÜM: Fırça Ayarları ─────────────────────────────
         DrawSectionHeader("🖌️ Fırça (Brush) Ayarları");
@@ -381,23 +304,6 @@ public class LevelDesignerWindow : EditorWindow
         currentRotIndex = EditorGUILayout.Popup("Baktığı Yön", currentRotIndex, rotOptions);
         brushRotationZ = rotValues[currentRotIndex];
         
-        if (currentLevel.levelType.HasFlag(LevelData.LevelType.Shadow))
-        {
-            brushIsShadowTrigger = EditorGUILayout.Toggle("Shadow Trigger?", brushIsShadowTrigger);
-            if (brushIsShadowTrigger)
-            {
-                brushSpawnShadowAfterLinkID = EditorGUILayout.IntSlider("Hangi Linkten Sonra? (0=Sonra)", brushSpawnShadowAfterLinkID, 0, 99);
-                if (brushSpawnShadowAfterLinkID > 0)
-                    EditorGUILayout.HelpBox($"Bu gölge, Link {brushSpawnShadowAfterLinkID} grubu temizlendiğinde doğacak.", MessageType.None);
-                else
-                    EditorGUILayout.HelpBox("Bu gölge, en sonda (hiç parça kalmadığında) doğacak.", MessageType.None);
-            }
-        }
-        else
-        {
-            brushIsShadowTrigger = false;
-        }
-
         if (currentLevel.levelType.HasFlag(LevelData.LevelType.Linked))
         {
             GUILayout.Space(2);
@@ -447,31 +353,6 @@ public class LevelDesignerWindow : EditorWindow
 
         GUILayout.Space(4);
         DrawGrid();
-
-        GUILayout.Space(6);
-
-        // ── Shadow Validasyonu ────────────────────────────────────
-        if (currentLevel.levelType.HasFlag(LevelData.LevelType.Shadow))
-        {
-            foreach (var piece in currentLevel.pieces)
-            {
-                if (!piece.isShadowTrigger || piece.spawnShadowAfterLinkID <= 0) continue;
-                
-                bool hasLink = currentLevel.pieces.Exists(p => p.linkId == piece.spawnShadowAfterLinkID && !p.isShadowTrigger);
-                bool hasTransferTrigger = currentLevel.shadowTransferPairs.Exists(pair => pair.shadowToSpawnLinkId == piece.spawnShadowAfterLinkID);
-
-                if (hasTransferTrigger)
-                {
-                    EditorGUILayout.HelpBox($"✅ ({piece.gridPosition.x},{piece.gridPosition.y}) shadow trigger → Bir Transfer Çiftine bağlı durumda.", MessageType.Info);
-                }
-                else if (!hasLink)
-                {
-                    EditorGUILayout.HelpBox(
-                        $"⚠️ ({piece.gridPosition.x},{piece.gridPosition.y}) shadow trigger → Link {piece.spawnShadowAfterLinkID}'i bekliyor ama bu linkId'ye sahip normal parça yok. İlk transferde hemen spawn olabilir.",
-                        MessageType.Warning);
-                }
-            }
-        }
 
         GUILayout.Space(10);
 
@@ -570,12 +451,9 @@ public class LevelDesignerWindow : EditorWindow
                             _ => piece.currentSlices.ToString() + "/4"
                         };
                         string linkTxt = piece.linkId > 0 ? $"\n[L{piece.linkId}]" : "";
-                        string shadowTxt = piece.isShadowTrigger ? "\n(S)" : "";
-                        if (piece.isShadowTrigger && piece.spawnShadowAfterLinkID > 0)
-                            shadowTxt += $"[A:{piece.spawnShadowAfterLinkID}]";
                         string rotateTxt = (currentLevel.levelType.HasFlag(LevelData.LevelType.Rotation) && piece.canRotate) ? "\n[R]" : "";
 
-                        buttonText = $"{sliceLabel}\n{yon}{linkTxt}{shadowTxt}{rotateTxt}";
+                        buttonText = $"{sliceLabel}\n{yon}{linkTxt}{rotateTxt}";
                     }
                     else
                     {
@@ -585,14 +463,6 @@ public class LevelDesignerWindow : EditorWindow
                 else
                 {
                     buttonText = "—";
-                }
-
-                // Highlight in shadow pair mode
-                if (isShadowPairMode)
-                {
-                    bool isA = !isPickingFirst && pos == firstPickPos && currentFaceIndex == firstPickFace;
-                    bool isB = !isPickingAB && pos == secondPickPos && currentFaceIndex == secondPickFace;
-                    if (isA || isB) bgColor = Color.magenta;
                 }
 
                 GUI.backgroundColor = bgColor;
@@ -637,60 +507,6 @@ public class LevelDesignerWindow : EditorWindow
                         }
                         EditorUtility.SetDirty(currentLevel);
                     }
-                    else if (isShadowPairMode)
-                    {
-                        if (piece == null)
-                        {
-                            Debug.LogWarning("Boş bir hücreyi seçim için kullanamazsınız.");
-                        }
-                        else
-                        {
-                            if (isPickingFirst)
-                            {
-                                firstPickPos = piece.gridPosition;
-                                firstPickFace = piece.faceIndex;
-                                isPickingFirst = false;
-                            }
-                            else if (isPickingAB)
-                            {
-                                // İkinci obje (B) seçildi
-                                if (piece.gridPosition == firstPickPos && piece.faceIndex == firstPickFace)
-                                {
-                                    Debug.LogWarning("Aynı objeyi iki kez seçemezsiniz.");
-                                }
-                                else
-                                {
-                                    secondPickPos = piece.gridPosition;
-                                    secondPickFace = piece.faceIndex;
-                                    isPickingAB = false;
-                                }
-                            }
-                            else
-                            {
-                                // Üçüncü obje (Shadow) seçildi
-                                if (!piece.isShadowTrigger)
-                                {
-                                    Debug.LogWarning("Seçtiğiniz parça bir Shadow Trigger değil! Lütfen (S) işaretli bir parça seçin.");
-                                }
-                                else
-                                {
-                                    Undo.RecordObject(currentLevel, "Add Shadow Pair With Shadow");
-                                    currentLevel.shadowTransferPairs.Add(new LevelData.ShadowTransferPair
-                                    {
-                                        posA = firstPickPos,
-                                        faceA = firstPickFace,
-                                        posB = secondPickPos,
-                                        faceB = secondPickFace,
-                                        shadowToSpawnLinkId = piece.spawnShadowAfterLinkID // Seçilen gölgenin beklediği link ID'yi al
-                                    });
-                                    EditorUtility.SetDirty(currentLevel);
-                                    isPickingFirst = true;
-                                    isPickingAB = true;
-                                    Debug.Log($"Shadow Transfer Pair eklendi! Tetikleyenler: ({firstPickPos.x},{firstPickPos.y}) & ({secondPickPos.x},{secondPickPos.y}) | Gölge Link: {piece.spawnShadowAfterLinkID}");
-                                }
-                            }
-                        }
-                    }
                     else if (isCellActive)
                     {
                         if (e.button == 0) // Left click
@@ -706,9 +522,7 @@ public class LevelDesignerWindow : EditorWindow
                             piece.liquidColor = brushColor;
                             piece.currentSlices = brushSlices;
                             piece.rotationZ = brushRotationZ;
-                            piece.isShadowTrigger = brushIsShadowTrigger;
                             piece.linkId = brushLinkId;
-                            piece.spawnShadowAfterLinkID = brushSpawnShadowAfterLinkID;
                             piece.canRotate = brushCanRotate;
                             if (currentLevel.boardMode == LevelData.BoardMode.Shape3D) piece.faceIndex = currentFaceIndex;
 
@@ -766,9 +580,6 @@ public class LevelDesignerWindow : EditorWindow
 
     private int[] GetAvailableSlices(LevelData.LevelType type)
     {
-        if (type.HasFlag(LevelData.LevelType.QuarterFill))
-            return new int[] { 1, 2, 4 };
-        
-        return new int[] { 2, 4 }; // Classic ve ColorMix modlarında sadece Yarım ve Tam
+        return new int[] { 2, 4 };
     }
 }

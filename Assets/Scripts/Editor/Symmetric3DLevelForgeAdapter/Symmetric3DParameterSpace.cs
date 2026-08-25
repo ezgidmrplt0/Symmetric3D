@@ -27,10 +27,7 @@ public class Symmetric3DParameterSpace : IParameterSpace<Symmetric3DGenerationPa
         p.maxSlices = Mathf.RoundToInt(Mathf.Clamp(p.maxSlices + direction * 0.3f, 1f, 4f));
         // 'rotationEnabled' bool — yön bilgisi anlamlı değil, deneme indeksine göre keşif amaçlı değiştirilir.
         if (hint.attemptIndex % 2 == 1) p.rotationEnabled = !p.rotationEnabled;
-        // 'colorMixEnabled' bool — yön bilgisi anlamlı değil, deneme indeksine göre keşif amaçlı değiştirilir.
-        if (hint.attemptIndex % 2 == 1) p.colorMixEnabled = !p.colorMixEnabled;
         p.linkedRatio = Mathf.Clamp(p.linkedRatio + direction * 0.05f, 0f, 0.5f);
-        p.shadowTriggerCount = Mathf.RoundToInt(Mathf.Clamp(p.shadowTriggerCount + direction * 0.6f, 0f, 6f));
 
         return p;
     }

@@ -151,12 +151,6 @@ public partial class GridSpawner
         groups.Clear(); // Yeni level için grupları temizle
         foreach (var piece in level.pieces)
         {
-            if (piece.isShadowTrigger)
-            {
-                pendingPieces.Add(piece);
-                continue;
-            }
-
             if (piece.faceIndex < 0 || piece.faceIndex >= def.FaceCount) continue;
 
             ShapeFaceMarker marker = def.GetFace(piece.faceIndex);
@@ -235,8 +229,6 @@ public partial class GridSpawner
             {
                 lt.liquidColor     = piece.liquidColor;
                 lt.currentSlices   = piece.currentSlices;
-                lt.isShadowTrigger = piece.isShadowTrigger;
-                lt.spawnShadowAfterLinkID = piece.spawnShadowAfterLinkID;
                 lt.initialGridPos = piece.gridPosition;
                 lt.initialFaceIndex = piece.faceIndex;
             }

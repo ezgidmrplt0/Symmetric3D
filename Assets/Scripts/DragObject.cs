@@ -262,6 +262,7 @@ public partial class DragObject : MonoBehaviour
                 .SetEase(Ease.OutBack)
                 .OnComplete(() =>
                 {
+                    TutorialManager.Instance?.OnPieceRotated(this);
                     LiquidTransfer lt = GetComponentInChildren<LiquidTransfer>();
                     if (lt != null) lt.CheckSymmetry();
                 });

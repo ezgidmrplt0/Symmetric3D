@@ -16,13 +16,9 @@ public struct Symmetric3DGenerationParams
     public int maxSlices;
     // Rotation mekaniği açık mı (LevelData.LevelType.Rotation)
     public bool rotationEnabled;
-    // ColorMix mekaniği açık mı (LevelData.LevelType.ColorMix, farklı renkler tarif ile karışır)
-    public bool colorMixEnabled;
     // Parçaların ne kadarının birbirine bağlı (linkId>0) olacağı
     public float linkedRatio;
-    // Kaç adet shadow-transfer tetikleyici çifti olacağı
-    public int shadowTriggerCount;
 
     public override string ToString()
-        => $"pieceCount={pieceCount} distinctColorCount={distinctColorCount} maxSlices={maxSlices} rotationEnabled={rotationEnabled} colorMixEnabled={colorMixEnabled} linkedRatio={linkedRatio} shadowTriggerCount={shadowTriggerCount}";
+        => $"pieceCount={pieceCount} distinctColorCount={distinctColorCount} maxSlices={maxSlices} rotationEnabled={rotationEnabled} linkedRatio={linkedRatio}";
 }

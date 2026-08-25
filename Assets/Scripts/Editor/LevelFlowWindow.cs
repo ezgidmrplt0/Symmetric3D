@@ -16,11 +16,8 @@ public class LevelFlowWindow : EditorWindow
     // Her LevelType için renk kodu
     private static readonly Dictionary<LevelData.LevelType, Color> typeColors = new()
     {
-        { LevelData.LevelType.Classic,     new Color(0.4f,  0.4f,  0.4f)  }, // Koyu Gri
-        { LevelData.LevelType.QuarterFill, new Color(0.8f,  0.4f,  0.1f)  }, // Turuncu/Kahve
-        { LevelData.LevelType.ColorMix,    new Color(0.2f,  0.5f,  0.8f)  }, // Mavi
-        { LevelData.LevelType.Shadow,      new Color(0.6f,  0.3f,  0.8f)  }, // Mor
-        { LevelData.LevelType.Rotation,    new Color(0.2f,  0.7f,  0.4f)  }, // Yeşil
+        { LevelData.LevelType.Classic,  new Color(0.4f,  0.4f,  0.4f)  }, // Koyu Gri
+        { LevelData.LevelType.Rotation, new Color(0.2f,  0.7f,  0.4f)  }, // Yeşil
     };
 
     private Color GetTypeColor(LevelData.LevelType type)

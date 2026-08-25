@@ -12,12 +12,8 @@ public class LiquidTransfer : MonoBehaviour
     public float maxAdjacencyDistance = 1.6f; 
 
     [Header("Dilim (Slice) Ayarları")]
-    public int currentSlices = 1;
+    public int currentSlices = 2;
     public int maxSlices = 4;
-    public bool isShadowTrigger = false;
-    public int spawnShadowAfterLinkID = 0; // Bu Link Grubu temizlendiğinde gölgeyi doğur
-    public bool isShadowChild = false;
-    public bool shadowSpawned = false;
 
     private static MaterialPropertyBlock _propBlock;
     private Renderer[] _renderers;
@@ -45,6 +41,7 @@ public class LiquidTransfer : MonoBehaviour
 
     public void UpdateVisuals()
     {
+        if (currentSlices > 0 && currentSlices < 2) currentSlices = 2;
         float t = (float)currentSlices / maxSlices;
         float visualT = t + 0.12f * (1f - t); // Az doluysa daha fazla boost, çok doluysa az boost
         fillAmount = Mathf.Lerp(-0.5f, 0.5f, visualT);
@@ -86,21 +83,7 @@ public class LiquidTransfer : MonoBehaviour
     {
         if (this == null || transferring || IsParentDragging()) return;
 
-        // Aktif level türünü al
-        GridSpawner spawner = FindObjectOfType<GridSpawner>();
-        LevelData.LevelType levelType = spawner != null
-            ? spawner.CurrentLevelType
-            : LevelData.LevelType.Classic;
-
-        if (levelType.HasFlag(LevelData.LevelType.ColorMix))
-        {
-            CheckColorMix();
-        }
-        
-        if (levelType.HasFlag(LevelData.LevelType.Classic))
-        {
-            CheckClassicSymmetry();
-        }
+        CheckClassicSymmetry();
 
         // Eğer bir hamle (transfer) başlamadıysa, oyunun tıkanıp tıkanmadığını kontrol et
         if (!transferring)
@@ -131,36 +114,6 @@ public class LiquidTransfer : MonoBehaviour
 
                 StartTransfer(other);
                 break;
-            }
-        }
-    }
-
-    // ── ColorMix Mod ─────────────────────────────────────────────
-    void CheckColorMix()
-    {
-        if (transferring || currentSlices >= maxSlices) return;
-
-        LiquidTransfer[] allLiquids = FindObjectsOfType<LiquidTransfer>();
-
-        foreach (LiquidTransfer other in allLiquids)
-        {
-            if (other == this || other == null || other.transferring || other.IsParentDragging() || other.currentSlices <= 0) continue;
-
-            // Aynı renk birleşmez (Kullanıcı isteğiyle kapatıldı)
-            if (ColorMixData.ColorsMatch(other.liquidColor, this.liquidColor)) continue;
-
-            // Tarife göre karışım kontrolü
-            if (ColorMixData.TryGetMix(this.liquidColor, other.liquidColor, out Color mixResult))
-            {
-                // Karışım var ama bakış yönleri mi tutmuyor?
-                if (IsAdjacentFaceToFace(other))
-                {
-                    StartColorMix(other, mixResult);
-                    break;
-                }
-                else
-                {
-                }
             }
         }
     }
@@ -200,87 +153,6 @@ public class LiquidTransfer : MonoBehaviour
         return false;
     }
 
-    // ── ColorMix Transfer ────────────────────────────────────────
-    void StartColorMix(LiquidTransfer giver, Color mixedColor)
-    {
-        transferring = true;
-        giver.transferring = true;
-
-        VibrationManager.TryVibrate();
-
-        int needed = maxSlices - this.currentSlices;
-        int takeAmount = Mathf.Min(needed, giver.currentSlices);
-
-        this.currentSlices += takeAmount;
-        giver.currentSlices -= takeAmount;
-        
-        // Receiver'ın yeni rengini ve miktarını güncelle
-        this.liquidColor = mixedColor;
-
-        CheckTriggerPairs(giver);
-
-        float myTargetFill = Mathf.Lerp(-0.5f, 0.5f, (float)this.currentSlices / maxSlices);
-        float giverTargetFill = Mathf.Lerp(-0.5f, 0.5f, (float)giver.currentSlices / maxSlices);
-
-        // Receiver'ın rengini materyal üzerinden hemen güncelle
-        if (liquidMat != null)
-        {
-            liquidMat.SetColor("_LiquidColor", mixedColor);
-            liquidMat.SetColor("_ColorA",      mixedColor);
-        }
-
-        Sequence seq = DOTween.Sequence();
-
-        // Giver boşalsın
-        seq.Join(DOTween.To(() => giver.fillAmount, x => giver.fillAmount = x, giverTargetFill, transferDuration)
-            .OnUpdate(() => { if (giver != null) giver.ApplyPropertyBlock(); }));
-
-        // Receiver yeni rengiyle dolsun
-        seq.Join(DOTween.To(() => this.fillAmount, x => this.fillAmount = x, myTargetFill, transferDuration)
-            .OnUpdate(() => { if (this != null) this.ApplyPropertyBlock(); }));
-
-        seq.OnComplete(() =>
-        {
-            // Giver tamamen boşaldıysa yok et
-            if (giver != null)
-            {
-                if (giver.currentSlices <= 0)
-                {
-                    if (giver.transform.parent != null)
-                        giver.transform.parent.DOScale(0f, 0.2f).OnComplete(() =>
-                        {
-                            giver.transferring = false;
-                            Destroy(giver.transform.parent.gameObject);
-                            CheckLevelComplete();
-                        });
-                }
-                else
-                {
-                    giver.transferring = false;
-                }
-            }
-
-            // Receiver tamamen dolduysa yok et
-            if (this != null)
-            {
-                if (this.currentSlices >= maxSlices)
-                {
-                    if (this.transform.parent != null)
-                        this.transform.parent.DOScale(0f, 0.2f).OnComplete(() =>
-                        {
-                            this.transferring = false;
-                            Destroy(this.transform.parent.gameObject);
-                            CheckLevelComplete();
-                        });
-                }
-                else
-                {
-                    this.transferring = false;
-                }
-            }
-        });
-    }
-
     // ── Classic Transfer ─────────────────────────────────────────
     public void StartTransfer(LiquidTransfer giver)
     {
@@ -294,8 +166,6 @@ public class LiquidTransfer : MonoBehaviour
 
         this.currentSlices += takeAmount;
         giver.currentSlices -= takeAmount;
-
-        CheckTriggerPairs(giver);
 
         float myTargetFill = Mathf.Lerp(-0.5f, 0.5f, (float)this.currentSlices / maxSlices);
         float giverTargetFill = Mathf.Lerp(-0.5f, 0.5f, (float)giver.currentSlices / maxSlices);
@@ -385,66 +255,9 @@ public class LiquidTransfer : MonoBehaviour
             // Hâlâ parça var or some pieces are still transferring
             if (remaining.Count > 0)
             {
-                
-                GridSpawner spawner = FindObjectOfType<GridSpawner>();
-                DragObject[] allObjectsOnBoard = FindObjectsOfType<DragObject>();
-
-                // Bekleyen parçaları spawn et
-                HashSet<int> existingLinkIds = new HashSet<int>();
-                foreach(var ao in allObjectsOnBoard) if(ao != null && ao.linkId > 0) existingLinkIds.Add(ao.linkId);
-
-                if (spawner != null)
-                {
-                    foreach (int id in spawner.GetPendingSpawnIds())
-                    {
-                        if (!existingLinkIds.Contains(id))
-                            spawner.TrySpawnPending(id);
-                    }
-                }
-
                 // Hamle kalıp kalmadığını kontrol et
                 FindObjectOfType<GridSpawner>()?.CheckForFail();
             }
         });
-    }
-
-    private void CheckTriggerPairs(LiquidTransfer other)
-    {
-        GridSpawner spawner = FindObjectOfType<GridSpawner>();
-        if (spawner == null || spawner.levels == null || spawner.currentLevelIndex >= spawner.levels.Count) return;
-
-        LevelData level = spawner.levels[spawner.currentLevelIndex];
-
-        if (level.shadowTransferPairs == null || level.shadowTransferPairs.Count == 0) return;
-
-        foreach (var pair in level.shadowTransferPairs)
-        {
-            bool match = false;
-            if (this.initialGridPos == pair.posA && this.initialFaceIndex == pair.faceA &&
-                other.initialGridPos == pair.posB && other.initialFaceIndex == pair.faceB)
-                match = true;
-            else if (this.initialGridPos == pair.posB && this.initialFaceIndex == pair.faceB &&
-                     other.initialGridPos == pair.posA && other.initialFaceIndex == pair.faceA)
-                match = true;
-
-            if (!match) continue;
-
-            // Birleşim sonucunu (alıcı = this) şimdi yakala — giver yok edilmeden önce.
-            Color mergeColor  = this.liquidColor;
-            int   mergeSlices = this.currentSlices;
-            float mergeRotZ   = this.transform.eulerAngles.z;
-
-            if (pair.isDynamic)
-            {
-                // Rastgele boş hücreye spawn et.
-                DG.Tweening.DOVirtual.DelayedCall(0.75f,
-                    () => spawner.SpawnDynamicShadow(mergeColor, mergeSlices, mergeRotZ));
-            }
-            else
-            {
-                // Belirli pozisyona (pending piece) spawn et; tam zıttı kullan.
-                spawner.TrySpawnPendingAsMergeResult(pair.shadowToSpawnLinkId, mergeColor, mergeSlices, mergeRotZ);
-            }
-        }
     }
 }

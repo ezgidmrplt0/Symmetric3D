@@ -1,6 +1,8 @@
 using UnityEngine;
+#if ENABLE_FIREBASE
 using Firebase.Firestore;
 using Firebase.Extensions;
+#endif
 using System;
 using System.Collections.Generic;
 
@@ -24,7 +26,9 @@ public class FirestoreAnalytics : MonoBehaviour
     private const string DOC_PROFILE         = "profile";
 
     // ── Özel Durum ────────────────────────────────────────────────
+#if ENABLE_FIREBASE
     private FirebaseFirestore db;
+#endif
     private bool isReady = false;
 
     private string userId;
@@ -53,7 +57,9 @@ public class FirestoreAnalytics : MonoBehaviour
     /// </summary>
     public void Initialize()
     {
+#if ENABLE_FIREBASE
         db = FirebaseFirestore.DefaultInstance;
+#endif
         userId = SystemInfo.deviceUniqueIdentifier;
         sessionId = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss_") + UnityEngine.Random.Range(1000, 9999);
         sessionStartTime = DateTime.UtcNow;
@@ -73,6 +79,7 @@ public class FirestoreAnalytics : MonoBehaviour
     {
         if (!isReady) return;
 
+#if ENABLE_FIREBASE
         DocumentReference profileRef = db
             .Collection(COLLECTION_USERS).Document(userId)
             .Collection("meta").Document(DOC_PROFILE);
@@ -126,6 +133,7 @@ public class FirestoreAnalytics : MonoBehaviour
                 UpdateRootDoc(new Dictionary<string, object> { { "last_seen", now } });
             }
         });
+#endif
     }
 
     /// <summary>
@@ -133,8 +141,10 @@ public class FirestoreAnalytics : MonoBehaviour
     /// </summary>
     private void WriteRootDoc(Dictionary<string, object> data)
     {
+#if ENABLE_FIREBASE
         db.Collection(COLLECTION_USERS).Document(userId)
           .SetAsync(data, SetOptions.MergeAll);
+#endif
     }
 
     /// <summary>
@@ -142,8 +152,10 @@ public class FirestoreAnalytics : MonoBehaviour
     /// </summary>
     private void UpdateRootDoc(Dictionary<string, object> updates)
     {
+#if ENABLE_FIREBASE
         updates["last_seen"] = Timestamp.FromDateTime(DateTime.UtcNow);
         db.Collection(COLLECTION_USERS).Document(userId).UpdateAsync(updates);
+#endif
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -154,6 +166,7 @@ public class FirestoreAnalytics : MonoBehaviour
     {
         if (!isReady) return;
 
+#if ENABLE_FIREBASE
         var data = new Dictionary<string, object>
         {
             { "start_time",         Timestamp.FromDateTime(sessionStartTime) },
@@ -172,6 +185,7 @@ public class FirestoreAnalytics : MonoBehaviour
         db.Collection(COLLECTION_USERS).Document(userId)
           .Collection("meta").Document(DOC_PROFILE)
           .UpdateAsync("total_sessions", FieldValue.Increment(1));
+#endif
     }
 
     private void EndSession(bool fromPause = false)
@@ -187,6 +201,7 @@ public class FirestoreAnalytics : MonoBehaviour
 
         double durationSeconds = (DateTime.UtcNow - sessionStartTime).TotalSeconds;
 
+#if ENABLE_FIREBASE
         var updates = new Dictionary<string, object>
         {
             { "end_time",         Timestamp.FromDateTime(DateTime.UtcNow) },
@@ -198,16 +213,19 @@ public class FirestoreAnalytics : MonoBehaviour
         db.Collection(COLLECTION_USERS).Document(userId)
           .Collection(COLLECTION_SESSIONS).Document(sessionId)
           .UpdateAsync(updates);
+#endif
     }
 
     private void AddPlayTime(double seconds)
     {
         if (!isReady || seconds <= 0) return;
         
+#if ENABLE_FIREBASE
         double minutes = seconds / 60.0;
         db.Collection(COLLECTION_USERS).Document(userId)
           .Collection("meta").Document(DOC_PROFILE)
           .UpdateAsync("total_play_minutes", FieldValue.Increment(minutes));
+#endif
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -223,6 +241,7 @@ public class FirestoreAnalytics : MonoBehaviour
         levelActive         = true;
         levelsPlayedThisSession++;
 
+#if ENABLE_FIREBASE
         DocumentReference levelRef = GetLevelRef(levelIndex);
 
         // İlk kez mi bu level?
@@ -275,6 +294,7 @@ public class FirestoreAnalytics : MonoBehaviour
                         .UpdateAsync("farthest_level", levelIndex);
               }
           });
+#endif
     }
 
     public void LogLevelComplete(int levelIndex, float durationSeconds)
@@ -282,6 +302,7 @@ public class FirestoreAnalytics : MonoBehaviour
         if (!isReady) return;
         levelActive = false;
 
+#if ENABLE_FIREBASE
         var updates = new Dictionary<string, object>
         {
             { "completions",      FieldValue.Increment(1) },
@@ -310,6 +331,7 @@ public class FirestoreAnalytics : MonoBehaviour
         {
             { "farthest_level", FieldValue.Increment(0) } // last_seen zaten UpdateRootDoc'ta güncelleniyor
         });
+#endif
 
         AddPlayTime(durationSeconds);
     }
@@ -319,6 +341,7 @@ public class FirestoreAnalytics : MonoBehaviour
         if (!isReady) return;
         levelActive = false;
 
+#if ENABLE_FIREBASE
         GetLevelRef(levelIndex).UpdateAsync(new Dictionary<string, object>
         {
             { "fails",            FieldValue.Increment(1) },
@@ -334,6 +357,7 @@ public class FirestoreAnalytics : MonoBehaviour
         {
             { "total_fails", FieldValue.Increment(1) }
         });
+#endif
 
         AddPlayTime(durationSeconds);
     }
@@ -348,6 +372,7 @@ public class FirestoreAnalytics : MonoBehaviour
             elapsedSeconds = (DateTime.UtcNow - levelStartTime).TotalSeconds;
         }
 
+#if ENABLE_FIREBASE
         var updates = new Dictionary<string, object>
         {
             { "retries",           FieldValue.Increment(1) }
@@ -355,7 +380,6 @@ public class FirestoreAnalytics : MonoBehaviour
         if (elapsedSeconds > 0)
         {
             updates["total_time_spent"] = FieldValue.Increment((long)elapsedSeconds);
-            AddPlayTime(elapsedSeconds);
         }
 
         GetLevelRef(levelIndex).UpdateAsync(updates);
@@ -363,6 +387,12 @@ public class FirestoreAnalytics : MonoBehaviour
         db.Collection(COLLECTION_USERS).Document(userId)
           .Collection("meta").Document(DOC_PROFILE)
           .UpdateAsync("total_retries", FieldValue.Increment(1));
+#endif
+
+        if (elapsedSeconds > 0)
+        {
+            AddPlayTime(elapsedSeconds);
+        }
 
         // Yeni attempt başlıyor
         levelStartTime = DateTime.UtcNow;
@@ -379,6 +409,7 @@ public class FirestoreAnalytics : MonoBehaviour
             elapsedSeconds = (DateTime.UtcNow - levelStartTime).TotalSeconds;
         }
 
+#if ENABLE_FIREBASE
         var updates = new Dictionary<string, object>
         {
             { "resets",           FieldValue.Increment(1) }
@@ -386,7 +417,6 @@ public class FirestoreAnalytics : MonoBehaviour
         if (elapsedSeconds > 0)
         {
             updates["total_time_spent"] = FieldValue.Increment((long)elapsedSeconds);
-            AddPlayTime(elapsedSeconds);
         }
 
         GetLevelRef(levelIndex).UpdateAsync(updates);
@@ -394,6 +424,12 @@ public class FirestoreAnalytics : MonoBehaviour
         db.Collection(COLLECTION_USERS).Document(userId)
           .Collection("meta").Document(DOC_PROFILE)
           .UpdateAsync("total_resets", FieldValue.Increment(1));
+#endif
+
+        if (elapsedSeconds > 0)
+        {
+            AddPlayTime(elapsedSeconds);
+        }
 
         // Reset = tekrar başlıyor
         levelStartTime = DateTime.UtcNow;
@@ -405,6 +441,7 @@ public class FirestoreAnalytics : MonoBehaviour
         if (!isReady || levelIndex < 0) return;
         levelActive = false;
 
+#if ENABLE_FIREBASE
         GetLevelRef(levelIndex).UpdateAsync(new Dictionary<string, object>
         {
             { "quits",            FieldValue.Increment(1) },
@@ -415,6 +452,7 @@ public class FirestoreAnalytics : MonoBehaviour
         db.Collection(COLLECTION_USERS).Document(userId)
           .Collection("meta").Document(DOC_PROFILE)
           .UpdateAsync("last_level_quit", levelIndex);
+#endif
 
         AddPlayTime(durationSeconds);
     }
@@ -458,9 +496,11 @@ public class FirestoreAnalytics : MonoBehaviour
     // YARDIMCI
     // ─────────────────────────────────────────────────────────────
 
+#if ENABLE_FIREBASE
     private DocumentReference GetLevelRef(int levelIndex)
     {
         return db.Collection(COLLECTION_USERS).Document(userId)
                  .Collection(COLLECTION_LEVELS).Document(levelIndex.ToString());
     }
+#endif
 }

@@ -17,9 +17,9 @@ public class LevelSequenceData : ScriptableObject
     [Header("Level Türü Ayarları")]
     public List<LevelTypeConfig> typeConfigs = new List<LevelTypeConfig>()
     {
-        new LevelTypeConfig { levelType = LevelData.LevelType.Classic,     unlockAtProgress = 0   },
-        new LevelTypeConfig { levelType = LevelData.LevelType.QuarterFill, unlockAtProgress = 100 },
-        new LevelTypeConfig { levelType = LevelData.LevelType.ColorMix,    unlockAtProgress = 100 },
+        new LevelTypeConfig { levelType = LevelData.LevelType.Classic,  unlockAtProgress = 0   },
+        new LevelTypeConfig { levelType = LevelData.LevelType.Rotation, unlockAtProgress = 100 },
+        new LevelTypeConfig { levelType = LevelData.LevelType.Linked,   unlockAtProgress = 200 },
     };
 
     // ── Sıralı Level Listesi ─────────────────────────────────────

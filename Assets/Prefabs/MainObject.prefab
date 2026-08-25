@@ -281,7 +281,7 @@ MonoBehaviour:
   fillAmount: 0
   transferDuration: 0.5
   maxAdjacencyDistance: 1
-  currentSlices: 1
+  currentSlices: 2
   maxSlices: 4
   isShadowTrigger: 0
   spawnShadowAfterLinkID: 0

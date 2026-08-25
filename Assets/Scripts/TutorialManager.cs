@@ -29,13 +29,12 @@ public class TutorialManager : MonoBehaviour
     [Header("Özel Seviye 6 Tutorial")]
     public GameObject specialTutorialPanel;
     public TextMeshProUGUI specialTutorialText;
-    private bool specialTutorialClosedForThisLevel = false;
 
     [Header("Transfer Yönü Tutorial")]
     [Tooltip("Hangi level index'inde aktif olsun (0 tabanlı, Level 6 = 5)")]
     public int transferTutorialLevelIndex = 5;
-    [Tooltip("Tutorial sadece giver bu kadar slice'a sahipken tetiklensin (1 = çeyrek, 2 = yarım)")]
-    public int transferTutorialTriggerSlices = 1;
+    [Tooltip("Tutorial sadece giver bu kadar slice'a sahipken tetiklensin (2 = yarım)")]
+    public int transferTutorialTriggerSlices = 2;
     [Tooltip("Bırakıldıktan kaç saniye sonra oyun donsun (sıvı animasyonunun yerleşmesi için)")]
     public float transferFreezeDelay = 0.35f;
     public RectTransform forbiddenDropXIcon;    // Yanlış hamle X ikonu (UI Image)
@@ -60,6 +59,7 @@ public class TutorialManager : MonoBehaviour
     private LevelTutorial activeTutorial;
     private Vector2 lastTrackedOffset;
     private int lastTrackedLevelIndex = -1;
+    private int _rotationTutorialStep = 0;
 
     private void Awake()
     {
@@ -108,7 +108,7 @@ public class TutorialManager : MonoBehaviour
         if (levelChanged || (hasTut && currentTut.handOffset != lastTrackedOffset))
         {
             lastTrackedLevelIndex = spawner.currentLevelIndex;
-            specialTutorialClosedForThisLevel = false;
+            _rotationTutorialStep = 0;
 
             if (hasTut) lastTrackedOffset = currentTut.handOffset;
 
@@ -151,30 +151,30 @@ public class TutorialManager : MonoBehaviour
             return;
         }
 
-        // --- ÖZEL PANEL KONTROLÜ ---
-        if (activeTutorial.showSpecialPanel && !specialTutorialClosedForThisLevel)
+        // --- LEVEL 6 ROTATION TUTORIAL ADIMLARI ---
+        if (spawner.currentLevelIndex == 5 || (currentLevel != null && currentLevel.name.Contains("Rotation")))
         {
-            if (specialTutorialPanel != null)
+            if (_rotationTutorialStep == 0)
             {
-                specialTutorialPanel.SetActive(true);
-                specialTutorialPanel.transform.localScale = Vector3.zero;
-                specialTutorialPanel.transform.DOScale(1f, 0.35f).SetEase(Ease.OutBack).SetUpdate(true);
-
-                if (specialTutorialText != null && !string.IsNullOrEmpty(activeTutorial.specialText))
-                {
-                    specialTutorialText.text = activeTutorial.specialText;
-                }
-
-                // Normal tutorial elini gizle
-                if (handImage != null) handImage.gameObject.SetActive(false);
-                if (currentSeq != null) currentSeq.Kill();
-                return; // Normal tutorial'a devam etme (OK butonuna basınca gelicek)
+                // Adım 1: Objenin üzerine tek dokunuş (Tap / Rotate)
+                activeTutorial.path = new Vector2Int[] { new Vector2Int(0, 0) };
+            }
+            else
+            {
+                // Adım 2: Objeyi sağdaki boş hücreye sürükleme (Drag / Transfer)
+                activeTutorial.path = new Vector2Int[] { new Vector2Int(0, 0), new Vector2Int(1, 0) };
             }
         }
-        else
+
+        // --- LEVEL 11 LINKED TUTORIAL ADIMLARI ---
+        if (spawner.currentLevelIndex == 10 || (currentLevel != null && currentLevel.name.Contains("Linked")))
         {
-            if (specialTutorialPanel != null) specialTutorialPanel.SetActive(false);
+            // Mor parçadan (1, 1) sağdaki boş hücreye (2, 1) 1 grid sağa sürükle
+            activeTutorial.path = new Vector2Int[] { new Vector2Int(1, 1), new Vector2Int(2, 1) };
         }
+
+        // --- ÖZEL PANEL KONTROLÜ (KAPALI) ---
+        if (specialTutorialPanel != null) specialTutorialPanel.SetActive(false);
 
         lastTrackedOffset = activeTutorial.handOffset;
 
@@ -579,7 +579,6 @@ public class TutorialManager : MonoBehaviour
 
     public void OnSpecialTutorialOKPressed()
     {
-        specialTutorialClosedForThisLevel = true;
         if (specialTutorialPanel != null)
         {
             specialTutorialPanel.transform.DOKill();
@@ -592,6 +591,22 @@ public class TutorialManager : MonoBehaviour
         else
         {
             StartTutorial();
+        }
+    }
+
+    public void OnPieceRotated(DragObject piece)
+    {
+        GridSpawner spawner = FindObjectOfType<GridSpawner>();
+        if (spawner == null) return;
+
+        LevelData currentLevel = (spawner.currentLevelIndex < spawner.levels.Count) ? spawner.levels[spawner.currentLevelIndex] : null;
+        if (spawner.currentLevelIndex == 5 || (currentLevel != null && currentLevel.name.Contains("Rotation")))
+        {
+            if (_rotationTutorialStep == 0)
+            {
+                _rotationTutorialStep = 1;
+                StartTutorial();
+            }
         }
     }
 }

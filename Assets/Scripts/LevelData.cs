@@ -7,12 +7,9 @@ public class LevelData : ScriptableObject
     [System.Flags]
     public enum LevelType
     {
-        Classic = 1 << 0,
-        QuarterFill = 1 << 1,
-        ColorMix = 1 << 2,
-        Shadow = 1 << 3,
-        Rotation = 1 << 4,
-        Linked = 1 << 5
+        Classic  = 1 << 0,
+        Rotation = 1 << 1,
+        Linked   = 1 << 2
     }
 
     public enum BoardMode
@@ -40,22 +37,9 @@ public class LevelData : ScriptableObject
         public Color liquidColor = Color.white;
         public int currentSlices = 1;
         public float rotationZ = 0f;
-        public bool isShadowTrigger = false;
-        public int spawnShadowAfterLinkID = 0;
         public int linkId = 0;
         [HideInInspector]
         public bool canRotate = true;
-    }
-
-    [System.Serializable]
-    public class ShadowTransferPair
-    {
-        public Vector2Int posA;
-        public int faceA;
-        public Vector2Int posB;
-        public int faceB;
-        public int shadowToSpawnLinkId; // Bu Link ID'ye sahip gölge parçaları spawn olur
-        public bool isDynamic;          // true → shadow renk/rotasyonu birleşim sonucundan otomatik türetilir
     }
 
     [Header("Level Bilgileri")]
@@ -77,10 +61,6 @@ public class LevelData : ScriptableObject
 
     [Header("Parçalar")]
     public List<PieceData> pieces = new List<PieceData>();
-
-    [Header("Shadow Tansfer Triggers")]
-    public List<ShadowTransferPair> shadowTransferPairs = new List<ShadowTransferPair>();
-    public bool lastRemainingShadow; // true → gridde tek obje kalınca tam zıttı spawn olur
 
     public bool IsUnlocked(LevelSequenceData sequence, int currentProgress)
     {
