@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c59920f407dc8f14785c8fd032f0cff0, type: 3}
   m_Name: Linked
   m_EditorClassIdentifier: 
-  levelDisplayName: Level_11
+  levelDisplayName: Linked
   levelType: 5
   timeLimit: 150
   boardMode: 0

@@ -1,5 +1,7 @@
 using UnityEngine;
 using UnityEditor;
+using System.Collections.Generic;
+using System.IO;
 
 public class LevelDesignerWindow : EditorWindow
 {
@@ -14,11 +16,8 @@ public class LevelDesignerWindow : EditorWindow
     private int brushLinkId = 0;
     private bool brushCanRotate = false;
 
-
     private bool isGridEditMode = false;
-
     private int currentFaceIndex = 0;
-
     private Vector2 scrollPos;
 
     [MenuItem("Symmetric3D/Level Tasarımcısı")]
@@ -56,25 +55,13 @@ public class LevelDesignerWindow : EditorWindow
         GUILayout.Label("🎮 Symmetric3D — Level Tasarımcısı", titleStyle);
         GUILayout.Space(4);
 
-        // ── Level Seçimi ─────────────────────────────────────────
-        EditorGUI.BeginChangeCheck();
-        currentLevel = (LevelData)EditorGUILayout.ObjectField("Düzenlenen Level", currentLevel, typeof(LevelData), false);
-        if (EditorGUI.EndChangeCheck() && currentLevel != null)
-        {
-            if (currentLevel.boardMode == LevelData.BoardMode.Flat2D)
-            {
-                gridX = currentLevel.gridX;
-                gridY = currentLevel.gridY;
-            }
-        }
-
+        // ── 🚀 Hızlı Level Yönetim & Oluşturma Paneli ────────────────
+        DrawQuickLevelPanel();
         GUILayout.Space(6);
 
         if (currentLevel == null)
         {
-            EditorGUILayout.HelpBox("Çizim yapmak için bir Level Data seçin veya yeni oluşturun.", MessageType.Info);
-            if (GUILayout.Button("Yeni Level Dosyası Oluştur", GUILayout.Height(36)))
-                CreateNewLevel();
+            EditorGUILayout.HelpBox("Çizim yapmak için yukarıdaki '⚡ Hızlı Level Oluştur' butonuna basın veya bir Level Data seçin.", MessageType.Info);
             return;
         }
 
@@ -344,7 +331,7 @@ public class LevelDesignerWindow : EditorWindow
 
         GUILayout.Space(6);
 
-        // ── 4. BÖLÜM: Harita / Grid ──────────────────────────────
+        // ── 5. BÖLÜM: Harita / Grid ──────────────────────────────
         DrawSectionHeader("🗺️ Harita");
 
         EditorGUILayout.BeginHorizontal();
@@ -358,7 +345,7 @@ public class LevelDesignerWindow : EditorWindow
 
         // ── Alt butonlar ─────────────────────────────────────────
         EditorGUILayout.BeginHorizontal();
-        if (GUILayout.Button("🗑️ Tüm Parçaları Temizle", GUILayout.Height(30)))
+        if (GUILayout.Button("🗑️ Tüm Parçaları Temizle", GUILayout.Height(32)))
         {
             if (EditorUtility.DisplayDialog("Emin misin?", "Tüm parçalar silinecek.", "Sil", "İptal"))
             {
@@ -367,14 +354,335 @@ public class LevelDesignerWindow : EditorWindow
                 EditorUtility.SetDirty(currentLevel);
             }
         }
-        if (GUILayout.Button("💾 Kaydet", GUILayout.Height(30)))
+        if (GUILayout.Button("💾 Kaydet", GUILayout.Height(32)))
         {
-            AssetDatabase.SaveAssets();
-            Debug.Log($"[LevelDesigner] '{currentLevel.levelDisplayName}' kaydedildi.");
+            SaveCurrentLevel();
         }
+
+        Color prevColor = GUI.backgroundColor;
+        GUI.backgroundColor = new Color(0.2f, 0.7f, 0.9f); // Mavi aksanlı Seri Kaydet & Yeniye Geç
+        if (GUILayout.Button("⚡ Kaydet & Hızlı Yeni Level'a Geç", GUILayout.Height(32)))
+        {
+            SaveCurrentLevel();
+            CreateQuickNewLevel(duplicateCurrent: false);
+        }
+        GUI.backgroundColor = prevColor;
+
         EditorGUILayout.EndHorizontal();
 
         EditorGUILayout.EndScrollView();
+    }
+
+    // ─── HIZLI LEVEL OLUŞTURMA & YÖNETİMİ ─────────────────────────
+
+    private void DrawQuickLevelPanel()
+    {
+        DrawSectionHeader("✨ Level Yönetimi & Hızlı Oluşturma");
+
+        EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+
+        // Satır 1: Önceki | Level Objesi Seçici | Sonraki
+        EditorGUILayout.BeginHorizontal();
+        if (GUILayout.Button("◀ Önceki", GUILayout.Width(75), GUILayout.Height(24)))
+        {
+            NavigateLevel(-1);
+        }
+
+        EditorGUI.BeginChangeCheck();
+        currentLevel = (LevelData)EditorGUILayout.ObjectField(currentLevel, typeof(LevelData), false, GUILayout.Height(24));
+        if (EditorGUI.EndChangeCheck() && currentLevel != null)
+        {
+            if (currentLevel.boardMode == LevelData.BoardMode.Flat2D)
+            {
+                gridX = currentLevel.gridX;
+                gridY = currentLevel.gridY;
+            }
+        }
+
+        if (GUILayout.Button("Sonraki ▶", GUILayout.Width(75), GUILayout.Height(24)))
+        {
+            NavigateLevel(1);
+        }
+        EditorGUILayout.EndHorizontal();
+
+        GUILayout.Space(4);
+
+        // Satır 2: ⚡ Hızlı Level Oluştur (Level_XX) | 📋 Kopyala (Çoğalt) | 📁 Manuel Oluştur
+        EditorGUILayout.BeginHorizontal();
+
+        string nextLevelName = GetNextLevelDefaultName();
+
+        Color oldColor = GUI.backgroundColor;
+        GUI.backgroundColor = new Color(0.3f, 0.8f, 0.4f); // Yeşil dikkat çekici hızlı buton
+        if (GUILayout.Button($"⚡ Hızlı Level Oluştur ({nextLevelName})", GUILayout.Height(32)))
+        {
+            CreateQuickNewLevel(duplicateCurrent: false);
+        }
+        GUI.backgroundColor = oldColor;
+
+        if (GUILayout.Button("📋 Level'ı Çoğalt (Duplicate)", GUILayout.Height(32)))
+        {
+            if (currentLevel != null)
+            {
+                CreateQuickNewLevel(duplicateCurrent: true);
+            }
+            else
+            {
+                ShowNotification(new GUIContent("Kopyalanacak bir level seçili değil!"));
+            }
+        }
+
+        if (GUILayout.Button("📁 Manuel Oluştur...", GUILayout.Height(32)))
+        {
+            CreateNewLevel();
+        }
+
+        EditorGUILayout.EndHorizontal();
+
+        GUILayout.Space(2);
+
+        // Satır 3: Otomatik Sequence Ekleme Seçeneği
+        bool autoAdd = EditorPrefs.GetBool("LevelDesigner_AutoAddSequence", true);
+        EditorGUI.BeginChangeCheck();
+        autoAdd = EditorGUILayout.ToggleLeft("Yeni level oluşturulduğunda otomatik LevelSequence listesine ekle", autoAdd);
+        if (EditorGUI.EndChangeCheck())
+        {
+            EditorPrefs.SetBool("LevelDesigner_AutoAddSequence", autoAdd);
+        }
+
+        EditorGUILayout.EndVertical();
+    }
+
+    private void CreateQuickNewLevel(bool duplicateCurrent)
+    {
+        string folder = "Assets/Levels";
+        if (!AssetDatabase.IsValidFolder(folder))
+        {
+            AssetDatabase.CreateFolder("Assets", "Levels");
+        }
+
+        int maxNum = 0;
+        string[] guids = AssetDatabase.FindAssets("t:LevelData", new[] { folder });
+        foreach (var guid in guids)
+        {
+            string assetPath = AssetDatabase.GUIDToAssetPath(guid);
+            string filename = Path.GetFileNameWithoutExtension(assetPath);
+            if (filename.StartsWith("Level_"))
+            {
+                string numStr = filename.Substring(6);
+                if (int.TryParse(numStr, out int num))
+                {
+                    if (num > maxNum) maxNum = num;
+                }
+            }
+        }
+
+        int nextNum = maxNum + 1;
+        string defaultName = $"Level_{nextNum:D2}";
+        string targetPath = $"{folder}/{defaultName}.asset";
+
+        // Güvenlik: Aynı isimde dosya varsa benzersiz path bulana kadar arttır
+        int safetyIndex = nextNum;
+        while (File.Exists(targetPath))
+        {
+            safetyIndex++;
+            defaultName = $"Level_{safetyIndex:D2}";
+            targetPath = $"{folder}/{defaultName}.asset";
+        }
+
+        LevelData newLevel = ScriptableObject.CreateInstance<LevelData>();
+        newLevel.name = defaultName;
+        newLevel.levelDisplayName = defaultName;
+
+        if (duplicateCurrent && currentLevel != null)
+        {
+            newLevel.levelType = currentLevel.levelType;
+            newLevel.timeLimit = currentLevel.timeLimit;
+            newLevel.boardMode = currentLevel.boardMode;
+            newLevel.gridX = currentLevel.gridX;
+            newLevel.gridY = currentLevel.gridY;
+            newLevel.shapePrefab = currentLevel.shapePrefab;
+
+            newLevel.customGridPositions = new List<Vector2Int>(currentLevel.customGridPositions);
+
+            newLevel.shapeFaces = new List<LevelData.FaceLayoutData>();
+            foreach (var f in currentLevel.shapeFaces)
+            {
+                newLevel.shapeFaces.Add(new LevelData.FaceLayoutData
+                {
+                    faceId = f.faceId,
+                    surfaceType = f.surfaceType,
+                    isActive = f.isActive,
+                    gridX = f.gridX,
+                    gridY = f.gridY,
+                    customGridPositions = new List<Vector2Int>(f.customGridPositions)
+                });
+            }
+
+            newLevel.pieces = new List<LevelData.PieceData>();
+            foreach (var p in currentLevel.pieces)
+            {
+                newLevel.pieces.Add(new LevelData.PieceData
+                {
+                    gridPosition = p.gridPosition,
+                    faceIndex = p.faceIndex,
+                    liquidColor = p.liquidColor,
+                    currentSlices = p.currentSlices,
+                    rotationZ = p.rotationZ,
+                    linkId = p.linkId,
+                    canRotate = p.canRotate
+                });
+            }
+        }
+        else if (currentLevel != null)
+        {
+            // Mevcut level varsa mod ve grid ayarlarını şablon olarak taşı (parçalar temiz kalsın)
+            newLevel.levelType = currentLevel.levelType;
+            newLevel.timeLimit = currentLevel.timeLimit;
+            newLevel.boardMode = currentLevel.boardMode;
+            newLevel.gridX = currentLevel.gridX;
+            newLevel.gridY = currentLevel.gridY;
+            newLevel.shapePrefab = currentLevel.shapePrefab;
+            if (currentLevel.boardMode == LevelData.BoardMode.Shape3D)
+            {
+                newLevel.SyncShapeFacesFromPrefab();
+            }
+        }
+        else
+        {
+            newLevel.gridX = gridX;
+            newLevel.gridY = gridY;
+        }
+
+        AssetDatabase.CreateAsset(newLevel, targetPath);
+
+        // Sequence'e otomatik ekleme
+        bool autoAdd = EditorPrefs.GetBool("LevelDesigner_AutoAddSequence", true);
+        if (autoAdd)
+        {
+            AddLevelToSequence(newLevel);
+        }
+
+        AssetDatabase.SaveAssets();
+
+        currentLevel = newLevel;
+        if (currentLevel.boardMode == LevelData.BoardMode.Flat2D)
+        {
+            gridX = currentLevel.gridX;
+            gridY = currentLevel.gridY;
+        }
+
+        EditorGUIUtility.PingObject(newLevel);
+        ShowNotification(new GUIContent($"✨ Yeni Level Hazır: {defaultName}"));
+    }
+
+    private void AddLevelToSequence(LevelData level)
+    {
+        string[] sequenceGuids = AssetDatabase.FindAssets("t:LevelSequenceData");
+        if (sequenceGuids.Length > 0)
+        {
+            string seqPath = AssetDatabase.GUIDToAssetPath(sequenceGuids[0]);
+            LevelSequenceData sequence = AssetDatabase.LoadAssetAtPath<LevelSequenceData>(seqPath);
+            if (sequence != null && sequence.levels != null)
+            {
+                if (!sequence.levels.Contains(level))
+                {
+                    Undo.RecordObject(sequence, "Hızlı Level Sequence'e Eklendi");
+                    sequence.levels.Add(level);
+                    EditorUtility.SetDirty(sequence);
+                    Debug.Log($"[LevelDesigner] '{level.name}' otomatik olarak '{sequence.name}' sequence'ine eklendi.");
+                }
+            }
+        }
+    }
+
+    private string GetNextLevelDefaultName()
+    {
+        string folder = "Assets/Levels";
+        int maxNum = 0;
+        if (AssetDatabase.IsValidFolder(folder))
+        {
+            string[] guids = AssetDatabase.FindAssets("t:LevelData", new[] { folder });
+            foreach (var guid in guids)
+            {
+                string assetPath = AssetDatabase.GUIDToAssetPath(guid);
+                string filename = Path.GetFileNameWithoutExtension(assetPath);
+                if (filename.StartsWith("Level_"))
+                {
+                    string numStr = filename.Substring(6);
+                    if (int.TryParse(numStr, out int num))
+                    {
+                        if (num > maxNum) maxNum = num;
+                    }
+                }
+            }
+        }
+        return $"Level_{(maxNum + 1):D2}";
+    }
+
+    private void NavigateLevel(int direction)
+    {
+        List<LevelData> levelList = new List<LevelData>();
+        string[] sequenceGuids = AssetDatabase.FindAssets("t:LevelSequenceData");
+        if (sequenceGuids.Length > 0)
+        {
+            string seqPath = AssetDatabase.GUIDToAssetPath(sequenceGuids[0]);
+            LevelSequenceData sequence = AssetDatabase.LoadAssetAtPath<LevelSequenceData>(seqPath);
+            if (sequence != null && sequence.levels != null && sequence.levels.Count > 0)
+            {
+                foreach (var l in sequence.levels)
+                {
+                    if (l != null && !levelList.Contains(l)) levelList.Add(l);
+                }
+            }
+        }
+
+        if (levelList.Count == 0)
+        {
+            string folder = "Assets/Levels";
+            string[] guids = AssetDatabase.FindAssets("t:LevelData", AssetDatabase.IsValidFolder(folder) ? new[] { folder } : null);
+            foreach (var guid in guids)
+            {
+                string path = AssetDatabase.GUIDToAssetPath(guid);
+                LevelData ld = AssetDatabase.LoadAssetAtPath<LevelData>(path);
+                if (ld != null && !levelList.Contains(ld)) levelList.Add(ld);
+            }
+        }
+
+        if (levelList.Count == 0)
+        {
+            ShowNotification(new GUIContent("Hiç level bulunamadı."));
+            return;
+        }
+
+        int currentIndex = currentLevel != null ? levelList.IndexOf(currentLevel) : -1;
+        int targetIndex = currentIndex + direction;
+
+        if (targetIndex < 0) targetIndex = 0;
+        if (targetIndex >= levelList.Count) targetIndex = levelList.Count - 1;
+
+        if (targetIndex != currentIndex && targetIndex >= 0 && targetIndex < levelList.Count)
+        {
+            currentLevel = levelList[targetIndex];
+            if (currentLevel.boardMode == LevelData.BoardMode.Flat2D)
+            {
+                gridX = currentLevel.gridX;
+                gridY = currentLevel.gridY;
+            }
+            EditorGUIUtility.PingObject(currentLevel);
+            ShowNotification(new GUIContent($"Loaded: {currentLevel.name} ({targetIndex + 1}/{levelList.Count})"));
+        }
+    }
+
+    private void SaveCurrentLevel()
+    {
+        if (currentLevel != null)
+        {
+            EditorUtility.SetDirty(currentLevel);
+            AssetDatabase.SaveAssets();
+            Debug.Log($"[LevelDesigner] '{currentLevel.levelDisplayName}' kaydedildi.");
+            ShowNotification(new GUIContent($"Kaydedildi: {currentLevel.name}"));
+        }
     }
 
     // ─── Yardımcılar ─────────────────────────────────────────────
@@ -560,7 +868,7 @@ public class LevelDesignerWindow : EditorWindow
     void CreateNewLevel()
     {
         string path = EditorUtility.SaveFilePanelInProject(
-            "Yeni Level Kaydet", "Level_02", "asset",
+            "Yeni Level Kaydet", GetNextLevelDefaultName(), "asset",
             "Level dosyasını nereye kaydetmek istersiniz?");
 
         if (!string.IsNullOrEmpty(path))
@@ -569,17 +877,32 @@ public class LevelDesignerWindow : EditorWindow
             newLevel.gridX = gridX;
             newLevel.gridY = gridY;
 
+            if (currentLevel != null)
+            {
+                newLevel.levelType = currentLevel.levelType;
+                newLevel.timeLimit = currentLevel.timeLimit;
+                newLevel.boardMode = currentLevel.boardMode;
+                newLevel.shapePrefab = currentLevel.shapePrefab;
+            }
+
             AssetDatabase.CreateAsset(newLevel, path);
             newLevel.levelDisplayName = newLevel.name;
+
+            bool autoAdd = EditorPrefs.GetBool("LevelDesigner_AutoAddSequence", true);
+            if (autoAdd)
+            {
+                AddLevelToSequence(newLevel);
+            }
+
             AssetDatabase.SaveAssets();
             currentLevel = newLevel;
             EditorGUIUtility.PingObject(newLevel);
         }
     }
 
-
     private int[] GetAvailableSlices(LevelData.LevelType type)
     {
         return new int[] { 2, 4 };
     }
 }
+
