@@ -403,6 +403,44 @@ public class LevelDesignerWindow : EditorWindow
         {
             NavigateLevel(1);
         }
+
+        Color prevColor = GUI.backgroundColor;
+        GUI.backgroundColor = new Color(0.2f, 0.85f, 0.35f);
+        if (GUILayout.Button("▶ Buradan Başlat", GUILayout.Width(130), GUILayout.Height(24)))
+        {
+            if (currentLevel != null)
+            {
+                string[] sequenceGuids = AssetDatabase.FindAssets("t:LevelSequenceData");
+                int foundIndex = -1;
+                if (sequenceGuids.Length > 0)
+                {
+                    string seqPath = AssetDatabase.GUIDToAssetPath(sequenceGuids[0]);
+                    LevelSequenceData sequence = AssetDatabase.LoadAssetAtPath<LevelSequenceData>(seqPath);
+                    if (sequence != null && sequence.levels != null)
+                    {
+                        foundIndex = sequence.levels.IndexOf(currentLevel);
+                    }
+                }
+
+                if (foundIndex >= 0)
+                {
+                    PlayerPrefs.SetInt("CurrentLevelIndex", foundIndex);
+                    PlayerPrefs.Save();
+                }
+
+                if (!Application.isPlaying)
+                {
+                    EditorApplication.isPlaying = true;
+                }
+                else
+                {
+                    GameManager.Instance?.ResetLevelState();
+                    FindObjectOfType<GridSpawner>()?.SpawnCurrentLevel();
+                }
+            }
+        }
+        GUI.backgroundColor = prevColor;
+
         EditorGUILayout.EndHorizontal();
 
         GUILayout.Space(4);

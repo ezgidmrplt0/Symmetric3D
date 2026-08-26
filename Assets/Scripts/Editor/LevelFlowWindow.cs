@@ -43,6 +43,37 @@ public class LevelFlowWindow : EditorWindow
         GUILayout.Label("🔀 Symmetric3D — Level Akış Yöneticisi", title);
         GUILayout.Space(4);
 
+        // ── ⚡ Başlangıç Seviyesi & Hızlı Play Paneli ────────────────
+        int currentStartIdx = PlayerPrefs.GetInt("CurrentLevelIndex", 0);
+        string currentStartName = (sequence != null && sequence.levels != null && currentStartIdx >= 0 && currentStartIdx < sequence.levels.Count && sequence.levels[currentStartIdx] != null)
+            ? sequence.levels[currentStartIdx].levelDisplayName
+            : $"Level_{(currentStartIdx + 1):D2}";
+
+        EditorGUILayout.BeginHorizontal(EditorStyles.helpBox);
+        GUIStyle startLabelStyle = new GUIStyle(EditorStyles.boldLabel) { richText = true, alignment = TextAnchor.MiddleLeft };
+        GUILayout.Label($"⚡  Başlangıç Seviyesi:  <color=#4CD964><b>Sıra #{currentStartIdx + 1} — {currentStartName}</b></color>", startLabelStyle);
+
+        Color playBtnColor = GUI.backgroundColor;
+        GUI.backgroundColor = Application.isPlaying ? new Color(0.3f, 0.7f, 1f) : new Color(0.2f, 0.85f, 0.35f);
+        string playBtnText = Application.isPlaying ? "🔄 Seviyeyi Yeniden Başlat" : "▶ OYUNU BAŞLAT (Play)";
+        
+        if (GUILayout.Button(playBtnText, GUILayout.Height(26), GUILayout.Width(190)))
+        {
+            if (!Application.isPlaying)
+            {
+                EditorApplication.isPlaying = true;
+            }
+            else
+            {
+                GameManager.Instance?.ResetLevelState();
+                FindObjectOfType<GridSpawner>()?.SpawnCurrentLevel();
+            }
+        }
+        GUI.backgroundColor = playBtnColor;
+        EditorGUILayout.EndHorizontal();
+
+        GUILayout.Space(4);
+
         // ── Sequence Seç ─────────────────────────────────────────
         EditorGUI.BeginChangeCheck();
         sequence = (LevelSequenceData)EditorGUILayout.ObjectField(
@@ -96,6 +127,29 @@ public class LevelFlowWindow : EditorWindow
         {
             Repaint();
         }
+    }
+
+    private void SetStartingLevel(int index)
+    {
+        PlayerPrefs.SetInt("CurrentLevelIndex", index);
+        PlayerPrefs.Save();
+
+        string levelName = (sequence != null && sequence.levels != null && index < sequence.levels.Count && sequence.levels[index] != null)
+            ? sequence.levels[index].levelDisplayName
+            : $"Level_{index + 1}";
+
+        if (Application.isPlaying)
+        {
+            GameManager.Instance?.ResetLevelState();
+            GridSpawner spawner = FindObjectOfType<GridSpawner>();
+            spawner?.SpawnCurrentLevel();
+            ShowNotification(new GUIContent($"⚡ Play Modunda '{levelName}' (Sıra #{index + 1}) başlatıldı."));
+        }
+        else
+        {
+            ShowNotification(new GUIContent($"⚡ Başlangıç Seviyesi Ayarlandı: '{levelName}' (Sıra #{index + 1})"));
+        }
+        Repaint();
     }
 
     // ── Bölüm 1: Tür Konfigürasyonu ──────────────────────────────
@@ -249,6 +303,7 @@ public class LevelFlowWindow : EditorWindow
         }
 
         int lifetimeProgress = GameManager.Instance != null ? GameManager.Instance.lifetimeProgress : 0;
+        int currentStartIdx = PlayerPrefs.GetInt("CurrentLevelIndex", 0);
 
         EditorGUILayout.BeginHorizontal();
         GUILayout.Label("≡",       EditorStyles.boldLabel, GUILayout.Width(20)); // Tutamak başlığı
@@ -256,7 +311,8 @@ public class LevelFlowWindow : EditorWindow
         GUILayout.Label("Ad",      EditorStyles.boldLabel, GUILayout.Width(130));
         GUILayout.Label("Tür",     EditorStyles.boldLabel, GUILayout.Width(100));
         GUILayout.Label("Açılma",  EditorStyles.boldLabel, GUILayout.Width(70));
-        GUILayout.Label("",                                GUILayout.Width(30)); 
+        GUILayout.Label("Başlat",  EditorStyles.boldLabel, GUILayout.Width(110));
+        GUILayout.Label("",                                GUILayout.Width(24)); 
         EditorGUILayout.EndHorizontal();
         DrawThinLine();
 
@@ -272,10 +328,14 @@ public class LevelFlowWindow : EditorWindow
             rowStyle.margin = new RectOffset(0, 0, 0, 0);
             rowStyle.padding = new RectOffset(2, 2, 4, 4);
 
+            bool isStartLevel = (currentStartIdx == i);
+
             if (draggingIndex == i)
                 GUI.backgroundColor = new Color(0.1f, 0.5f, 0.8f, 0.8f); 
             else if (hoverIndex == i && draggingIndex >= 0)
                 GUI.backgroundColor = new Color(0.3f, 0.3f, 0.3f, 1f); 
+            else if (isStartLevel)
+                GUI.backgroundColor = new Color(0.15f, 0.4f, 0.2f, 0.8f); // Seçili seviye yeşil arkaplan
             else
                 GUI.backgroundColor = Color.clear; // Orijinal transparan görünüm
                 
@@ -333,6 +393,18 @@ public class LevelFlowWindow : EditorWindow
                 };
                 GUILayout.Label(unlockPct == 0 ? "✅ Açık" : unlocked ? $"✅ %{unlockPct}" : $"🔒 %{unlockPct}", s, GUILayout.Width(70));
             }
+
+            // ▶ Buradan Başlat Butonu
+            Color btnPrev = GUI.backgroundColor;
+            if (isStartLevel)
+                GUI.backgroundColor = new Color(0.2f, 0.85f, 0.35f); // Parlak Yeşil
+
+            string btnLabel = isStartLevel ? "▶ BAŞLANGIÇ" : "▶ Buradan Başlat";
+            if (GUILayout.Button(btnLabel, EditorStyles.miniButtonMid, GUILayout.Width(110)))
+            {
+                SetStartingLevel(i);
+            }
+            GUI.backgroundColor = btnPrev;
 
             // ✕ butonu (Kaldırma)
             GUI.backgroundColor = new Color(0.9f, 0.3f, 0.3f);

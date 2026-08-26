@@ -171,56 +171,57 @@ public class GameManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Verilen progress ile yeni bir türün kilidi açıldı mı kontrol eder.
+    /// Verilen progress veya seviye numarası ile yeni bir türün kilidi açıldı mı kontrol eder.
+    /// Level 5 -> Rotation, Level 10 -> Linked, Level 15+ -> Gift
     /// </summary>
     public bool GetTypeForProgress(int progress, out LevelData.LevelType unlockedType)
     {
         unlockedType = LevelData.LevelType.Classic;
-        GridSpawner spawner = FindObjectOfType<GridSpawner>();
-        if (spawner == null || spawner.sequence == null) return false;
 
-        // En yüksek unlockAtProgress >= progress olanı bul (ama progress barajını aşmamış olmalı)
-        // Ya da daha basit: progress tam bir 100 katı ise o katın mekaniğini bul.
-        int roundedProgress = (progress / 100) * 100; 
+        int levelNum = PlayerPrefs.GetInt("CurrentLevelIndex", 0) + 1;
 
-        foreach (var config in spawner.sequence.typeConfigs)
+        if (levelNum == 5)
         {
-            if (config.unlockAtProgress == roundedProgress)
-            {
-                unlockedType = config.levelType;
-                return true;
-            }
+            unlockedType = LevelData.LevelType.Rotation;
+            return true;
         }
-        
-        // Eğer o 100'lük dilim için özel bir mekanik yoksa, en son açılanı gösterelim?
-        // Veya sadece false dönelim (popup çıkmasın ama kullanıcı her 100'de çıksın diyor)
+        else if (levelNum == 10)
+        {
+            unlockedType = LevelData.LevelType.Linked;
+            return true;
+        }
+        else if (levelNum > 10 && (levelNum % 5 == 0))
+        {
+            return true;
+        }
+
         return false;
     }
 
     /// <summary>
-    /// Bu level tamamlanmadan önce açılmamış mekanik var mıydı?
-    /// Bar ve unlock popup yalnızca true ise gösterilmeli.
+    /// Oynanan seviye numarasına göre gösterilecek mekanik veya ödül türünü döner:
+    /// - Level 1-5: Rotation
+    /// - Level 6-10: Linked
+    /// - Level 11+: Gift / Reward
     /// </summary>
-    /// Henüz açılmamış, en yakın eşik değerine sahip mekaniği döner.
     public bool GetNextMechanicToUnlock(out LevelData.LevelType nextType)
     {
-        nextType = LevelData.LevelType.Classic;
-        GridSpawner spawner = FindObjectOfType<GridSpawner>();
-        if (spawner == null || spawner.sequence == null) return false;
+        int levelNum = PlayerPrefs.GetInt("CurrentLevelIndex", 0) + 1;
 
-        int lowestThreshold = int.MaxValue;
-        bool found = false;
-        foreach (var cfg in spawner.sequence.typeConfigs)
+        if (levelNum <= 5)
         {
-            if (cfg.unlockAtProgress > 0 && cfg.unlockAtProgress > lifetimeProgress
-                && cfg.unlockAtProgress < lowestThreshold)
-            {
-                lowestThreshold = cfg.unlockAtProgress;
-                nextType = cfg.levelType;
-                found = true;
-            }
+            nextType = LevelData.LevelType.Rotation;
         }
-        return found;
+        else if (levelNum <= 10)
+        {
+            nextType = LevelData.LevelType.Linked;
+        }
+        else
+        {
+            nextType = LevelData.LevelType.Classic; // Gift / Reward
+        }
+
+        return true;
     }
 
     public bool HadMechanicsToUnlock()

@@ -135,44 +135,13 @@ public partial class GridSpawner : MonoBehaviour
             return;
         }
 
-        int effectiveProgress = GameManager.Instance != null
-            ? GameManager.Instance.lifetimeProgress
-            : 0;
+        // Bir sonraki seviyeye sırayla ve atlamadan geç (Level 22 -> Level 23 -> Level 24)
+        currentLevelIndex = (currentLevelIndex + 1) % levels.Count;
 
-
-        int startIndex = currentLevelIndex;
-        int next = currentLevelIndex;
-
-        for (int i = 1; i <= levels.Count; i++)
-        {
-            int candidate = (currentLevelIndex + i) % levels.Count;
-            LevelData candidateLevel = levels[candidate];
-
-            if (candidate == startIndex)
-            {
-                next = candidate;
-                break;
-            }
-
-            if (candidateLevel == null)
-            {
-                continue;
-            }
-
-            if (sequence != null && !sequence.IsLevelUnlocked(candidateLevel, effectiveProgress))
-            {
-                continue;
-            }
-
-            next = candidate;
-            break;
-        }
-
-        currentLevelIndex = next;
         PlayerPrefs.SetInt("CurrentLevelIndex", currentLevelIndex);
         PlayerPrefs.Save();
 
-        // Yeni level başlangıcını DOĞRU index ile logla
+        // Yeni level başlangıcını sıfırla ve spawn et
         GameManager.Instance?.ResetLevelState();
 
         SpawnCurrentLevel();
