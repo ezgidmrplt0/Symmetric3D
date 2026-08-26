@@ -60,29 +60,41 @@ public class LevelPanelManager : MonoBehaviour
     {
         if (nextMechanicPreviewImage == null) return;
 
-        // Görsel boyutunu zengin, dolgun ve tam ortalı bir boyuta büyüt (250x250)
-        Vector2 idealIconSize = new Vector2(250f, 250f);
+        // 1. LayoutGroup kısıtlamalarını kaldırmak için LayoutElement ekle/ayarla
+        UnityEngine.UI.LayoutElement srcLayout = nextMechanicPreviewImage.GetComponent<UnityEngine.UI.LayoutElement>();
+        if (srcLayout == null) srcLayout = nextMechanicPreviewImage.gameObject.AddComponent<UnityEngine.UI.LayoutElement>();
+        srcLayout.ignoreLayout = true;
+        srcLayout.preferredWidth = 450f;
+        srcLayout.preferredHeight = 450f;
+        srcLayout.minWidth = 450f;
+        srcLayout.minHeight = 450f;
+
+        Vector2 idealIconSize = new Vector2(450f, 450f);
 
         RectTransform srcRect = nextMechanicPreviewImage.rectTransform;
+        srcRect.localScale = Vector3.one;
         srcRect.anchorMin = new Vector2(0.5f, 0.5f);
         srcRect.anchorMax = new Vector2(0.5f, 0.5f);
         srcRect.pivot = new Vector2(0.5f, 0.5f);
         srcRect.sizeDelta = idealIconSize;
-        srcRect.anchoredPosition = new Vector2(0f, 15f);
+        srcRect.anchoredPosition = new Vector2(0f, 10f);
 
         if (previewBgImage == null)
         {
-            GameObject bgObj = new GameObject("NextMechanic_SilhouetteBG", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            GameObject bgObj = new GameObject("NextMechanic_SilhouetteBG", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(UnityEngine.UI.LayoutElement));
             bgObj.transform.SetParent(nextMechanicPreviewImage.transform.parent, false);
             bgObj.transform.SetSiblingIndex(nextMechanicPreviewImage.transform.GetSiblingIndex());
 
+            UnityEngine.UI.LayoutElement bgLayout = bgObj.GetComponent<UnityEngine.UI.LayoutElement>();
+            bgLayout.ignoreLayout = true;
+
             RectTransform bgRect = bgObj.GetComponent<RectTransform>();
+            bgRect.localScale = Vector3.one;
             bgRect.anchorMin = srcRect.anchorMin;
             bgRect.anchorMax = srcRect.anchorMax;
             bgRect.anchoredPosition = srcRect.anchoredPosition;
             bgRect.sizeDelta = srcRect.sizeDelta;
             bgRect.pivot = srcRect.pivot;
-            bgRect.localScale = srcRect.localScale;
 
             previewBgImage = bgObj.GetComponent<Image>();
             previewBgImage.raycastTarget = false;
@@ -90,7 +102,12 @@ public class LevelPanelManager : MonoBehaviour
         }
         else
         {
+            UnityEngine.UI.LayoutElement bgLayout = previewBgImage.GetComponent<UnityEngine.UI.LayoutElement>();
+            if (bgLayout == null) bgLayout = previewBgImage.gameObject.AddComponent<UnityEngine.UI.LayoutElement>();
+            bgLayout.ignoreLayout = true;
+
             RectTransform bgRect = previewBgImage.rectTransform;
+            bgRect.localScale = Vector3.one;
             bgRect.anchorMin = srcRect.anchorMin;
             bgRect.anchorMax = srcRect.anchorMax;
             bgRect.anchoredPosition = srcRect.anchoredPosition;
@@ -98,20 +115,27 @@ public class LevelPanelManager : MonoBehaviour
             bgRect.pivot = srcRect.pivot;
         }
 
-        // Yüzdelik textini ikonun tam ortasına temiz ve bozulmasız şekilde yerleştir
+        // Yüzdelik textini ikonun tam ortasına devasa ve net yerleştir
         if (progressText != null)
         {
             progressText.transform.SetParent(nextMechanicPreviewImage.transform, false);
+
+            UnityEngine.UI.LayoutElement ptLayout = progressText.GetComponent<UnityEngine.UI.LayoutElement>();
+            if (ptLayout == null) ptLayout = progressText.gameObject.AddComponent<UnityEngine.UI.LayoutElement>();
+            ptLayout.ignoreLayout = true;
+
             RectTransform ptRect = progressText.rectTransform;
+            ptRect.localScale = Vector3.one;
             ptRect.anchorMin = new Vector2(0.5f, 0.5f);
             ptRect.anchorMax = new Vector2(0.5f, 0.5f);
             ptRect.pivot = new Vector2(0.5f, 0.5f);
-            ptRect.sizeDelta = new Vector2(250f, 80f);
+            ptRect.sizeDelta = new Vector2(450f, 120f);
             ptRect.anchoredPosition = Vector2.zero;
 
             progressText.alignment = TextAlignmentOptions.Center;
             progressText.verticalAlignment = VerticalAlignmentOptions.Middle;
             progressText.fontStyle = FontStyles.Bold;
+            progressText.fontSize = 68f;
             progressText.color = Color.white;
             progressText.transform.SetAsLastSibling();
         }
@@ -297,7 +321,14 @@ public class LevelPanelManager : MonoBehaviour
         SetFill(startFill);
         DOTween.To(() => currentFill, x => SetFill(x), endFill, barAnimDuration)
             .SetEase(Ease.OutCubic)
-            .SetUpdate(true);
+            .SetUpdate(true)
+            .OnComplete(() =>
+            {
+                if (GameManager.Instance != null && GameManager.Instance.hitProgressHundred)
+                {
+                    Trigger100PercentConfetti();
+                }
+            });
     }
 
     Sprite GetIconForType(LevelData.LevelType type)
@@ -525,5 +556,105 @@ public class LevelPanelManager : MonoBehaviour
         if (nextMechanicLabel != null) nextMechanicLabel.gameObject.SetActive(false);
         if (nextMechanicPreviewImage != null) nextMechanicPreviewImage.gameObject.SetActive(false);
         if (previewBgImage != null) previewBgImage.gameObject.SetActive(false);
+    }
+
+    // ── 🎊 KONFETİ VE KUTLAMA EFEKTİ ──────────────────────────────
+
+    [ContextMenu("Test Confetti Efekti")]
+    public void Trigger100PercentConfetti()
+    {
+        if (completePanelRoot == null) return;
+
+        // İkon ve yüzdelik metnine zıplama (Punch Scale) animasyonu ver
+        if (nextMechanicPreviewImage != null)
+        {
+            nextMechanicPreviewImage.transform.DOPunchScale(new Vector3(0.35f, 0.35f, 0f), 0.65f, 8, 0.8f).SetUpdate(true);
+        }
+        if (progressText != null)
+        {
+            progressText.transform.DOPunchScale(new Vector3(0.4f, 0.4f, 0f), 0.65f, 8, 0.8f).SetUpdate(true);
+        }
+
+        VibrationManager.VibrateSuccess();
+
+        // UI Konfeti Konteyneri oluştur
+        GameObject confettiContainer = new GameObject("UI_Confetti_Container", typeof(RectTransform));
+        confettiContainer.transform.SetParent(completePanelRoot.transform, false);
+        confettiContainer.transform.SetAsLastSibling();
+
+        RectTransform containerRect = confettiContainer.GetComponent<RectTransform>();
+        containerRect.anchorMin = Vector2.zero;
+        containerRect.anchorMax = Vector2.one;
+        containerRect.offsetMin = Vector2.zero;
+        containerRect.offsetMax = Vector2.zero;
+
+        Color[] confettiColors = new Color[]
+        {
+            new Color(1f, 0.22f, 0.4f),   // Koyu Pembe / Kırmızı
+            new Color(1f, 0.82f, 0.1f),   // Altın Sarısı
+            new Color(0.2f, 0.9f, 0.35f),  // Parlak Yeşil
+            new Color(0.15f, 0.75f, 1f),  // Canlı Mavi
+            new Color(0.85f, 0.35f, 1f),  // Neon Mor
+            new Color(1f, 0.5f, 0.15f)    // Sıcak Turuncu
+        };
+
+        Vector3 originPos = (nextMechanicPreviewImage != null)
+            ? nextMechanicPreviewImage.rectTransform.anchoredPosition
+            : Vector2.zero;
+
+        int particleCount = 55;
+        for (int i = 0; i < particleCount; i++)
+        {
+            GameObject pObj = new GameObject($"Confetti_{i}", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            pObj.transform.SetParent(confettiContainer.transform, false);
+
+            RectTransform pRect = pObj.GetComponent<RectTransform>();
+            pRect.anchoredPosition = originPos + new Vector3(Random.Range(-25f, 25f), Random.Range(-25f, 25f), 0f);
+
+            float width = Random.Range(12f, 24f);
+            float height = Random.Range(8f, 16f);
+            pRect.sizeDelta = new Vector2(width, height);
+            pRect.localRotation = Quaternion.Euler(0f, 0f, Random.Range(0f, 360f));
+
+            Image img = pObj.GetComponent<Image>();
+            img.raycastTarget = false;
+            img.color = confettiColors[Random.Range(0, confettiColors.Length)];
+
+            float angle = Random.Range(0f, 360f) * Mathf.Deg2Rad;
+            float force = Random.Range(200f, 480f);
+            Vector2 initialVel = new Vector2(Mathf.Cos(angle) * force, Mathf.Sin(angle) * force + Random.Range(120f, 280f));
+            float rotSpeed = Random.Range(-450f, 450f);
+            float gravity = Random.Range(450f, 750f);
+
+            StartCoroutine(AnimateConfettiPiece(pRect, img, initialVel, rotSpeed, gravity));
+        }
+
+        Destroy(confettiContainer, 2.5f);
+    }
+
+    System.Collections.IEnumerator AnimateConfettiPiece(RectTransform pRect, Image img, Vector2 velocity, float rotSpeed, float gravity)
+    {
+        float duration = Random.Range(1.4f, 2.1f);
+        float elapsed = 0f;
+        Vector2 pos = pRect.anchoredPosition;
+        Color startColor = img.color;
+
+        while (elapsed < duration)
+        {
+            float dt = Time.unscaledDeltaTime;
+            elapsed += dt;
+
+            velocity.y -= gravity * dt;
+            velocity.x *= Mathf.Pow(0.94f, dt * 60f);
+            pos += velocity * dt;
+            pRect.anchoredPosition = pos;
+
+            pRect.Rotate(0f, 0f, rotSpeed * dt);
+
+            float alpha = Mathf.Clamp01(1f - (elapsed / duration));
+            img.color = new Color(startColor.r, startColor.g, startColor.b, alpha);
+
+            yield return null;
+        }
     }
 }
