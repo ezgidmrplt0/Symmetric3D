@@ -332,12 +332,7 @@ public partial class DragObject : MonoBehaviour
         }
         else
         {
-            Transform redirect = TutorialManager.Instance != null
-                ? TutorialManager.Instance.GetDropRedirect(this, targetGrid, spawner)
-                : null;
-            DropFlat2D(redirect ?? targetGrid, spawner);
-            if (redirect != null)
-                TutorialManager.Instance.OnDropRedirected(redirect, targetGrid);
+            DropFlat2D(targetGrid, spawner);
         }
     }
 
