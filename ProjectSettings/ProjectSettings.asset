@@ -12,7 +12,7 @@ PlayerSettings:
   targetDevice: 2
   useOnDemandResources: 0
   accelerometerFrequency: 60
-  companyName: Fogbound
+  companyName: s
   productName: ColorMatch3D
   defaultCursor: {fileID: 0}
   cursorHotspot: {x: 0, y: 0}
@@ -267,7 +267,7 @@ PlayerSettings:
   AndroidTargetDevices: 0
   AndroidSplashScreenScale: 0
   androidSplashScreen: {fileID: 0}
-  AndroidKeystoreName: /home/emre/Belgeler/GitHub/Keys/simetric.keystore
+  AndroidKeystoreName: "/home/emre/Masa\xFCst\xFC/Keys/simetrik.keystore"
   AndroidKeyaliasName: simetrik
   AndroidEnableArmv9SecurityFeatures: 0
   AndroidBuildApkPerCpuArchitecture: 0
