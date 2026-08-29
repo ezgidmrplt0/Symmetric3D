@@ -114,6 +114,8 @@ public partial class DragObject
 
         float snappedZ = Mathf.Round(cachedLocalRotZ / 90f) * 90f;
 
+        AudioManager.PlayPlace();
+
         transform.DOLocalMove(new Vector3(targetGrid.localPosition.x, targetGrid.localPosition.y, oz), 0.25f)
             .SetEase(Ease.OutCubic);
 

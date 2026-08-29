@@ -164,6 +164,7 @@ public class CubeRotator : MonoBehaviour
 
         isAnimating = true;
         discreteRotation = Quaternion.Euler(axis * angle) * discreteRotation;
+        AudioManager.PlayRotate();
 
         transform.DOLocalRotateQuaternion(discreteRotation, rotationDuration)
             .SetEase(Ease.InOutCubic)

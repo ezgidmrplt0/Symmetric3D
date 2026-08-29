@@ -9,6 +9,7 @@ public class LinkedObjectGroup : MonoBehaviour
 
     private Plane dragPlane;
     private Vector3 worldGrabOffset;
+    private bool hasPlayedPickupSound = false;
 
     private Vector3 startPosition;
     private Vector2 startScreenPos;
@@ -280,6 +281,7 @@ public class LinkedObjectGroup : MonoBehaviour
             if (hitTarget != null)
             {
                 dragging = true;
+                hasPlayedPickupSound = false;
                 startPosition = transform.position;
                 startScreenPos = screenPos;
                 startTime = Time.time;
@@ -308,6 +310,12 @@ public class LinkedObjectGroup : MonoBehaviour
 
     void Drag(Vector3 screenPos)
     {
+        if (!hasPlayedPickupSound && Vector2.Distance(screenPos, startScreenPos) > 15f)
+        {
+            hasPlayedPickupSound = true;
+            AudioManager.PlayPickup();
+        }
+
         Ray ray = cam.ScreenPointToRay(screenPos);
         if (!dragPlane.Raycast(ray, out float enter)) return;
 
@@ -493,6 +501,7 @@ public class LinkedObjectGroup : MonoBehaviour
             bool anyCanRotate = childDrags.Exists(c => c != null && c.canRotate);
             if (spawner != null && spawner.CurrentLevelType.HasFlag(LevelData.LevelType.Rotation) && anyCanRotate)
             {
+                AudioManager.PlayRotate();
                 foreach (var c in childDrags)
                 {
                     if (c == null || !c.canRotate) continue;
@@ -566,6 +575,7 @@ public class LinkedObjectGroup : MonoBehaviour
 
         if (allFit)
         {
+            AudioManager.PlayPlace();
             transform.position = bestParentPosition;
             foreach (var c in childDrags)
             {

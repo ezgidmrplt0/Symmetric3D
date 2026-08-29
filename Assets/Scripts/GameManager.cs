@@ -79,25 +79,22 @@ public class GameManager : MonoBehaviour
     /// </summary>
     public void LevelComplete()
     {
-        // Aynı level içinde birden fazla tetiklenmeyi önle
         if (levelCompleting) return;
         levelCompleting = true;
 
-        // Artıştan önce önceki değeri kaydet
-        previousTotalProgress = totalProgress;
+        int levelIndex = PlayerPrefs.GetInt("CurrentLevelIndex", 0);
+        int levelNum   = levelIndex + 1;
 
-        // Birikimli sayıç (hiç sıfırlanmaz) — unlock için kullanılır
+        // Progress'i level numarasından türet — böylece retry/reset ile asla kaymaz
+        int cycleLength = Mathf.Max(1, 100 / progressPerLevel); // 5 (progressPerLevel=20 ile)
+        int posInCycle  = ((levelNum - 1) % cycleLength) + 1;   // 1..5
+        previousTotalProgress = (posInCycle - 1) * progressPerLevel; // 0,20,40,60,80
+        totalProgress         = posInCycle * progressPerLevel;       // 20,40,60,80,100
+        hitProgressHundred    = totalProgress >= 100;
+        if (hitProgressHundred) totalProgress = 0;
+
         lifetimeProgress += progressPerLevel;
 
-        // Bu level'da 100 barajı aşıldı mı?
-        hitProgressHundred = (previousTotalProgress + progressPerLevel) >= 100;
-
-        // Görsel bar için döngüsel 0-100
-        totalProgress += progressPerLevel;
-        if (totalProgress >= 100)
-            totalProgress -= 100;
-
-        // newMechanicUnlocked artık lifetimeProgress >= 100 ile tetiklenir
         if (lifetimeProgress >= 100 && !newMechanicUnlocked)
         {
             newMechanicUnlocked = true;
@@ -105,11 +102,10 @@ public class GameManager : MonoBehaviour
 
         SaveProgress();
 
-        int levelIndex = PlayerPrefs.GetInt("CurrentLevelIndex", 0);
         float duration = Time.realtimeSinceStartup - levelStartTime;
         float timeRemaining = LevelTimer.Instance != null ? LevelTimer.Instance.CurrentTime : 0f;
         FirebaseManager.Instance?.LogLevelComplete(levelIndex, duration, timeRemaining);
-        FirebaseManager.Instance?.SetTotalLevelsCompleted(lifetimeProgress / progressPerLevel);
+        FirebaseManager.Instance?.SetTotalLevelsCompleted(levelNum);
 
         // Panel'i tetikle
         OnLevelCompleted.Invoke();
@@ -171,10 +167,10 @@ public class GameManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Verilen progress veya seviye numarası ile yeni bir türün kilidi açıldı mı kontrol eder.
+    /// Mevcut seviye numarasına göre yeni bir tür açıldı mı kontrol eder.
     /// Level 5 -> Rotation, Level 10 -> Linked, Level 15+ -> Gift
     /// </summary>
-    public bool GetTypeForProgress(int progress, out LevelData.LevelType unlockedType)
+    public bool GetTypeForProgress(out LevelData.LevelType unlockedType)
     {
         unlockedType = LevelData.LevelType.Classic;
 

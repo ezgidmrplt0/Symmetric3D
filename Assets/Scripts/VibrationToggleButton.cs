@@ -20,6 +20,7 @@ public class VibrationToggleButton : MonoBehaviour
 
     public void OnButtonClicked()
     {
+        AudioManager.PlayButtonClick();
         VibrationManager.Toggle();
         UpdateVisual();
     }

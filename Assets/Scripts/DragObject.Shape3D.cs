@@ -145,6 +145,8 @@ public partial class DragObject
         Quaternion localRot = Quaternion.Inverse(targetGrid.parent.rotation) * cachedWorldRotation;
         float snappedZ = Mathf.Round(localRot.eulerAngles.z / 90f) * 90f;
 
+        AudioManager.PlayPlace();
+
         transform.DOLocalMove(new Vector3(targetGrid.localPosition.x, targetGrid.localPosition.y, oz), 0.25f)
             .SetEase(Ease.OutCubic);
 

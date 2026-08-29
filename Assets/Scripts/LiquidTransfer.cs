@@ -157,6 +157,7 @@ public class LiquidTransfer : MonoBehaviour
         giver.transferring = true;
 
         VibrationManager.TryVibrate();
+        AudioManager.PlayTransfer();
 
         int needed = maxSlices - this.currentSlices;
         int takeAmount = Mathf.Min(needed, giver.currentSlices);

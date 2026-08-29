@@ -52,6 +52,7 @@ public partial class DragObject : MonoBehaviour
 
     private int activeTouchIndex = -1;
     public int linkId = 0;
+    private bool hasPlayedPickupSound = false;
 
     // ──────────────────────────────────────────────────────────────
     // BAŞLANGIÇ
@@ -171,6 +172,7 @@ public partial class DragObject : MonoBehaviour
                 }
 
                 dragging = true;
+                hasPlayedPickupSound = false;
                 startPosition = transform.position;
                 startLocalPos = transform.localPosition;
                 startParent = transform.parent;
@@ -221,6 +223,12 @@ public partial class DragObject : MonoBehaviour
     {
         DOTween.Kill(transform);
 
+        if (!hasPlayedPickupSound && Vector2.Distance(screenPos, startScreenPos) > 15f)
+        {
+            hasPlayedPickupSound = true;
+            AudioManager.PlayPickup();
+        }
+
         Ray dragRay = cam.ScreenPointToRay(screenPos);
         Vector3 desiredPos = transform.position;
         if (dragPlane.Raycast(dragRay, out float dragEnter))
@@ -257,6 +265,7 @@ public partial class DragObject : MonoBehaviour
             if (startParent != null) transform.SetParent(startParent, true);
             transform.localPosition = startLocalPos;
             targetRotZ = cachedLocalRotZ + 90f;
+            AudioManager.PlayRotate();
             transform.DOKill();
             transform.DOLocalRotate(new Vector3(0, 0, targetRotZ), 0.3f)
                 .SetEase(Ease.OutBack)

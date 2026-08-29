@@ -155,19 +155,19 @@ public class LevelPanelManager : MonoBehaviour
                 barMat = new Material(progressBarImage.material);
                 progressBarImage.material = barMat;
             }
-            if (nextLevelButton != null) nextLevelButton.onClick.AddListener(OnNextLevelClicked);
+            if (nextLevelButton != null) { nextLevelButton.onClick.AddListener(OnNextLevelClicked); nextLevelButton.onClick.AddListener(AudioManager.PlayButtonClick); }
         }
 
         if (failPanelRoot != null)
         {
             failPanelRoot.SetActive(false);
-            if (retryButton != null) retryButton.onClick.AddListener(OnRetryClicked);
+            if (retryButton != null) { retryButton.onClick.AddListener(OnRetryClicked); retryButton.onClick.AddListener(AudioManager.PlayButtonClick); }
         }
 
         if (unlockPanelRoot != null) unlockPanelRoot.SetActive(false);
-        if (unlockOkButton != null) unlockOkButton.onClick.AddListener(HideUnlockPopup);
+        if (unlockOkButton != null) { unlockOkButton.onClick.AddListener(HideUnlockPopup); unlockOkButton.onClick.AddListener(AudioManager.PlayButtonClick); }
 
-        if (resetLevelButton != null) resetLevelButton.onClick.AddListener(OnResetLevelClicked);
+        if (resetLevelButton != null) { resetLevelButton.onClick.AddListener(OnResetLevelClicked); resetLevelButton.onClick.AddListener(AudioManager.PlayButtonClick); }
 
         if (nextMechanicPreviewImage != null)
             nextMechanicPreviewImage.gameObject.SetActive(false);
@@ -194,8 +194,13 @@ public class LevelPanelManager : MonoBehaviour
         // Uygulama kapanıp açılma: level tamamlandı ama Next'e basılmamıştı → win paneli tekrar göster
         if (GameManager.Instance != null && GameManager.Instance.IsLevelCompleting)
         {
-            GameManager.Instance.previousTotalProgress =
-                (GameManager.Instance.totalProgress - GameManager.Instance.progressPerLevel + 100) % 100;
+            int levelNum = PlayerPrefs.GetInt("CurrentLevelIndex", 0) + 1;
+            int cycleLen = Mathf.Max(1, 100 / GameManager.Instance.progressPerLevel);
+            int pos = ((levelNum - 1) % cycleLen) + 1;
+            GameManager.Instance.previousTotalProgress = (pos - 1) * GameManager.Instance.progressPerLevel;
+            GameManager.Instance.totalProgress = pos * GameManager.Instance.progressPerLevel;
+            GameManager.Instance.hitProgressHundred = GameManager.Instance.totalProgress >= 100;
+            if (GameManager.Instance.hitProgressHundred) GameManager.Instance.totalProgress = 0;
             ShowCompletePanel();
         }
     }
@@ -256,6 +261,7 @@ public class LevelPanelManager : MonoBehaviour
         completePanelRoot.transform.DOScale(1f, 0.35f).SetEase(Ease.OutBack).SetUpdate(true);
         
         VibrationManager.VibrateSuccess();
+        AudioManager.PlayWin();
 
         if (nextLevelButton != null)
         {
@@ -270,7 +276,7 @@ public class LevelPanelManager : MonoBehaviour
         // Yeni hediye/ödül kilit açılması var mı (%100 ulaşıldı mı?)
         LevelData.LevelType unlockedType = LevelData.LevelType.Classic;
         bool hasNewUnlock = GameManager.Instance.hitProgressHundred &&
-                           GameManager.Instance.GetTypeForProgress(GameManager.Instance.lifetimeProgress, out unlockedType);
+                           GameManager.Instance.GetTypeForProgress(out unlockedType);
 
         if (hasNewUnlock)
         {
@@ -428,6 +434,8 @@ public class LevelPanelManager : MonoBehaviour
         if (nextLevelClickedOnce) return;
         nextLevelClickedOnce = true;
 
+        AudioManager.PlayButtonClick();
+
         if (gridSpawner == null) gridSpawner = FindObjectOfType<GridSpawner>();
         completePanelRoot.transform.DOScale(0f, 0.2f).SetEase(Ease.InBack).SetUpdate(true).OnComplete(() =>
         {
@@ -453,6 +461,7 @@ public class LevelPanelManager : MonoBehaviour
 
     void OnRetryClicked()
     {
+        AudioManager.PlayButtonClick();
         int levelIndex = PlayerPrefs.GetInt("CurrentLevelIndex", 0);
         FirebaseManager.Instance?.LogLevelRetry(levelIndex);
 
@@ -466,6 +475,7 @@ public class LevelPanelManager : MonoBehaviour
 
     void OnResetLevelClicked()
     {
+        AudioManager.PlayButtonClick();
         // Win paneli açıkken reset engelle
         if (completePanelRoot != null && completePanelRoot.activeInHierarchy)
             return;
@@ -510,6 +520,7 @@ public class LevelPanelManager : MonoBehaviour
 
     void HideUnlockPopup()
     {
+        AudioManager.PlayButtonClick();
         unlockPanelRoot.transform.DOScale(0f, 0.25f).SetEase(Ease.InBack).SetUpdate(true).OnComplete(() =>
         {
             unlockPanelRoot.SetActive(false);
