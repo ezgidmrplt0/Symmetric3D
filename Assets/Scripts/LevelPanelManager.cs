@@ -40,6 +40,7 @@ public class LevelPanelManager : MonoBehaviour
     {
         public LevelData.LevelType levelType;
         public Sprite icon;
+        public float scaleMultiplier;
     }
     public List<MechanicIconData> mechanicIcons = new List<MechanicIconData>();
 
@@ -56,20 +57,23 @@ public class LevelPanelManager : MonoBehaviour
     private bool nextLevelClickedOnce = false;
     private Image previewBgImage;
 
-    void SetupPreviewFillSupport()
+    void SetupPreviewFillSupport(float scaleMultiplier = 1.0f)
     {
         if (nextMechanicPreviewImage == null) return;
+
+        if (scaleMultiplier <= 0f) scaleMultiplier = 1.0f;
+        float iconSize = 480f * scaleMultiplier;
 
         // 1. LayoutGroup kısıtlamalarını kaldırmak için LayoutElement ekle/ayarla
         UnityEngine.UI.LayoutElement srcLayout = nextMechanicPreviewImage.GetComponent<UnityEngine.UI.LayoutElement>();
         if (srcLayout == null) srcLayout = nextMechanicPreviewImage.gameObject.AddComponent<UnityEngine.UI.LayoutElement>();
         srcLayout.ignoreLayout = true;
-        srcLayout.preferredWidth = 450f;
-        srcLayout.preferredHeight = 450f;
-        srcLayout.minWidth = 450f;
-        srcLayout.minHeight = 450f;
+        srcLayout.preferredWidth = iconSize;
+        srcLayout.preferredHeight = iconSize;
+        srcLayout.minWidth = iconSize;
+        srcLayout.minHeight = iconSize;
 
-        Vector2 idealIconSize = new Vector2(450f, 450f);
+        Vector2 idealIconSize = new Vector2(iconSize, iconSize);
 
         RectTransform srcRect = nextMechanicPreviewImage.rectTransform;
         srcRect.localScale = Vector3.one;
@@ -129,7 +133,7 @@ public class LevelPanelManager : MonoBehaviour
             ptRect.anchorMin = new Vector2(0.5f, 0.5f);
             ptRect.anchorMax = new Vector2(0.5f, 0.5f);
             ptRect.pivot = new Vector2(0.5f, 0.5f);
-            ptRect.sizeDelta = new Vector2(450f, 120f);
+            ptRect.sizeDelta = new Vector2(iconSize, 120f);
             ptRect.anchoredPosition = Vector2.zero;
 
             progressText.alignment = TextAlignmentOptions.Center;
@@ -284,12 +288,12 @@ public class LevelPanelManager : MonoBehaviour
                 nextMechanicLabel.text = "REWARD UNLOCKED!";
             }
 
-            Sprite unlockSprite = GetIconForType(unlockedType);
+            Sprite unlockSprite = GetIconForType(unlockedType, out float unlockScale);
             if (nextMechanicPreviewImage != null)
             {
                 if (unlockSprite != null)
                 {
-                    SetupPreviewFillSupport();
+                    SetupPreviewFillSupport(unlockScale);
 
                     if (previewBgImage != null)
                     {
@@ -331,8 +335,9 @@ public class LevelPanelManager : MonoBehaviour
             });
     }
 
-    Sprite GetIconForType(LevelData.LevelType type)
+    Sprite GetIconForType(LevelData.LevelType type, out float scaleMultiplier)
     {
+        scaleMultiplier = 1.0f;
         int levelNum = PlayerPrefs.GetInt("CurrentLevelIndex", 0) + 1;
 
         // Level 11+ (Seviye 11 ve sonrası) -> GIFT (Hediye Paketi)
@@ -350,11 +355,14 @@ public class LevelPanelManager : MonoBehaviour
             foreach (var item in mechanicIcons)
             {
                 if (item.icon != null && item.levelType == LevelData.LevelType.Linked)
+                {
+                    scaleMultiplier = item.scaleMultiplier > 0 ? item.scaleMultiplier : 1.15f;
                     return item.icon;
+                }
             }
 #if UNITY_EDITOR
             Sprite linkSprite = UnityEditor.AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Images/Linked(1).png");
-            if (linkSprite != null) return linkSprite;
+            if (linkSprite != null) { scaleMultiplier = 1.15f; return linkSprite; }
 #endif
         }
         // Level 1-5 -> ROTATION
@@ -363,13 +371,16 @@ public class LevelPanelManager : MonoBehaviour
             foreach (var item in mechanicIcons)
             {
                 if (item.icon != null && item.levelType == LevelData.LevelType.Rotation)
+                {
+                    scaleMultiplier = item.scaleMultiplier > 0 ? item.scaleMultiplier : 1.15f;
                     return item.icon;
+                }
             }
 #if UNITY_EDITOR
             Sprite rotSprite = UnityEditor.AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Images/Rotation.png");
-            if (rotSprite != null) return rotSprite;
+            if (rotSprite != null) { scaleMultiplier = 1.15f; return rotSprite; }
 #endif
-            if (shufflePreviewSprite != null) return shufflePreviewSprite;
+            if (shufflePreviewSprite != null) { scaleMultiplier = 1.15f; return shufflePreviewSprite; }
         }
 
         if (giftSprite != null) return giftSprite;
@@ -382,6 +393,11 @@ public class LevelPanelManager : MonoBehaviour
             return nextMechanicPreviewImage.sprite;
 
         return null;
+    }
+
+    Sprite GetIconForType(LevelData.LevelType type)
+    {
+        return GetIconForType(type, out _);
     }
 
     void SetFill(float value)
@@ -477,8 +493,9 @@ public class LevelPanelManager : MonoBehaviour
 
         if (unlockRewardImage != null)
         {
-            Sprite found = GetIconForType(type);
+            Sprite found = GetIconForType(type, out float popupScale);
             unlockRewardImage.sprite = found;
+            unlockRewardImage.rectTransform.sizeDelta = new Vector2(400f * popupScale, 400f * popupScale);
             unlockRewardImage.gameObject.SetActive(found != null);
         }
 
@@ -513,11 +530,11 @@ public class LevelPanelManager : MonoBehaviour
             GameManager.Instance.GetNextMechanicToUnlock(out nextType);
         }
 
-        Sprite previewSprite = GetIconForType(nextType);
+        Sprite previewSprite = GetIconForType(nextType, out float previewScale);
 
         if (previewSprite != null)
         {
-            SetupPreviewFillSupport();
+            SetupPreviewFillSupport(previewScale);
 
             if (nextMechanicLabel != null)
             {
