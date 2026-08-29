@@ -28,7 +28,8 @@ public partial class DragObject : MonoBehaviour
     private Vector3 cachedLocalScale;
     private static DragObject[] cachedDragObjects;
     private static Transform[] cachedGridCells;
-    private static Vector3[] cachedGridCellPositions; // NEW: Fast position lookup
+    private static Vector3[] cachedGridCellPositions;
+    private GameObject dragGlowInstance;
 
     [Header("Görsel (Drag)")]
     [Tooltip("Sürüklerken objenin kameraya ne kadar yaklaşacağını belirler.")]
@@ -204,14 +205,11 @@ public partial class DragObject : MonoBehaviour
                 else
                     worldGrabOffset = Vector3.zero;
 
+                if (EffectsManager.Instance != null)
+                    dragGlowInstance = EffectsManager.Instance.CreateDragGlow(transform);
+
                 if (TutorialManager.Instance != null) TutorialManager.Instance.HideTutorial();
             }
-            else
-            {
-            }
-        }
-        else
-        {
         }
     }
 
@@ -254,6 +252,11 @@ public partial class DragObject : MonoBehaviour
     {
         dragging = false;
         activeTouchIndex = -1;
+
+        if (EffectsManager.Instance != null)
+            EffectsManager.Instance.DestroyDragGlow(dragGlowInstance);
+        dragGlowInstance = null;
+
         GridSpawner spawner = FindObjectOfType<GridSpawner>();
 
         // TAP KONTROLÜ — Rotation modunda kısa dokunuş = 90° döndür
@@ -354,11 +357,13 @@ public partial class DragObject : MonoBehaviour
         if (startParent != null)
         {
             transform.SetParent(startParent, true);
-            transform.DOLocalMove(startLocalPos, 0.4f).SetEase(Ease.OutBack);
+            transform.DOLocalMove(startLocalPos, 0.4f).SetEase(Ease.OutBack)
+                .OnComplete(() => EffectsManager.Instance?.ShakeTransform(transform));
         }
         else
         {
-            transform.DOMove(startPosition, 0.4f).SetEase(Ease.OutBack);
+            transform.DOMove(startPosition, 0.4f).SetEase(Ease.OutBack)
+                .OnComplete(() => EffectsManager.Instance?.ShakeTransform(transform));
         }
     }
 

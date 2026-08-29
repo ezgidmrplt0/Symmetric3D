@@ -159,6 +159,13 @@ public class LiquidTransfer : MonoBehaviour
         VibrationManager.TryVibrate();
         AudioManager.PlayTransfer();
 
+        if (EffectsManager.Instance != null)
+        {
+            EffectsManager.Instance.SpawnGlowPulse(this.transform, this.liquidColor);
+            EffectsManager.Instance.SpawnTransferParticles(
+                giver.transform.position, this.transform.position, liquidColor, transferDuration);
+        }
+
         int needed = maxSlices - this.currentSlices;
         int takeAmount = Mathf.Min(needed, giver.currentSlices);
 
@@ -200,7 +207,12 @@ public class LiquidTransfer : MonoBehaviour
             {
                 if (this.currentSlices >= maxSlices)
                 {
-                    // Tamamlandığında objeyi patlat/yok et
+                    if (EffectsManager.Instance != null)
+                    {
+                        EffectsManager.Instance.SpawnSnapParticles(this.transform.position, this.liquidColor);
+                        EffectsManager.Instance.SpawnSplash(this.transform.position, this.liquidColor);
+                    }
+
                     if (this.transform.parent != null)
                         this.transform.parent.DOScale(0, 0.2f).OnComplete(() =>
                         {
