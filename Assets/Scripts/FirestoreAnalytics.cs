@@ -90,6 +90,7 @@ public class FirestoreAnalytics : MonoBehaviour
 
             DocumentSnapshot snap = task.Result;
             var now = Timestamp.FromDateTime(DateTime.UtcNow);
+            string todayStr = DateTime.UtcNow.ToString("yyyy-MM-dd");
 
             if (!snap.Exists)
             {
@@ -97,7 +98,7 @@ public class FirestoreAnalytics : MonoBehaviour
                 var data = new Dictionary<string, object>
                 {
                     { "first_open",         now },
-                    { "install_date",       DateTime.UtcNow.ToString("yyyy-MM-dd") },
+                    { "install_date",       todayStr },
                     { "platform",           Application.platform.ToString() },
                     { "app_version",        Application.version },
                     { "total_play_minutes", 0 },
@@ -106,7 +107,10 @@ public class FirestoreAnalytics : MonoBehaviour
                     { "total_fails",        0 },
                     { "total_resets",       0 },
                     { "total_retries",      0 },
-                    { "last_seen",          now }
+                    { "last_seen",          now },
+                    { "last_active_date",   todayStr },
+                    { "active_dates",       new List<string> { todayStr } },
+                    { "retention_days",     new List<int> { 0 } }
                 };
                 profileRef.SetAsync(data);
 
@@ -115,6 +119,7 @@ public class FirestoreAnalytics : MonoBehaviour
                 {
                     { "device_id",          userId },
                     { "first_open",         now },
+                    { "install_date",       todayStr },
                     { "platform",           Application.platform.ToString() },
                     { "app_version",        Application.version },
                     { "farthest_level",     0 },
@@ -123,14 +128,36 @@ public class FirestoreAnalytics : MonoBehaviour
                     { "total_resets",       0 },
                     { "total_retries",      0 },
                     { "total_play_minutes", 0.0 },
-                    { "last_seen",          now }
+                    { "last_seen",          now },
+                    { "last_active_date",   todayStr },
+                    { "active_dates",       new List<string> { todayStr } },
+                    { "retention_days",     new List<int> { 0 } }
                 });
             }
             else
             {
-                // Geri dönen kullanıcı — son görülme zamanını güncelle
-                profileRef.UpdateAsync("last_seen", now);
-                UpdateRootDoc(new Dictionary<string, object> { { "last_seen", now } });
+                // Geri dönen kullanıcı — son görülme zamanını ve aktif günlerini güncelle
+                string installDateStr = todayStr;
+                if (snap.TryGetValue("install_date", out string ins) && !string.IsNullOrEmpty(ins))
+                {
+                    installDateStr = ins;
+                }
+
+                int retDay = 0;
+                if (DateTime.TryParse(installDateStr, out DateTime insDate))
+                {
+                    retDay = Mathf.Max(0, (DateTime.UtcNow.Date - insDate.Date).Days);
+                }
+
+                var updates = new Dictionary<string, object>
+                {
+                    { "last_seen",        now },
+                    { "last_active_date", todayStr },
+                    { "active_dates",     FieldValue.ArrayUnion(todayStr) },
+                    { "retention_days",   FieldValue.ArrayUnion(retDay) }
+                };
+                profileRef.UpdateAsync(updates);
+                UpdateRootDoc(updates);
             }
         });
 #endif
@@ -167,9 +194,11 @@ public class FirestoreAnalytics : MonoBehaviour
         if (!isReady) return;
 
 #if ENABLE_FIREBASE
+        string todayStr = DateTime.UtcNow.ToString("yyyy-MM-dd");
         var data = new Dictionary<string, object>
         {
             { "start_time",         Timestamp.FromDateTime(sessionStartTime) },
+            { "date",               todayStr },
             { "end_time",           FieldValue.ServerTimestamp },
             { "duration_seconds",   0 },
             { "levels_played",      0 },
@@ -181,10 +210,14 @@ public class FirestoreAnalytics : MonoBehaviour
           .Collection(COLLECTION_SESSIONS).Document(sessionId)
           .SetAsync(data);
 
-        // Profilde toplam oturum sayısını artır
+        // Profilde toplam oturum sayısını artır ve aktif günü ekle
         db.Collection(COLLECTION_USERS).Document(userId)
           .Collection("meta").Document(DOC_PROFILE)
-          .UpdateAsync("total_sessions", FieldValue.Increment(1));
+          .UpdateAsync(new Dictionary<string, object>
+          {
+              { "total_sessions", FieldValue.Increment(1) },
+              { "active_dates",   FieldValue.ArrayUnion(todayStr) }
+          });
 #endif
     }
 

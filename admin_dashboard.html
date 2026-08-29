@@ -3,34 +3,49 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ColorMatch3D — Admin Analytics</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <title>ColorMatch3D — Admin Analytics & Retention Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
   <style>
     :root {
       --bg:           #07070f;
-      --surface:      #0f0f1a;
-      --surface2:     #161625;
-      --border:       #1c1c30;
+      --surface:      #0e0e1a;
+      --surface2:     #151526;
+      --surface3:     #1d1d33;
+      --border:       #21213b;
+      --border-light: rgba(255,255,255,0.08);
       --accent:       #6366f1;
+      --accent-hover: #4f46e5;
+      --accent-glow:  rgba(99,102,241,0.25);
       --accent-dim:   rgba(99,102,241,0.12);
       --success:      #10b981;
+      --success-glow: rgba(16,185,129,0.25);
       --warning:      #f59e0b;
       --danger:       #ef4444;
-      --text:         #f0f0ff;
-      --text-muted:   #8892a4;
-      --text-dim:     #3d4460;
+      --cyan:         #06b6d4;
+      --purple:       #a855f7;
+      --text:         #f3f4f6;
+      --text-muted:   #9ca3af;
+      --text-dim:     #4b5563;
+      --radius-sm:    8px;
+      --radius-md:    12px;
+      --radius-lg:    16px;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: 'Inter', sans-serif;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
       background: var(--bg);
       color: var(--text);
       min-height: 100vh;
+      line-height: 1.5;
     }
 
     /* ── Header ──────────────────────────────────────── */
     .header {
-      background: var(--surface);
+      background: rgba(14, 14, 26, 0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
       border-bottom: 1px solid var(--border);
       padding: 14px 32px;
       display: flex;
@@ -38,156 +53,344 @@
       justify-content: space-between;
       position: sticky; top: 0; z-index: 100;
     }
-    .header-brand { display: flex; align-items: center; gap: 12px; }
+    .header-brand { display: flex; align-items: center; gap: 14px; }
     .logo {
-      width: 38px; height: 38px;
+      width: 40px; height: 40px;
       background: linear-gradient(135deg, #6366f1, #8b5cf6);
       border-radius: 10px;
       display: flex; align-items: center; justify-content: center;
-      font-size: 20px; box-shadow: 0 0 20px rgba(99,102,241,0.4);
+      font-size: 22px; box-shadow: 0 0 24px rgba(99,102,241,0.45);
     }
-    .brand-title  { font-size: 15px; font-weight: 700; }
-    .brand-sub    { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
-    .header-right { display: flex; align-items: center; gap: 10px; }
+    .brand-title  { font-size: 16px; font-weight: 700; letter-spacing: -0.3px; }
+    .brand-sub    { font-size: 11px; color: var(--text-muted); margin-top: 1px; display: flex; align-items: center; gap: 6px; }
+    .live-dot     { width: 7px; height: 7px; background: var(--success); border-radius: 50%; box-shadow: 0 0 8px var(--success); display: inline-block; }
+    
+    .nav-tabs {
+      display: flex;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 4px;
+      gap: 4px;
+    }
+    .nav-tab {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 8px 18px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      font-family: inherit;
+    }
+    .nav-tab:hover { color: var(--text); background: rgba(255,255,255,0.04); }
+    .nav-tab.active {
+      background: var(--accent);
+      color: #fff;
+      box-shadow: 0 2px 12px var(--accent-glow);
+    }
+
+    .header-right { display: flex; align-items: center; gap: 12px; }
     .last-refresh { font-size: 12px; color: var(--text-muted); }
 
-    /* ── Main ────────────────────────────────────────── */
-    .main { max-width: 1440px; margin: 0 auto; padding: 28px 32px; }
+    /* ── Main Layout ──────────────────────────────────── */
+    .main { max-width: 1520px; margin: 0 auto; padding: 24px 32px; }
 
-    /* ── Stats Cards ─────────────────────────────────── */
-    .stats-grid {
+    .tab-content { display: none; }
+    .tab-content.active { display: block; animation: fadeIn 0.25s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* ── KPI Grid ─────────────────────────────────────── */
+    .kpi-grid {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
       gap: 14px; margin-bottom: 22px;
     }
-    .stat-card {
+    .kpi-card {
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 20px 20px 16px;
+      border-radius: var(--radius-lg);
+      padding: 18px 20px;
       position: relative; overflow: hidden;
-      transition: border-color 0.2s;
+      transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
     }
-    .stat-card:hover { border-color: var(--accent); }
-    .stat-card::after {
+    .kpi-card:hover {
+      transform: translateY(-2px);
+      border-color: rgba(99,102,241,0.4);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+    }
+    .kpi-card::after {
       content: '';
       position: absolute; inset: 0;
-      background: radial-gradient(circle at top right, var(--card-glow, transparent), transparent 60%);
+      background: radial-gradient(circle at top right, var(--card-glow, transparent), transparent 65%);
       pointer-events: none;
     }
-    .stat-card.blue  { --card-glow: rgba(99,102,241,0.08); }
-    .stat-card.green { --card-glow: rgba(16,185,129,0.08); }
-    .stat-card.red   { --card-glow: rgba(239,68,68,0.08);  }
-    .stat-card.amber { --card-glow: rgba(245,158,11,0.08); }
-    .stat-card::before {
+    .kpi-card.indigo { --card-glow: rgba(99,102,241,0.12); }
+    .kpi-card.emerald { --card-glow: rgba(16,185,129,0.12); }
+    .kpi-card.cyan { --card-glow: rgba(6,182,212,0.12); }
+    .kpi-card.purple { --card-glow: rgba(168,85,247,0.12); }
+    .kpi-card.amber { --card-glow: rgba(245,158,11,0.12); }
+    .kpi-card.rose { --card-glow: rgba(239,68,68,0.12); }
+
+    .kpi-card::before {
       content: '';
       position: absolute; top: 0; left: 0; right: 0; height: 2px;
-      border-radius: 14px 14px 0 0;
+      border-radius: var(--radius-lg) var(--radius-lg) 0 0;
     }
-    .stat-card.blue::before  { background: linear-gradient(90deg, #6366f1, #8b5cf6); }
-    .stat-card.green::before { background: linear-gradient(90deg, #10b981, #34d399); }
-    .stat-card.red::before   { background: linear-gradient(90deg, #ef4444, #f87171); }
-    .stat-card.amber::before { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
-    .stat-icon { position: absolute; right: 16px; top: 16px; font-size: 22px; opacity: 0.35; }
-    .stat-label { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 10px; }
-    .stat-value { font-size: 36px; font-weight: 800; letter-spacing: -1px; }
-    .stat-sub   { font-size: 11px; color: var(--text-muted); margin-top: 5px; }
+    .kpi-card.indigo::before  { background: linear-gradient(90deg, #6366f1, #818cf8); }
+    .kpi-card.emerald::before { background: linear-gradient(90deg, #10b981, #34d399); }
+    .kpi-card.cyan::before    { background: linear-gradient(90deg, #06b6d4, #38bdf8); }
+    .kpi-card.purple::before  { background: linear-gradient(90deg, #a855f7, #c084fc); }
+    .kpi-card.amber::before   { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+    .kpi-card.rose::before    { background: linear-gradient(90deg, #ef4444, #f87171); }
 
-    /* ── Toolbar ──────────────────────────────────────── */
-    .toolbar { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
-    .search-wrap { position: relative; flex: 1; max-width: 280px; }
+    .kpi-icon { position: absolute; right: 16px; top: 16px; font-size: 20px; opacity: 0.5; }
+    .kpi-label {
+      font-size: 11px; font-weight: 700; color: var(--text-muted);
+      text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 8px;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .kpi-value {
+      font-size: 32px; font-weight: 800; letter-spacing: -1px;
+      display: flex; align-items: baseline; gap: 6px;
+    }
+    .kpi-value .unit { font-size: 16px; font-weight: 600; color: var(--text-muted); }
+    .kpi-sub { font-size: 11px; color: var(--text-muted); margin-top: 6px; display: flex; align-items: center; justify-content: space-between; }
+    .benchmark-tag {
+      font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px;
+      background: var(--surface2); border: 1px solid var(--border);
+    }
+    .benchmark-tag.good { background: rgba(16,185,129,0.12); color: var(--success); border-color: rgba(16,185,129,0.3); }
+    .benchmark-tag.fair { background: rgba(245,158,11,0.12); color: var(--warning); border-color: rgba(245,158,11,0.3); }
+    .benchmark-tag.poor { background: rgba(239,68,68,0.12); color: var(--danger); border-color: rgba(239,68,68,0.3); }
+
+    /* ── Sections & Cards ─────────────────────────────── */
+    .section-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 22px;
+      margin-bottom: 22px;
+    }
+    .section-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .section-title {
+      font-size: 15px; font-weight: 700;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .section-desc { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+    /* ── Controls & Toolbar ───────────────────────────── */
+    .toolbar {
+      display: flex; align-items: center; gap: 10px;
+      flex-wrap: wrap;
+    }
+    .toggle-group {
+      display: inline-flex;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 3px;
+      gap: 2px;
+    }
+    .toggle-btn {
+      background: transparent; border: none;
+      color: var(--text-muted); font-size: 12px; font-weight: 600;
+      padding: 5px 12px; border-radius: 6px;
+      cursor: pointer; transition: all 0.15s;
+      font-family: inherit;
+    }
+    .toggle-btn:hover { color: var(--text); }
+    .toggle-btn.active {
+      background: var(--surface3);
+      color: #fff;
+      border: 1px solid var(--border-light);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    }
+    .search-wrap { position: relative; min-width: 240px; }
     .search-wrap svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); opacity: 0.4; pointer-events: none; }
     .search-box {
       width: 100%;
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: 8px; padding: 9px 12px 9px 34px;
-      color: var(--text); font-size: 13px; font-family: 'Inter', sans-serif;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 8px 12px 8px 34px;
+      color: var(--text); font-size: 13px; font-family: inherit;
       outline: none; transition: border-color 0.2s;
     }
     .search-box:focus { border-color: var(--accent); }
     .search-box::placeholder { color: var(--text-dim); }
+
     .btn {
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: 8px; padding: 8px 14px;
-      color: var(--text-muted); font-size: 13px; font-weight: 500;
-      cursor: pointer; transition: all 0.18s; font-family: 'Inter', sans-serif;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 7px 14px;
+      color: var(--text-muted); font-size: 12px; font-weight: 600;
+      cursor: pointer; transition: all 0.18s; font-family: inherit;
+      display: inline-flex; align-items: center; gap: 6px;
       white-space: nowrap;
     }
     .btn:hover { border-color: var(--accent); color: var(--text); }
-    .btn.active { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
-    .btn.export {
-      border-color: var(--success); color: var(--success); margin-left: auto;
-    }
+    .btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .btn.primary:hover { background: var(--accent-hover); }
+    .btn.export { border-color: rgba(16,185,129,0.3); color: var(--success); }
     .btn.export:hover { background: var(--success); color: #fff; }
-    .btn.refresh { border-color: var(--border); }
 
-    /* ── Table ───────────────────────────────────────── */
-    .table-wrap {
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: 14px; overflow: hidden;
+    /* ── Cohort Heatmap Table ─────────────────────────── */
+    .table-container {
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      background: var(--surface);
     }
-    table { width: 100%; border-collapse: collapse; }
-    thead { background: var(--surface2); }
-    th {
-      padding: 11px 16px; text-align: left;
-      font-size: 11px; font-weight: 600; color: var(--text-muted);
+    .cohort-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      text-align: center;
+    }
+    .cohort-table th {
+      background: var(--surface2);
+      padding: 10px 12px;
+      font-size: 11px; font-weight: 700;
+      color: var(--text-muted);
       text-transform: uppercase; letter-spacing: 0.5px;
-      background: var(--surface2); border-bottom: 1px solid var(--border);
-      cursor: pointer; user-select: none; white-space: nowrap;
-      transition: color 0.15s;
+      border-bottom: 1px solid var(--border);
+      border-right: 1px solid var(--border);
+      white-space: nowrap;
     }
-    th:hover { color: var(--text); }
-    th.asc::after  { content: ' ↑'; color: var(--accent); }
-    th.desc::after { content: ' ↓'; color: var(--accent); }
-    td {
-      padding: 11px 16px; font-size: 13px;
-      border-bottom: 1px solid var(--border); vertical-align: middle;
+    .cohort-table th:first-child, .cohort-table td:first-child { text-align: left; position: sticky; left: 0; z-index: 2; }
+    .cohort-table th:nth-child(2), .cohort-table td:nth-child(2) { text-align: right; }
+    .cohort-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      border-right: 1px solid var(--border);
+      font-weight: 500;
+      white-space: nowrap;
+      transition: background 0.15s;
     }
-    tr:last-child td { border-bottom: none; }
-    tbody tr { transition: background 0.12s; }
-    tbody tr:hover td { background: rgba(99,102,241,0.04); cursor: pointer; }
+    .cohort-table tbody tr:hover td { filter: brightness(1.15); }
+    .cohort-table td.cohort-date { background: var(--surface2); font-weight: 600; }
+    .cohort-table td.cohort-size { background: var(--surface); font-family: 'JetBrains Mono', monospace; }
+    .cohort-table tr.total-row td {
+      background: var(--surface3);
+      font-weight: 700;
+      border-top: 2px solid var(--accent);
+      border-bottom: none;
+    }
 
-    .mono { font-family: 'Courier New', monospace; font-size: 12px; color: var(--text-muted); }
-    .platform-tag {
-      display: inline-block; font-size: 10px; background: var(--surface2);
-      border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px;
-      color: var(--text-muted); margin-top: 3px;
+    /* Heatmap cell styles */
+    .ret-cell {
+      position: relative;
+      cursor: default;
     }
-    .level-bar-wrap { display: flex; align-items: center; gap: 8px; }
-    .level-bar-track { width: 56px; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
-    .level-bar-fill  { height: 100%; background: linear-gradient(90deg, #6366f1, #8b5cf6); border-radius: 2px; transition: width 0.4s; }
+    .ret-cell.pending {
+      color: var(--text-dim);
+      font-style: italic;
+      background: rgba(255,255,255,0.015);
+    }
+    .ret-badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-weight: 700;
+      font-size: 11px;
+      min-width: 48px;
+    }
+
+    /* ── Chart Container ──────────────────────────────── */
+    .chart-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 16px;
+      margin-bottom: 22px;
+    }
+    @media (max-width: 1100px) { .chart-grid { grid-template-columns: 1fr; } }
+    .canvas-wrap {
+      position: relative;
+      width: 100%;
+      height: 280px;
+    }
+    canvas { width: 100% !important; height: 100% !important; }
+
+    .insight-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .insight-title { font-size: 12px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); margin-bottom: 10px; }
+    .insight-item {
+      display: flex; align-items: flex-start; gap: 10px;
+      margin-bottom: 12px; font-size: 12px; line-height: 1.45;
+    }
+    .insight-icon { font-size: 16px; line-height: 1; margin-top: 2px; }
+
+    /* ── Standard Tables (Users & Levels) ─────────────── */
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    .data-table thead { background: var(--surface2); }
+    .data-table th {
+      padding: 12px 16px; text-align: left;
+      font-size: 11px; font-weight: 700; color: var(--text-muted);
+      text-transform: uppercase; letter-spacing: 0.5px;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer; user-select: none; white-space: nowrap;
+    }
+    .data-table th:hover { color: var(--text); }
+    .data-table th.asc::after  { content: ' ↑'; color: var(--accent); }
+    .data-table th.desc::after { content: ' ↓'; color: var(--accent); }
+    .data-table td {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    .data-table tbody tr { transition: background 0.12s; }
+    .data-table tbody tr:hover td { background: rgba(99,102,241,0.05); cursor: pointer; }
+
+    .mono { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-muted); }
     .badge {
       display: inline-flex; align-items: center; gap: 5px;
-      padding: 4px 9px; border-radius: 20px;
+      padding: 3px 8px; border-radius: 20px;
       font-size: 11px; font-weight: 600; white-space: nowrap;
     }
     .badge.active  { background: rgba(16,185,129,0.12); color: var(--success); border: 1px solid rgba(16,185,129,0.2); }
     .badge.risk    { background: rgba(245,158,11,0.12); color: var(--warning); border: 1px solid rgba(245,158,11,0.2); }
     .badge.churned { background: rgba(239,68,68,0.12);  color: var(--danger);  border: 1px solid rgba(239,68,68,0.2);  }
-    .num-danger { color: var(--danger); font-weight: 700; }
-    .num-ok     { color: var(--success); }
+    
+    .badge.ret_d7  { background: rgba(168,85,247,0.15); color: #c084fc; border: 1px solid rgba(168,85,247,0.3); }
+    .badge.ret_d1  { background: rgba(99,102,241,0.15); color: #818cf8; border: 1px solid rgba(99,102,241,0.3); }
+    .badge.ret_d0  { background: rgba(107,114,128,0.15); color: #9ca3af; border: 1px solid rgba(107,114,128,0.3); }
 
-    /* ── Loading / Empty ─────────────────────────────── */
-    .loading, .empty {
-      text-align: center; padding: 60px 20px; color: var(--text-muted);
-    }
-    .spinner {
-      width: 30px; height: 30px; border: 2px solid var(--border);
-      border-top-color: var(--accent); border-radius: 50%;
-      animation: spin 0.7s linear infinite; margin: 0 auto 14px;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .empty-icon { font-size: 36px; margin-bottom: 12px; }
+    .level-bar-wrap { display: flex; align-items: center; gap: 8px; }
+    .level-bar-track { width: 60px; height: 5px; background: var(--surface2); border-radius: 3px; overflow: hidden; border: 1px solid var(--border); }
+    .level-bar-fill  { height: 100%; background: linear-gradient(90deg, #6366f1, #8b5cf6); border-radius: 3px; }
 
     /* ── Detail Panel ─────────────────────────────────── */
     .overlay {
-      position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+      position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(4px);
       z-index: 200; opacity: 0; pointer-events: none;
-      transition: opacity 0.28s;
+      transition: opacity 0.25s;
     }
     .overlay.open { opacity: 1; pointer-events: all; }
     .panel {
-      position: fixed; right: 0; top: 0; bottom: 0; width: 780px;
+      position: fixed; right: 0; top: 0; bottom: 0; width: 780px; max-width: 95vw;
       background: var(--surface); border-left: 1px solid var(--border);
       z-index: 201; transform: translateX(100%);
       transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -197,66 +400,82 @@
     .panel-head {
       padding: 18px 24px; border-bottom: 1px solid var(--border);
       display: flex; align-items: flex-start; justify-content: space-between;
-      position: sticky; top: 0; background: var(--surface); z-index: 1;
+      position: sticky; top: 0; background: var(--surface); z-index: 10;
     }
-    .panel-title { font-size: 15px; font-weight: 700; }
+    .panel-title { font-size: 16px; font-weight: 700; }
     .panel-uid   { font-size: 11px; color: var(--text-muted); font-family: monospace; margin-top: 3px; }
     .panel-close {
-      background: none; border: 1px solid var(--border); color: var(--text-muted);
+      background: transparent; border: 1px solid var(--border); color: var(--text-muted);
       cursor: pointer; font-size: 16px; border-radius: 6px;
       padding: 4px 8px; transition: all 0.15s;
     }
     .panel-close:hover { border-color: var(--danger); color: var(--danger); }
     .panel-body { padding: 20px 24px; flex: 1; }
+
     .sec-title {
-      font-size: 11px; font-weight: 600; text-transform: uppercase;
-      letter-spacing: 0.6px; color: var(--text-muted); margin: 22px 0 12px;
+      font-size: 11px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.6px; color: var(--text-muted); margin: 24px 0 12px;
+      display: flex; align-items: center; gap: 6px;
     }
     .sec-title:first-child { margin-top: 0; }
-    .churn-alert {
-      background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.25);
-      border-radius: 10px; padding: 12px 14px; margin-bottom: 16px;
-      font-size: 13px; color: var(--danger); line-height: 1.5;
-    }
-    .profile-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .profile-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    @media (max-width: 600px) { .profile-grid { grid-template-columns: 1fr; } }
     .pitem {
-      background: var(--surface2); border-radius: 10px; padding: 14px;
+      background: var(--surface2); border-radius: var(--radius-sm); padding: 14px;
       border: 1px solid var(--border);
     }
-    .pitem-label { font-size: 11px; color: var(--text-muted); margin-bottom: 5px; }
-    .pitem-value { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; }
-    .pitem-value.v-accent  { color: var(--accent); }
+    .pitem-label { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
+    .pitem-value { font-size: 20px; font-weight: 800; }
+    .pitem-value.v-accent { color: var(--accent); }
     .pitem-value.v-success { color: var(--success); }
-    .pitem-value.v-danger  { color: var(--danger); }
     .pitem-value.v-warning { color: var(--warning); }
-    .pitem-value.v-sm      { font-size: 14px; font-weight: 500; }
+    .pitem-value.v-danger { color: var(--danger); }
+    .pitem-value.v-sm { font-size: 13px; font-weight: 600; }
 
-    .lvl-table { width: 100%; border-collapse: collapse; }
-    .lvl-table th {
-      font-size: 10px; padding: 8px 10px; background: var(--surface2);
-      color: var(--text-muted); border-bottom: 1px solid var(--border);
-      text-align: left; text-transform: uppercase; letter-spacing: 0.4px;
+    /* Active dates badges */
+    .active-dates-wrap {
+      display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px;
     }
-    .lvl-table td { font-size: 12px; padding: 8px 10px; border-bottom: 1px solid var(--border); }
-    .lvl-table tr:last-child td { border-bottom: none; }
-    .lvl-table tbody tr:hover td { background: var(--accent-dim); }
-    .lvl-table .c-fail   { color: var(--danger); font-weight: 700; }
-    .lvl-table .c-done   { color: var(--success); font-weight: 600; }
-    .lvl-table .c-quit   { color: var(--warning); font-weight: 600; }
-    .outcome-done { color: var(--success); font-weight: 600; }
-    .outcome-quit { color: var(--danger);  font-weight: 600; }
-    .outcome-try  { color: var(--warning); font-weight: 600; }
+    .date-badge {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 6px; padding: 4px 8px; font-size: 11px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .date-badge.first { border-color: var(--accent); color: #818cf8; }
+    .date-badge.latest { border-color: var(--success); color: #34d399; }
 
-    /* ── Scrollbar ────────────────────────────────────── */
-    ::-webkit-scrollbar { width: 5px; }
+    /* ── Loading / Empty ─────────────────────────────── */
+    .loading, .empty {
+      text-align: center; padding: 60px 20px; color: var(--text-muted);
+    }
+    .spinner {
+      width: 32px; height: 32px; border: 2px solid var(--border);
+      border-top-color: var(--accent); border-radius: 50%;
+      animation: spin 0.7s linear infinite; margin: 0 auto 14px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Tooltips ─────────────────────────────────────── */
+    [data-tooltip] { position: relative; }
+    [data-tooltip]::before {
+      content: attr(data-tooltip);
+      position: absolute; bottom: 100%; left: 50%;
+      transform: translateX(-50%) translateY(-6px);
+      padding: 5px 10px; background: #1e1e38; color: #fff;
+      font-size: 11px; font-weight: 600; border-radius: 6px;
+      white-space: nowrap; pointer-events: none; opacity: 0;
+      transition: opacity 0.15s, transform 0.15s;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.5);
+      border: 1px solid var(--border);
+      z-index: 50;
+    }
+    [data-tooltip]:hover::before { opacity: 1; transform: translateX(-50%) translateY(-10px); }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-
-    @media (max-width: 960px) {
-      .stats-grid { grid-template-columns: repeat(2, 1fr); }
-      .panel { width: 100%; }
-      .main { padding: 16px; }
-    }
+    ::-webkit-scrollbar-thumb:hover { background: var(--border-light); }
   </style>
 </head>
 <body>
@@ -266,95 +485,293 @@
   <div class="header-brand">
     <div class="logo">🎮</div>
     <div>
-      <div class="brand-title">ColorMatch3D</div>
-      <div class="brand-sub">Admin Analytics Dashboard</div>
+      <div class="brand-title">ColorMatch3D Admin</div>
+      <div class="brand-sub">
+        <span class="live-dot"></span> Canlı Analitik & Retention Sistemi
+      </div>
     </div>
   </div>
+
+  <!-- VIEW SWITCHER TABS -->
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="switchTab('retention', this)">
+      📊 Retention (D1-D30)
+    </button>
+    <button class="nav-tab" onclick="switchTab('users', this)">
+      👥 Oyuncular & Segmentler
+    </button>
+    <button class="nav-tab" onclick="switchTab('levels', this)">
+      🎮 Level Performansı
+    </button>
+  </div>
+
   <div class="header-right">
     <span class="last-refresh" id="lastRefresh"></span>
-    <button class="btn refresh" id="refreshBtn" onclick="loadData()">⟳ Yenile</button>
+    <button class="btn primary" id="refreshBtn" onclick="loadData()">⟳ Yenile</button>
   </div>
 </div>
 
 <div class="main">
 
-  <!-- STATS -->
-  <div class="stats-grid">
-    <div class="stat-card blue">
-      <div class="stat-icon">👥</div>
-      <div class="stat-label">Toplam Kullanıcı</div>
-      <div class="stat-value" id="sTotal">—</div>
-      <div class="stat-sub">Tüm zamanlar</div>
-    </div>
-    <div class="stat-card green">
-      <div class="stat-icon">🟢</div>
-      <div class="stat-label">Aktif (7 gün)</div>
-      <div class="stat-value" id="sActive">—</div>
-      <div class="stat-sub">Son 7 günde oynadı</div>
-    </div>
-    <div class="stat-card red">
-      <div class="stat-icon">🚪</div>
-      <div class="stat-label">Muhtemel Sildi</div>
-      <div class="stat-value" id="sChurned">—</div>
-      <div class="stat-sub">7+ gündür görülmedi</div>
-    </div>
-    <div class="stat-card amber">
-      <div class="stat-icon">🏆</div>
-      <div class="stat-label">Ort. En Yüksek Level</div>
-      <div class="stat-value" id="sAvgLvl">—</div>
-      <div class="stat-sub">Kullanıcı başına</div>
-    </div>
-  </div>
+  <!-- ════════════════════════════════════════════════════════════════ -->
+  <!-- TAB 1: RETENTION ANALYTICS (D1, D3, D7, D14, D30 COHORTS)        -->
+  <!-- ════════════════════════════════════════════════════════════════ -->
+  <div class="tab-content active" id="tab-retention">
+    
+    <!-- RETENTION KPI CARDS -->
+    <div class="kpi-grid">
+      <div class="kpi-card indigo">
+        <div class="kpi-icon">⚡</div>
+        <div class="kpi-label">D1 Retention</div>
+        <div class="kpi-value" id="kpiD1">—<span class="unit">%</span></div>
+        <div class="kpi-sub">
+          <span id="kpiD1Count">0 / 0 oyuncu</span>
+          <span class="benchmark-tag" id="kpiD1Bench">Hedef >%40</span>
+        </div>
+      </div>
 
-  <!-- TOOLBAR -->
-  <div class="toolbar">
-    <div class="search-wrap">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-      <input type="text" class="search-box" id="searchBox" placeholder="Kullanıcı ID ara..." oninput="applyFilters()">
-    </div>
-    <button class="btn active" id="fAll"     onclick="setFilter('all',     this)">Tümü</button>
-    <button class="btn"        id="fActive"  onclick="setFilter('active',  this)">🟢 Aktif</button>
-    <button class="btn"        id="fRisk"    onclick="setFilter('risk',    this)">🟡 Risk (3-7g)</button>
-    <button class="btn"        id="fChurned" onclick="setFilter('churned', this)">🔴 Muhtemel Sildi</button>
-    <button class="btn export" onclick="exportCSV()">⬇ CSV İndir</button>
-  </div>
+      <div class="kpi-card cyan">
+        <div class="kpi-icon">🎯</div>
+        <div class="kpi-label">D3 Retention</div>
+        <div class="kpi-value" id="kpiD3">—<span class="unit">%</span></div>
+        <div class="kpi-sub">
+          <span id="kpiD3Count">0 / 0 oyuncu</span>
+          <span class="benchmark-tag" id="kpiD3Bench">Hedef >%25</span>
+        </div>
+      </div>
 
-  <!-- TABLE -->
-  <div class="table-wrap">
-    <table>
-      <thead>
-        <tr>
-          <th onclick="sortBy('device_id')">Kullanıcı</th>
-          <th onclick="sortBy('farthest_level')">En Yüksek Level</th>
-          <th onclick="sortBy('total_play_minutes')">Süre</th>
-          <th onclick="sortBy('total_sessions')">Oturum</th>
-          <th onclick="sortBy('total_fails')">Fail</th>
-          <th onclick="sortBy('total_resets')">Reset</th>
-          <th onclick="sortBy('total_retries')">Retry</th>
-          <th onclick="sortBy('last_seen_ts')">Son Görülme</th>
-          <th onclick="sortBy('first_open_ts')">Kurulum</th>
-          <th>Durum</th>
-        </tr>
-      </thead>
-      <tbody id="tbody">
-        <tr><td colspan="10">
-          <div class="loading">
-            <div class="spinner"></div>
-            <div>Veriler yükleniyor...</div>
+      <div class="kpi-card emerald">
+        <div class="kpi-icon">🏆</div>
+        <div class="kpi-label">D7 Retention</div>
+        <div class="kpi-value" id="kpiD7">—<span class="unit">%</span></div>
+        <div class="kpi-sub">
+          <span id="kpiD7Count">0 / 0 oyuncu</span>
+          <span class="benchmark-tag" id="kpiD7Bench">Hedef >%18</span>
+        </div>
+      </div>
+
+      <div class="kpi-card purple">
+        <div class="kpi-icon">💎</div>
+        <div class="kpi-label">D14 Retention</div>
+        <div class="kpi-value" id="kpiD14">—<span class="unit">%</span></div>
+        <div class="kpi-sub">
+          <span id="kpiD14Count">0 / 0 oyuncu</span>
+          <span class="benchmark-tag" id="kpiD14Bench">Hedef >%10</span>
+        </div>
+      </div>
+
+      <div class="kpi-card amber">
+        <div class="kpi-icon">👑</div>
+        <div class="kpi-label">D30 Retention</div>
+        <div class="kpi-value" id="kpiD30">—<span class="unit">%</span></div>
+        <div class="kpi-sub">
+          <span id="kpiD30Count">0 / 0 oyuncu</span>
+          <span class="benchmark-tag" id="kpiD30Bench">Hedef >%6</span>
+        </div>
+      </div>
+
+      <div class="kpi-card rose">
+        <div class="kpi-icon">📈</div>
+        <div class="kpi-label">Oyuncu Bağlılığı</div>
+        <div class="kpi-value" id="kpiStickiness">—<span class="unit">%</span></div>
+        <div class="kpi-sub">
+          <span id="kpiAvgLifespan">Ort. Ömür: — gün</span>
+          <span class="benchmark-tag good">DAU / WAU</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- RETENTION DECAY CHART & INSIGHTS -->
+    <div class="chart-grid">
+      <div class="section-card" style="margin-bottom:0">
+        <div class="section-head">
+          <div>
+            <div class="section-title">📉 Retention Kayıp Eğrisi (Decay Curve)</div>
+            <div class="section-desc">Gün bazında kullanıcı tutundurma eğrisi vs. sektör standartları</div>
           </div>
-        </td></tr>
-      </tbody>
-    </table>
+          <div class="toolbar">
+            <span style="font-size:11px;color:var(--text-muted)">🔵 Oyununuz &nbsp;|&nbsp; 🟢 Sektör İyi (%45 / %18) &nbsp;|&nbsp; 🟡 Sektör Medyan (%35 / %12)</span>
+          </div>
+        </div>
+        <div class="canvas-wrap">
+          <canvas id="retentionCanvas"></canvas>
+        </div>
+      </div>
+
+      <div class="insight-card">
+        <div>
+          <div class="insight-title">💡 Retention Teşhisi & Öneriler</div>
+          <div id="insightList">
+            <div class="insight-item">
+              <div class="insight-icon">🔍</div>
+              <div>Veriler analiz ediliyor...</div>
+            </div>
+          </div>
+        </div>
+        <div style="font-size:11px;color:var(--text-dim);border-top:1px solid var(--border);padding-top:10px">
+          Not: D1-D30 oranları sadece süresi dolmuş (olgunlaşmış) kohortlar üzerinden hesaplanır.
+        </div>
+      </div>
+    </div>
+
+    <div style="height:20px"></div>
+
+    <!-- COHORT RETENTION HEATMAP TABLE -->
+    <div class="section-card">
+      <div class="section-head">
+        <div>
+          <div class="section-title">🔥 Kohort Retention Matrisi (Cohort Heatmap)</div>
+          <div class="section-desc">Kurulum tarihlerine göre oyuncuların gün bazında geri dönüş oranları</div>
+        </div>
+
+        <div class="toolbar">
+          <!-- Retention Mode Toggle -->
+          <div class="toggle-group">
+            <button class="toggle-btn active" id="btnClassic" onclick="setRetentionMode('classic')">🎯 Classic (Tam Gün)</button>
+            <button class="toggle-btn" id="btnRolling" onclick="setRetentionMode('rolling')">🌊 Rolling (Kümülatif)</button>
+          </div>
+
+          <!-- Time Range -->
+          <div class="toggle-group">
+            <button class="toggle-btn active" id="btnRangeAll" onclick="setCohortRange('all')">Tümü</button>
+            <button class="toggle-btn" id="btnRange30" onclick="setCohortRange('30')">Son 30 Gün</button>
+            <button class="toggle-btn" id="btnRange14" onclick="setCohortRange('14')">Son 14 Gün</button>
+            <button class="toggle-btn" id="btnRange7" onclick="setCohortRange('7')">Son 7 Gün</button>
+          </div>
+
+          <button class="btn export" onclick="exportCohortCSV()">⬇ Kohort CSV İndir</button>
+        </div>
+      </div>
+
+      <div class="table-container">
+        <table class="cohort-table" id="cohortTable">
+          <thead>
+            <tr>
+              <th>Kurulum Kohortu</th>
+              <th>Yeni Oyuncu</th>
+              <th>D0</th>
+              <th>D1</th>
+              <th>D2</th>
+              <th>D3</th>
+              <th>D4</th>
+              <th>D5</th>
+              <th>D6</th>
+              <th>D7</th>
+              <th>D14</th>
+              <th>D30</th>
+            </tr>
+          </thead>
+          <tbody id="cohortBody">
+            <tr>
+              <td colspan="12">
+                <div class="loading">
+                  <div class="spinner"></div>
+                  <div>Kohort verileri hesaplanıyor...</div>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
   </div>
+
+  <!-- ════════════════════════════════════════════════════════════════ -->
+  <!-- TAB 2: USERS DIRECTORY & SEGMENTS                                -->
+  <!-- ════════════════════════════════════════════════════════════════ -->
+  <div class="tab-content" id="tab-users">
+    <div class="section-card">
+      <div class="section-head">
+        <div>
+          <div class="section-title">👥 Oyuncu Dizini & Segmentasyon</div>
+          <div class="section-desc">Cihaz bazlı tüm oyuncuların ilerleme, oturum ve retention geçmişi</div>
+        </div>
+
+        <div class="toolbar">
+          <div class="search-wrap">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            <input type="text" class="search-box" id="searchBox" placeholder="Cihaz ID ara..." oninput="applyFilters()">
+          </div>
+          <button class="btn active" id="fAll" onclick="setUserFilter('all', this)">Tümü</button>
+          <button class="btn" id="fRetD7" onclick="setUserFilter('ret_d7', this)">💜 D7+ Sadık</button>
+          <button class="btn" id="fRetD1" onclick="setUserFilter('ret_d1', this)">💙 D1+ Dönen</button>
+          <button class="btn" id="fActive" onclick="setUserFilter('active', this)">🟢 Aktif (7g)</button>
+          <button class="btn" id="fRisk" onclick="setUserFilter('risk', this)">🟡 Risk (3-7g)</button>
+          <button class="btn" id="fChurned" onclick="setUserFilter('churned', this)">🔴 Sildi?</button>
+          <button class="btn export" onclick="exportUsersCSV()">⬇ Oyuncu CSV İndir</button>
+        </div>
+      </div>
+
+      <div class="table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th onclick="sortBy('device_id')">Cihaz / Oyuncu</th>
+              <th onclick="sortBy('farthest_level')">En Yüksek Level</th>
+              <th onclick="sortBy('total_play_minutes')">Toplam Süre</th>
+              <th onclick="sortBy('total_sessions')">Oturum</th>
+              <th onclick="sortBy('activeDaysCount')">Aktif Gün</th>
+              <th onclick="sortBy('total_fails')">Fail</th>
+              <th onclick="sortBy('total_resets')">Reset</th>
+              <th onclick="sortBy('first_open_ts')">Kurulum</th>
+              <th onclick="sortBy('last_seen_ts')">Son Görülme</th>
+              <th>Retention Segmenti</th>
+              <th>Durum</th>
+            </tr>
+          </thead>
+          <tbody id="userTableBody">
+            <tr><td colspan="11"><div class="loading"><div class="spinner"></div><div>Veriler yükleniyor...</div></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════════ -->
+  <!-- TAB 3: LEVEL ANALYTICS & DIFFICULTY                              -->
+  <!-- ════════════════════════════════════════════════════════════════ -->
+  <div class="tab-content" id="tab-levels">
+    <div class="section-card">
+      <div class="section-head">
+        <div>
+          <div class="section-title">🎮 Level İstatistikleri & Zorluk Grafiği</div>
+          <div class="section-desc">Hangi levellerde oyuncular zorlanıyor veya oyunu bırakıyor?</div>
+        </div>
+      </div>
+
+      <div class="table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Level No</th>
+              <th>Toplam Deneme</th>
+              <th>Tamamlama</th>
+              <th>Geçme Oranı (Pass Rate)</th>
+              <th>Fail Sayısı</th>
+              <th>Çıkış (Quit / Drop)</th>
+              <th>Reset / Retry</th>
+              <th>Ortalama Süre</th>
+              <th>Zorluk Değerlendirmesi</th>
+            </tr>
+          </thead>
+          <tbody id="levelTableBody">
+            <tr><td colspan="9"><div class="loading"><div class="spinner"></div><div>Level verileri yükleniyor...</div></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
 </div>
 
-<!-- OVERLAY + PANEL -->
+<!-- OVERLAY + DETAIL PANEL -->
 <div class="overlay" id="overlay" onclick="closePanel()"></div>
 <div class="panel" id="panel">
   <div class="panel-head">
     <div>
-      <div class="panel-title" id="pTitle">Kullanıcı Detayı</div>
-      <div class="panel-uid"   id="pUid"></div>
+      <div class="panel-title" id="pTitle">Oyuncu Detayı & Retention Yolculuğu</div>
+      <div class="panel-uid" id="pUid"></div>
     </div>
     <button class="panel-close" onclick="closePanel()">✕</button>
   </div>
@@ -381,24 +798,46 @@ firebase.initializeApp({
 const db = firebase.firestore();
 
 // ── State ─────────────────────────────────────────────────────
-let allUsers   = [];
-let curFilter  = 'all';
-let sortKey    = 'last_seen_ts';
-let sortAsc    = false;
-const MAX_LVL  = 50;
+let allUsers          = [];
+let allLevelData      = []; // Aggregate level stats
+let retentionMode     = 'classic'; // 'classic' or 'rolling'
+let cohortRange       = 'all';     // 'all', '30', '14', '7'
+let userFilter        = 'all';
+let sortKey           = 'last_seen_ts';
+let sortAsc           = false;
+const MAX_LVL         = 50;
+
+// Retention Days we track in matrix
+const RET_DAYS = [0, 1, 2, 3, 4, 5, 6, 7, 14, 30];
+
+// ── Tab Switching ─────────────────────────────────────────────
+function switchTab(tabId, btn) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
+  
+  const target = document.getElementById('tab-' + tabId);
+  if (target) target.classList.add('active');
+  if (btn) btn.classList.add('active');
+
+  if (tabId === 'retention') {
+    setTimeout(renderRetentionChart, 50);
+  }
+}
 
 // ── Load Data ─────────────────────────────────────────────────
 async function loadData() {
-  document.getElementById('refreshBtn').textContent = '⟳ Yükleniyor…';
-  showLoading();
+  const refreshBtn = document.getElementById('refreshBtn');
+  refreshBtn.textContent = '⟳ Yükleniyor…';
+  refreshBtn.disabled = true;
+
   allUsers = [];
+  allLevelData = [];
 
   try {
     const usersSnap = await db.collection('users').get();
 
     const userPromises = usersSnap.docs.map(async (doc) => {
       let data = doc.data() || {};
-
       try {
         const profileSnap = await db.collection('users').doc(doc.id)
           .collection('meta').doc('profile').get();
@@ -408,33 +847,12 @@ async function loadData() {
       } catch(e) {
         console.warn('Profile fetch error:', e);
       }
-
       return buildUser(doc.id, data);
     });
 
     allUsers = await Promise.all(userPromises);
 
-    // Bütün kullanıcıların level geçmişlerini çekerek gerçek "Toplam Süre"yi hesapla
-    try {
-      const allLevelsSnap = await db.collectionGroup('level_history').get();
-      const userLevelTimeMap = {};
-      allLevelsSnap.docs.forEach(doc => {
-         const uid = doc.ref.parent.parent.id;
-         if (!userLevelTimeMap[uid]) userLevelTimeMap[uid] = 0;
-         userLevelTimeMap[uid] += (doc.data().total_time_spent || 0);
-      });
-      
-      allUsers.forEach(u => {
-         const totalSecs = userLevelTimeMap[u.device_id] || 0;
-         if (totalSecs > 0) {
-            u.total_play_minutes = +(totalSecs / 60.0).toFixed(1);
-         }
-      });
-    } catch(e) {
-      console.warn('Could not calculate real total times:', e);
-    }
-
-    // Eğer hiç kullanıcı gelmezse collection group dene
+    // If no users returned, try collectionGroup meta fallback
     if (allUsers.length === 0) {
       const groupSnap = await db.collectionGroup('meta').get();
       const seen = new Set();
@@ -447,79 +865,679 @@ async function loadData() {
       }
     }
 
+    // Fetch Level History to calculate real total times, active dates & level stats
+    try {
+      const allLevelsSnap = await db.collectionGroup('level_history').get();
+      const userLevelTimeMap = {};
+      const userLevelDatesMap = {};
+      const levelAggMap = {};
+
+      allLevelsSnap.docs.forEach(doc => {
+        const d = doc.data() || {};
+        const uid = doc.ref.parent.parent.id;
+        const lIdx = d.level_index !== undefined ? d.level_index : parseInt(doc.id);
+        
+        // Total time
+        if (!userLevelTimeMap[uid]) userLevelTimeMap[uid] = 0;
+        userLevelTimeMap[uid] += (d.total_time_spent || 0);
+
+        // Dates from level history
+        if (!userLevelDatesMap[uid]) userLevelDatesMap[uid] = new Set();
+        if (d.first_attempt?.toDate) {
+          userLevelDatesMap[uid].add(formatDateKey(d.first_attempt.toDate()));
+        }
+        if (d.last_played?.toDate) {
+          userLevelDatesMap[uid].add(formatDateKey(d.last_played.toDate()));
+        }
+
+        // Aggregate level stats
+        if (!isNaN(lIdx)) {
+          if (!levelAggMap[lIdx]) {
+            levelAggMap[lIdx] = {
+              level_index: lIdx,
+              attempts: 0,
+              completions: 0,
+              fails: 0,
+              quits: 0,
+              resets: 0,
+              total_time: 0,
+              usersCount: 0
+            };
+          }
+          levelAggMap[lIdx].attempts += (d.attempts || 0);
+          levelAggMap[lIdx].completions += (d.completions || 0);
+          levelAggMap[lIdx].fails += (d.fails || 0);
+          levelAggMap[lIdx].quits += (d.quits || 0);
+          levelAggMap[lIdx].resets += (d.resets || 0);
+          levelAggMap[lIdx].total_time += (d.total_time_spent || 0);
+          levelAggMap[lIdx].usersCount += 1;
+        }
+      });
+
+      // Update users with accurate times and extracted dates
+      allUsers.forEach(u => {
+        if (userLevelTimeMap[u.device_id] > 0) {
+          u.total_play_minutes = +(userLevelTimeMap[u.device_id] / 60.0).toFixed(1);
+        }
+        if (userLevelDatesMap[u.device_id]) {
+          userLevelDatesMap[u.device_id].forEach(dStr => u.activeDatesSet.add(dStr));
+        }
+        u.activeDaysCount = u.activeDatesSet.size;
+        assignRetentionSegment(u);
+      });
+
+      allLevelData = Object.values(levelAggMap).sort((a, b) => a.level_index - b.level_index);
+
+    } catch(e) {
+      console.warn('Level history collectionGroup fetch warning:', e);
+    }
+
   } catch(e) {
     showError(e.message);
-    document.getElementById('refreshBtn').textContent = '⟳ Yenile';
+    refreshBtn.textContent = '⟳ Yenile';
+    refreshBtn.disabled = false;
     return;
   }
 
-  updateStats();
+  // Calculate & Render All Sections
+  processRetentionAnalytics();
   applyFilters();
+  renderLevelTable();
+
   document.getElementById('lastRefresh').textContent =
     'Son güncelleme: ' + new Date().toLocaleTimeString('tr-TR');
-  document.getElementById('refreshBtn').textContent = '⟳ Yenile';
+  refreshBtn.textContent = '⟳ Yenile';
+  refreshBtn.disabled = false;
 }
 
 // ── Build User Object ─────────────────────────────────────────
 function buildUser(uid, d) {
-  const lastTs   = d.last_seen?.toDate?.() || null;
-  const firstTs  = d.first_open?.toDate?.() || null;
-  const now      = Date.now();
+  const lastTs  = d.last_seen?.toDate?.() || null;
+  const firstTs = d.first_open?.toDate?.() || null;
+  const now     = Date.now();
   const daysSince = lastTs ? (now - lastTs.getTime()) / 86400000 : 9999;
 
   const status = daysSince > 7 ? 'churned' : daysSince > 3 ? 'risk' : 'active';
 
-  return {
+  // Determine install date (YYYY-MM-DD)
+  let installDateStr = d.install_date;
+  if (!installDateStr && firstTs) {
+    installDateStr = formatDateKey(firstTs);
+  }
+  if (!installDateStr && lastTs) {
+    installDateStr = formatDateKey(lastTs);
+  }
+  if (!installDateStr) {
+    installDateStr = formatDateKey(new Date());
+  }
+
+  // Collect all known active dates for this user
+  const activeDatesSet = new Set();
+  if (Array.isArray(d.active_dates)) {
+    d.active_dates.forEach(dt => { if (dt) activeDatesSet.add(dt); });
+  }
+  if (d.last_active_date) activeDatesSet.add(d.last_active_date);
+  if (installDateStr) activeDatesSet.add(installDateStr);
+  if (firstTs) activeDatesSet.add(formatDateKey(firstTs));
+  if (lastTs) activeDatesSet.add(formatDateKey(lastTs));
+
+  const userObj = {
     device_id:          uid,
     short_id:           uid.slice(0, 8) + '…',
-    farthest_level:     d.farthest_level     || 0,
+    farthest_level:     d.farthest_level || 0,
     total_play_minutes: +(d.total_play_minutes || 0).toFixed(1),
-    total_sessions:     d.total_sessions     || 0,
-    total_fails:        d.total_fails        || 0,
-    total_resets:       d.total_resets       || 0,
-    total_retries:      d.total_retries      || 0,
-    last_seen:          lastTs  ? fmtDate(lastTs)  : '—',
-    last_seen_ts:       lastTs  ? lastTs.getTime()  : 0,
-    first_open:         firstTs ? fmtDate(firstTs) : '—',
-    first_open_ts:      firstTs ? firstTs.getTime() : 0,
-    platform:           d.platform    || '',
+    total_sessions:     d.total_sessions || (activeDatesSet.size || 1),
+    total_fails:        d.total_fails || 0,
+    total_resets:       d.total_resets || 0,
+    total_retries:      d.total_retries || 0,
+    last_seen:          lastTs ? fmtDate(lastTs) : '—',
+    last_seen_ts:       lastTs ? lastTs.getTime() : 0,
+    first_open:         firstTs ? fmtDate(firstTs) : (installDateStr || '—'),
+    first_open_ts:      firstTs ? firstTs.getTime() : (new Date(installDateStr).getTime() || 0),
+    installDateStr:     installDateStr,
+    platform:           d.platform || '',
     app_version:        d.app_version || '',
-    status,
-    daysSince: Math.floor(daysSince),
-    raw: d
+    status:             status,
+    daysSince:          Math.floor(daysSince),
+    activeDatesSet:     activeDatesSet,
+    activeDaysCount:    activeDatesSet.size,
+    retentionDays:      d.retention_days || [],
+    raw:                d
   };
+
+  assignRetentionSegment(userObj);
+  return userObj;
 }
 
-// ── Stats Cards ───────────────────────────────────────────────
-function updateStats() {
-  const total   = allUsers.length;
-  const active  = allUsers.filter(u => u.status === 'active').length;
-  const churned = allUsers.filter(u => u.status === 'churned').length;
-  const avgLvl  = total
-    ? Math.round(allUsers.reduce((s,u) => s + u.farthest_level, 0) / total)
-    : 0;
+function assignRetentionSegment(u) {
+  // Check maximum active day offset
+  let maxDayOffset = 0;
+  const installDate = parseDateKey(u.installDateStr);
+  
+  u.activeDatesSet.forEach(dStr => {
+    const actDate = parseDateKey(dStr);
+    if (actDate && installDate) {
+      const diff = Math.round((actDate - installDate) / 86400000);
+      if (diff > maxDayOffset) maxDayOffset = diff;
+    }
+  });
 
-  document.getElementById('sTotal').textContent   = total;
-  document.getElementById('sActive').textContent  = active;
-  document.getElementById('sChurned').textContent = churned;
-  document.getElementById('sAvgLvl').textContent  = avgLvl;
+  if (maxDayOffset >= 7) {
+    u.retSegment = 'ret_d7';
+    u.retSegmentLabel = '💜 D7+ Sadık';
+  } else if (maxDayOffset >= 1) {
+    u.retSegment = 'ret_d1';
+    u.retSegmentLabel = '💙 D1+ Dönen';
+  } else {
+    u.retSegment = 'ret_d0';
+    u.retSegmentLabel = '🩶 D0 Terk';
+  }
+  u.maxDayOffset = maxDayOffset;
 }
 
-// ── Filters & Sort ────────────────────────────────────────────
-function setFilter(f, btn) {
-  curFilter = f;
-  document.querySelectorAll('.toolbar .btn:not(.export):not(.refresh)').forEach(b => b.classList.remove('active'));
+// ── RETENTION ANALYTICS ENGINE ────────────────────────────────
+let globalCohortMatrix = [];
+let overallMetrics = { d1: 0, d3: 0, d7: 0, d14: 0, d30: 0 };
+
+function processRetentionAnalytics() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  // 1. Group users into daily install cohorts
+  const cohortsMap = {};
+
+  allUsers.forEach(u => {
+    const cDate = u.installDateStr || formatDateKey(today);
+    if (!cohortsMap[cDate]) {
+      cohortsMap[cDate] = {
+        dateStr: cDate,
+        dateObj: parseDateKey(cDate),
+        users: []
+      };
+    }
+    cohortsMap[cDate].users.push(u);
+  });
+
+  // Sort cohorts descending (newest first)
+  const sortedCohortKeys = Object.keys(cohortsMap).sort((a, b) => b.localeCompare(a));
+
+  // 2. Build Cohort Matrix
+  globalCohortMatrix = [];
+
+  sortedCohortKeys.forEach(cKey => {
+    const cohort = cohortsMap[cKey];
+    const cDate = cohort.dateObj;
+    const cohortSize = cohort.users.length;
+    
+    // Days since cohort install
+    const daysSinceInstall = Math.floor((today - cDate) / 86400000);
+
+    const row = {
+      dateStr: cohort.dateStr,
+      cohortSize: cohortSize,
+      daysSinceInstall: daysSinceInstall,
+      retention: {}, // day -> { retainedCount, rate, isMatured }
+    };
+
+    RET_DAYS.forEach(day => {
+      // Is this day matured for this cohort?
+      const isMatured = (daysSinceInstall >= day);
+      
+      let retainedCount = 0;
+      if (day === 0) {
+        retainedCount = cohortSize;
+      } else {
+        cohort.users.forEach(u => {
+          if (isUserRetainedOnDay(u, day, cohort.dateObj, retentionMode)) {
+            retainedCount++;
+          }
+        });
+      }
+
+      const rate = cohortSize > 0 ? ((retainedCount / cohortSize) * 100) : 0;
+      row.retention[day] = {
+        retainedCount,
+        rate: +rate.toFixed(1),
+        isMatured
+      };
+    });
+
+    globalCohortMatrix.push(row);
+  });
+
+  // 3. Calculate Overall Weighted Retention Metrics (Matured cohorts only!)
+  calculateOverallRetentionMetrics();
+
+  // 4. Render Table, Cards, Chart
+  renderCohortTable();
+  renderRetentionKPICards();
+  renderRetentionChart();
+  renderRetentionInsights();
+}
+
+function isUserRetainedOnDay(user, targetDay, cohortDate, mode) {
+  const targetDate = new Date(cohortDate.getTime() + targetDay * 86400000);
+  const targetDateStr = formatDateKey(targetDate);
+
+  if (mode === 'classic') {
+    // Exact day check: was the user active ON this specific calendar day?
+    return user.activeDatesSet.has(targetDateStr) || 
+           (user.retentionDays && user.retentionDays.includes(targetDay));
+  } else {
+    // Rolling / Return check: was the user active ON or AFTER this day?
+    let activeOnOrAfter = false;
+    user.activeDatesSet.forEach(dStr => {
+      const actDate = parseDateKey(dStr);
+      if (actDate && actDate >= targetDate) {
+        activeOnOrAfter = true;
+      }
+    });
+    // Fallback using last_seen
+    if (!activeOnOrAfter && user.last_seen_ts >= targetDate.getTime()) {
+      activeOnOrAfter = true;
+    }
+    return activeOnOrAfter;
+  }
+}
+
+function calculateOverallRetentionMetrics() {
+  const metrics = {};
+
+  [1, 3, 7, 14, 30].forEach(d => {
+    let totalEligibleUsers = 0;
+    let totalRetainedUsers = 0;
+
+    globalCohortMatrix.forEach(row => {
+      if (row.retention[d] && row.retention[d].isMatured) {
+        totalEligibleUsers += row.cohortSize;
+        totalRetainedUsers += row.retention[d].retainedCount;
+      }
+    });
+
+    const rate = totalEligibleUsers > 0 ? (totalRetainedUsers / totalEligibleUsers) * 100 : 0;
+    metrics['d' + d] = {
+      rate: +rate.toFixed(1),
+      retained: totalRetainedUsers,
+      eligible: totalEligibleUsers
+    };
+  });
+
+  // DAU / WAU Stickiness
+  const now = Date.now();
+  const dau = allUsers.filter(u => (now - u.last_seen_ts) <= 86400000).length;
+  const wau = allUsers.filter(u => (now - u.last_seen_ts) <= 7 * 86400000).length;
+  const stickiness = wau > 0 ? +((dau / wau) * 100).toFixed(1) : 0;
+
+  // Average lifespan
+  const avgLifespan = allUsers.length > 0 
+    ? +(allUsers.reduce((sum, u) => sum + (u.activeDaysCount || 1), 0) / allUsers.length).toFixed(1)
+    : 1;
+
+  overallMetrics = { ...metrics, dau, wau, stickiness, avgLifespan };
+}
+
+// ── Render Retention KPI Cards ────────────────────────────────
+function renderRetentionKPICards() {
+  // D1
+  const d1 = overallMetrics.d1 || { rate: 0, retained: 0, eligible: 0 };
+  document.getElementById('kpiD1').innerHTML = `${d1.rate}<span class="unit">%</span>`;
+  document.getElementById('kpiD1Count').textContent = `${d1.retained} / ${d1.eligible} oyuncu`;
+  setBenchTag('kpiD1Bench', d1.rate, 40, 30);
+
+  // D3
+  const d3 = overallMetrics.d3 || { rate: 0, retained: 0, eligible: 0 };
+  document.getElementById('kpiD3').innerHTML = `${d3.rate}<span class="unit">%</span>`;
+  document.getElementById('kpiD3Count').textContent = `${d3.retained} / ${d3.eligible} oyuncu`;
+  setBenchTag('kpiD3Bench', d3.rate, 25, 18);
+
+  // D7
+  const d7 = overallMetrics.d7 || { rate: 0, retained: 0, eligible: 0 };
+  document.getElementById('kpiD7').innerHTML = `${d7.rate}<span class="unit">%</span>`;
+  document.getElementById('kpiD7Count').textContent = `${d7.retained} / ${d7.eligible} oyuncu`;
+  setBenchTag('kpiD7Bench', d7.rate, 18, 12);
+
+  // D14
+  const d14 = overallMetrics.d14 || { rate: 0, retained: 0, eligible: 0 };
+  document.getElementById('kpiD14').innerHTML = `${d14.rate}<span class="unit">%</span>`;
+  document.getElementById('kpiD14Count').textContent = `${d14.retained} / ${d14.eligible} oyuncu`;
+  setBenchTag('kpiD14Bench', d14.rate, 10, 6);
+
+  // D30
+  const d30 = overallMetrics.d30 || { rate: 0, retained: 0, eligible: 0 };
+  document.getElementById('kpiD30').innerHTML = `${d30.rate}<span class="unit">%</span>`;
+  document.getElementById('kpiD30Count').textContent = `${d30.retained} / ${d30.eligible} oyuncu`;
+  setBenchTag('kpiD30Bench', d30.rate, 6, 3);
+
+  // Stickiness
+  document.getElementById('kpiStickiness').innerHTML = `${overallMetrics.stickiness}<span class="unit">%</span>`;
+  document.getElementById('kpiAvgLifespan').textContent = `Ort. Aktiflik: ${overallMetrics.avgLifespan} gün`;
+}
+
+function setBenchTag(id, val, goodThresh, fairThresh) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.className = 'benchmark-tag';
+  if (val >= goodThresh) {
+    el.classList.add('good');
+    el.textContent = `🟢 İyi (>%${goodThresh})`;
+  } else if (val >= fairThresh) {
+    el.classList.add('fair');
+    el.textContent = `🟡 Orta (%${fairThresh}-${goodThresh})`;
+  } else {
+    el.classList.add('poor');
+    el.textContent = `🔴 Düşük (<%${fairThresh})`;
+  }
+}
+
+// ── Render Cohort Heatmap Table ───────────────────────────────
+function renderCohortTable() {
+  const tbody = document.getElementById('cohortBody');
+  if (!globalCohortMatrix.length) {
+    tbody.innerHTML = `<tr><td colspan="12"><div class="empty">Kohort verisi bulunamadı</div></td></tr>`;
+    return;
+  }
+
+  // Filter cohorts by range
+  let rowsToRender = globalCohortMatrix;
+  if (cohortRange !== 'all') {
+    const daysLimit = parseInt(cohortRange);
+    rowsToRender = globalCohortMatrix.filter(r => r.daysSinceInstall <= daysLimit);
+  }
+
+  // Weighted Total Row Calculation
+  const totalRow = {
+    cohortSize: 0,
+    retention: {}
+  };
+  RET_DAYS.forEach(d => totalRow.retention[d] = { retained: 0, eligible: 0 });
+
+  rowsToRender.forEach(r => {
+    totalRow.cohortSize += r.cohortSize;
+    RET_DAYS.forEach(d => {
+      if (r.retention[d] && r.retention[d].isMatured) {
+        totalRow.retention[d].eligible += r.cohortSize;
+        totalRow.retention[d].retained += r.retention[d].retainedCount;
+      }
+    });
+  });
+
+  // Generate HTML for rows
+  const htmlRows = rowsToRender.map(r => {
+    const cells = RET_DAYS.map(d => {
+      const cellData = r.retention[d];
+      if (!cellData) return `<td class="ret-cell">—</td>`;
+
+      if (!cellData.isMatured && d > 0) {
+        return `<td class="ret-cell pending" data-tooltip="${d}. gün henüz dolmadı">—</td>`;
+      }
+
+      const rate = cellData.rate;
+      const bgStyle = getHeatmapColor(rate, d);
+      const tooltip = `${cellData.retainedCount} / ${r.cohortSize} Oyuncu (%${rate})`;
+
+      return `
+        <td class="ret-cell" style="${bgStyle}" data-tooltip="${tooltip}">
+          <span class="ret-badge">${rate}%</span>
+        </td>`;
+    }).join('');
+
+    return `
+      <tr>
+        <td class="cohort-date"><strong>${fmtCohortDate(r.dateStr)}</strong></td>
+        <td class="cohort-size">${r.cohortSize}</td>
+        ${cells}
+      </tr>`;
+  }).join('');
+
+  // Total Summary Row HTML
+  const totalCells = RET_DAYS.map(d => {
+    const item = totalRow.retention[d];
+    if (d === 0) {
+      return `<td style="${getHeatmapColor(100, 0)}"><span class="ret-badge">100%</span></td>`;
+    }
+    if (item.eligible === 0) {
+      return `<td class="ret-cell pending">—</td>`;
+    }
+    const avgRate = +((item.retained / item.eligible) * 100).toFixed(1);
+    const bgStyle = getHeatmapColor(avgRate, d);
+    const tooltip = `Ağırlıklı Ort: ${item.retained} / ${item.eligible} Oyuncu`;
+
+    return `
+      <td style="${bgStyle}" data-tooltip="${tooltip}">
+        <span class="ret-badge">${avgRate}%</span>
+      </td>`;
+  }).join('');
+
+  const totalRowHtml = `
+    <tr class="total-row">
+      <td><strong>GENEL ORTALAMA</strong></td>
+      <td class="cohort-size"><strong>${totalRow.cohortSize}</strong></td>
+      ${totalCells}
+    </tr>`;
+
+  tbody.innerHTML = totalRowHtml + htmlRows;
+}
+
+function getHeatmapColor(rate, day) {
+  if (day === 0) {
+    return 'background: rgba(99, 102, 241, 0.28); color: #fff; font-weight: 700;';
+  }
+  if (rate === 0) {
+    return 'background: rgba(255, 255, 255, 0.02); color: var(--text-dim);';
+  }
+
+  // Emerald to Violet color gradient depending on performance
+  if (rate >= 45) {
+    return `background: rgba(16, 185, 129, 0.35); color: #6ee7b7; font-weight: 800;`;
+  } else if (rate >= 30) {
+    return `background: rgba(99, 102, 241, 0.32); color: #c7d2fe; font-weight: 700;`;
+  } else if (rate >= 20) {
+    return `background: rgba(168, 85, 247, 0.25); color: #e9d5ff; font-weight: 600;`;
+  } else if (rate >= 10) {
+    return `background: rgba(245, 158, 11, 0.18); color: #fde68a; font-weight: 500;`;
+  } else {
+    return `background: rgba(239, 68, 68, 0.12); color: #fca5a5; font-weight: 500;`;
+  }
+}
+
+// ── Render Retention Chart (Decay Curve) ──────────────────────
+function renderRetentionChart() {
+  const canvas = document.getElementById('retentionCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+
+  // Handle Retina resolution
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  ctx.scale(dpr, dpr);
+
+  const w = rect.width;
+  const h = rect.height;
+  const padL = 44, padR = 24, padT = 24, padB = 34;
+  const chartW = w - padL - padR;
+  const chartH = h - padT - padB;
+
+  ctx.clearRect(0, 0, w, h);
+
+  // Days on X-axis: D0, D1, D2, D3, D4, D5, D6, D7, D14, D30
+  const days = [0, 1, 2, 3, 4, 5, 6, 7, 14, 30];
+  const maxVal = 100;
+
+  // Grid Lines
+  ctx.strokeStyle = '#1c1c30';
+  ctx.lineWidth = 1;
+  ctx.fillStyle = '#6b7280';
+  ctx.font = '10px Inter, sans-serif';
+  ctx.textAlign = 'right';
+
+  [0, 25, 50, 75, 100].forEach(val => {
+    const y = padT + chartH - (val / maxVal) * chartH;
+    ctx.beginPath();
+    ctx.moveTo(padL, y);
+    ctx.lineTo(w - padR, y);
+    ctx.stroke();
+    ctx.fillText(val + '%', padL - 8, y + 3);
+  });
+
+  // X Axis Labels
+  ctx.textAlign = 'center';
+  const getX = (idx) => padL + (idx / (days.length - 1)) * chartW;
+  const getY = (val) => padT + chartH - (Math.max(0, Math.min(100, val)) / maxVal) * chartH;
+
+  days.forEach((d, idx) => {
+    const x = getX(idx);
+    ctx.fillText('D' + d, x, h - padB + 16);
+  });
+
+  // Industry Good Benchmark Curve (45% D1, 18% D7, 8% D30)
+  const benchGood = [100, 48, 38, 30, 26, 22, 20, 18, 12, 8];
+  drawCurve(ctx, benchGood, getX, getY, 'rgba(16, 185, 129, 0.45)', false, true);
+
+  // Industry Median Benchmark Curve (35% D1, 12% D7, 4% D30)
+  const benchMed = [100, 35, 26, 20, 17, 14, 13, 12, 7, 4];
+  drawCurve(ctx, benchMed, getX, getY, 'rgba(245, 158, 11, 0.35)', false, true);
+
+  // Actual Game Retention Curve
+  const actualValues = days.map(d => {
+    if (d === 0) return 100;
+    const m = overallMetrics['d' + d];
+    return m ? m.rate : 0;
+  });
+
+  drawCurve(ctx, actualValues, getX, getY, '#6366f1', true, false);
+}
+
+function drawCurve(ctx, values, getX, getY, color, isMain, isDashed) {
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = isMain ? 3 : 1.5;
+  if (isDashed) ctx.setLineDash([4, 4]);
+
+  ctx.beginPath();
+  values.forEach((v, idx) => {
+    const x = getX(idx);
+    const y = getY(v);
+    if (idx === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+
+  // Draw points
+  values.forEach((v, idx) => {
+    const x = getX(idx);
+    const y = getY(v);
+
+    ctx.beginPath();
+    ctx.arc(x, y, isMain ? 4.5 : 2.5, 0, Math.PI * 2);
+    ctx.fillStyle = isMain ? '#6366f1' : color;
+    ctx.fill();
+    if (isMain) {
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([]);
+      ctx.stroke();
+
+      // Value label on top of main points
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 10px JetBrains Mono, monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(v + '%', x, y - 8);
+    }
+  });
+
+  ctx.restore();
+}
+
+// ── Render Retention Insights ─────────────────────────────────
+function renderRetentionInsights() {
+  const container = document.getElementById('insightList');
+  const d1 = overallMetrics.d1 ? overallMetrics.d1.rate : 0;
+  const d7 = overallMetrics.d7 ? overallMetrics.d7.rate : 0;
+
+  const insights = [];
+
+  // D1 Analysis
+  if (d1 >= 40) {
+    insights.push({
+      icon: '🟢',
+      text: `<strong>Güçlü D1 Tutundurma (%${d1}):</strong> İlk oturum deneyimi (FTUE), mekanik ve ilk leveller oldukça tatmin edici.`
+    });
+  } else if (d1 >= 25) {
+    insights.push({
+      icon: '🟡',
+      text: `<strong>Geliştirilebilir D1 (%${d1}):</strong> İlk 5 level zorluk eğrisi ve tutorial adımlarını kolaylaştırarak D1'i %40+ seviyesine çıkarabilirsiniz.`
+    });
+  } else {
+    insights.push({
+      icon: '🔴',
+      text: `<strong>Kritik D1 Kaybı (%${d1}):</strong> Oyuncuların %${(100 - d1).toFixed(0)}'si ilk günden sonra dönmüyor. İlk 3 leveldeki drop-off oranlarını kontrol edin.`
+    });
+  }
+
+  // D7 Analysis
+  if (d7 >= 18) {
+    insights.push({
+      icon: '🟢',
+      text: `<strong>Mükemmel D7 Sadakati (%${d7}):</strong> Oyun döngüsü uzun vadede oyuncuları tutmayı başarıyor.`
+    });
+  } else {
+    insights.push({
+      icon: '🟡',
+      text: `<strong>Orta D7 Tutundurma (%${d7}):</strong> 10-20. leveller arasındaki zorluk sıçramalarını ve çıkış oranlarını optimize edin.`
+    });
+  }
+
+  // DAU / WAU Stickiness
+  insights.push({
+    icon: '⚡',
+    text: `<strong>Bağlılık Oranı (DAU/WAU):</strong> %${overallMetrics.stickiness} — Oyuncular haftada ortalama <strong>${overallMetrics.avgLifespan}</strong> gün aktif kalıyor.`
+  });
+
+  container.innerHTML = insights.map(i => `
+    <div class="insight-item">
+      <div class="insight-icon">${i.icon}</div>
+      <div>${i.text}</div>
+    </div>
+  `).join('');
+}
+
+// ── Retention Controls Toggle ─────────────────────────────────
+function setRetentionMode(mode) {
+  retentionMode = mode;
+  document.getElementById('btnClassic').classList.toggle('active', mode === 'classic');
+  document.getElementById('btnRolling').classList.toggle('active', mode === 'rolling');
+  processRetentionAnalytics();
+}
+
+function setCohortRange(range) {
+  cohortRange = range;
+  ['all', '30', '14', '7'].forEach(r => {
+    const btn = document.getElementById('btnRange' + (r === 'all' ? 'All' : r));
+    if (btn) btn.classList.toggle('active', r === range);
+  });
+  renderCohortTable();
+}
+
+// ── USER DIRECTORY & FILTERS ──────────────────────────────────
+function setUserFilter(f, btn) {
+  userFilter = f;
+  document.querySelectorAll('#tab-users .toolbar .btn:not(.export)').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   applyFilters();
 }
 
 function applyFilters() {
-  const q = document.getElementById('searchBox').value.toLowerCase();
+  const q = (document.getElementById('searchBox')?.value || '').toLowerCase();
+  
   let list = allUsers.filter(u => {
     if (q && !u.device_id.toLowerCase().includes(q)) return false;
-    if (curFilter === 'active')  return u.status === 'active';
-    if (curFilter === 'risk')    return u.status === 'risk';
-    if (curFilter === 'churned') return u.status === 'churned';
+    if (userFilter === 'active')  return u.status === 'active';
+    if (userFilter === 'risk')    return u.status === 'risk';
+    if (userFilter === 'churned') return u.status === 'churned';
+    if (userFilter === 'ret_d7')  return u.retSegment === 'ret_d7';
+    if (userFilter === 'ret_d1')  return u.retSegment === 'ret_d1' || u.retSegment === 'ret_d7';
     return true;
   });
 
@@ -531,27 +1549,22 @@ function applyFilters() {
     return 0;
   });
 
-  renderTable(list);
+  renderUserTable(list);
 }
 
 function sortBy(key) {
-  sortAsc = sortKey === key ? !sortAsc : false;
+  sortAsc = (sortKey === key) ? !sortAsc : false;
   sortKey = key;
-  document.querySelectorAll('th').forEach(th => th.classList.remove('asc', 'desc'));
-  const targetTh = document.querySelector(`th[onclick="sortBy('${key}')"]`);
-  if (targetTh) {
-    targetTh.classList.add(sortAsc ? 'asc' : 'desc');
-  }
+  document.querySelectorAll('#tab-users th').forEach(th => th.classList.remove('asc', 'desc'));
+  const targetTh = document.querySelector(`#tab-users th[onclick="sortBy('${key}')"]`);
+  if (targetTh) targetTh.classList.add(sortAsc ? 'asc' : 'desc');
   applyFilters();
 }
 
-// ── Table Render ──────────────────────────────────────────────
-function renderTable(users) {
-  const tbody = document.getElementById('tbody');
+function renderUserTable(users) {
+  const tbody = document.getElementById('userTableBody');
   if (!users.length) {
-    tbody.innerHTML = `<tr><td colspan="10">
-      <div class="empty"><div class="empty-icon">🔍</div>Kullanıcı bulunamadı</div>
-    </td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="11"><div class="empty">Oyuncu bulunamadı</div></td></tr>`;
     return;
   }
 
@@ -559,47 +1572,83 @@ function renderTable(users) {
     <tr onclick="openPanel('${u.device_id}')">
       <td>
         <div class="mono">${u.short_id}</div>
-        ${u.platform ? `<span class="platform-tag">${u.platform}</span>` : ''}
+        ${u.platform ? `<span style="font-size:10px;background:var(--surface2);padding:1px 5px;border-radius:4px;color:var(--text-muted)">${u.platform}</span>` : ''}
       </td>
       <td>
         <div class="level-bar-wrap">
-          <span style="font-weight:700; min-width:22px">${u.farthest_level}</span>
+          <span style="font-weight:700; min-width:24px">${u.farthest_level}</span>
           <div class="level-bar-track">
-            <div class="level-bar-fill" style="width:${Math.min(100,(u.farthest_level/MAX_LVL)*100)}%"></div>
+            <div class="level-bar-fill" style="width:${Math.min(100, (u.farthest_level / MAX_LVL) * 100)}%"></div>
           </div>
         </div>
       </td>
       <td>${fmtMin(u.total_play_minutes)}</td>
       <td>${u.total_sessions}</td>
-      <td class="${u.total_fails > 5 ? 'num-danger' : u.total_fails > 0 ? '' : 'num-ok'}">${u.total_fails}</td>
+      <td><strong>${u.activeDaysCount}</strong> gün</td>
+      <td class="${u.total_fails > 5 ? 'v-danger' : ''}">${u.total_fails}</td>
       <td>${u.total_resets}</td>
-      <td>${u.total_retries}</td>
+      <td style="font-size:11px;color:var(--text-muted)">${u.first_open}</td>
       <td>
-        <div>${u.last_seen}</div>
-        ${u.daysSince < 9999 ? `<div style="font-size:11px;color:var(--text-muted)">${u.daysSince}g önce</div>` : ''}
+        <div style="font-size:12px">${u.last_seen}</div>
+        ${u.daysSince < 9999 ? `<div style="font-size:10px;color:var(--text-muted)">${u.daysSince}g önce</div>` : ''}
       </td>
-      <td style="font-size:12px;color:var(--text-muted)">${u.first_open}</td>
-      <td>${badge(u.status)}</td>
+      <td><span class="badge ${u.retSegment}">${u.retSegmentLabel}</span></td>
+      <td>${statusBadge(u.status)}</td>
     </tr>
   `).join('');
 }
 
-function badge(s) {
-  const map = { active:'🟢 Aktif', risk:'🟡 Risk', churned:'🔴 Sildi?' };
-  return `<span class="badge ${s}">${map[s]||s}</span>`;
+function statusBadge(s) {
+  const map = { active: '🟢 Aktif', risk: '🟡 Risk', churned: '🔴 Sildi?' };
+  return `<span class="badge ${s}">${map[s] || s}</span>`;
 }
 
-// ── Detail Panel ──────────────────────────────────────────────
+// ── LEVEL ANALYTICS TAB ───────────────────────────────────────
+function renderLevelTable() {
+  const tbody = document.getElementById('levelTableBody');
+  if (!allLevelData.length) {
+    tbody.innerHTML = `<tr><td colspan="9"><div class="empty">Level verisi henüz kaydedilmedi</div></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = allLevelData.map(l => {
+    const passRate = l.attempts > 0 ? +((l.completions / l.attempts) * 100).toFixed(1) : 0;
+    const avgSec = l.completions > 0 ? Math.round(l.total_time / l.completions) : 0;
+    
+    // Difficulty assessment
+    let diffBadge = '<span class="badge active">Dengeli</span>';
+    if (l.quits > 2 || passRate < 40) {
+      diffBadge = '<span class="badge churned">⚠️ Churn Riski / Çok Zor</span>';
+    } else if (passRate < 60) {
+      diffBadge = '<span class="badge risk">Zorlu</span>';
+    }
+
+    return `
+      <tr>
+        <td style="font-weight:700;color:var(--accent)">Level ${l.level_index + 1}</td>
+        <td>${l.attempts}</td>
+        <td style="color:var(--success);font-weight:600">${l.completions}</td>
+        <td><strong>%${passRate}</strong></td>
+        <td class="${l.fails > 5 ? 'v-danger' : ''}">${l.fails}</td>
+        <td class="${l.quits > 0 ? 'v-warning' : ''}">${l.quits}</td>
+        <td>${l.resets}</td>
+        <td>${fmtSec(avgSec)}</td>
+        <td>${diffBadge}</td>
+      </tr>`;
+  }).join('');
+}
+
+// ── USER DETAIL PANEL ─────────────────────────────────────────
 async function openPanel(uid) {
   const user = allUsers.find(u => u.device_id === uid);
   if (!user) return;
 
   document.getElementById('overlay').classList.add('open');
   document.getElementById('panel').classList.add('open');
-  document.getElementById('pTitle').textContent = 'Kullanıcı Detayı';
+  document.getElementById('pTitle').textContent = 'Oyuncu Profili & Retention Geçmişi';
   document.getElementById('pUid').textContent   = uid;
   document.getElementById('pBody').innerHTML =
-    '<div class="loading"><div class="spinner"></div><div>Level geçmişi yükleniyor…</div></div>';
+    '<div class="loading"><div class="spinner"></div><div>Oyuncu ve level verileri yükleniyor…</div></div>';
 
   let levels = [];
   try {
@@ -607,68 +1656,92 @@ async function openPanel(uid) {
       .collection('level_history').orderBy('level_index').get();
     levels = snap.docs.map(d => ({ id: d.id, ...d.data() }));
   } catch(e) {
-    console.warn('Level history:', e);
+    console.warn('Level history error:', e);
   }
 
   renderPanel(user, levels);
 }
 
 function renderPanel(user, levels) {
+  const activeDatesArr = Array.from(user.activeDatesSet).sort();
+  const dateBadges = activeDatesArr.map((d, i) => {
+    let cls = '';
+    if (i === 0) cls = 'first';
+    if (i === activeDatesArr.length - 1 && activeDatesArr.length > 1) cls = 'latest';
+    return `<span class="date-badge ${cls}">${d}</span>`;
+  }).join('');
+
   const churnHtml = user.status === 'churned' ? `
-    <div class="churn-alert">
-      ⚠️ Bu kullanıcı <strong>${user.daysSince} gündür</strong> görülmedi.
-      Level <strong>${user.farthest_level}</strong>'de bırakmış olabilir.
+    <div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:10px;padding:12px 16px;margin-bottom:18px;font-size:13px;color:var(--danger)">
+      ⚠️ Bu oyuncu <strong>${user.daysSince} gündür</strong> görülmedi.
+      En son <strong>Level ${user.farthest_level}</strong>'de bırakmış olabilir.
     </div>` : '';
 
   const profileHtml = `
     ${churnHtml}
     <div class="profile-grid">
       <div class="pitem">
+        <div class="pitem-label">Retention Segmenti</div>
+        <div class="pitem-value v-accent" style="font-size:16px">${user.retSegmentLabel}</div>
+      </div>
+      <div class="pitem">
+        <div class="pitem-label">Aktif Gün Sayısı</div>
+        <div class="pitem-value">${user.activeDaysCount} gün</div>
+      </div>
+      <div class="pitem">
         <div class="pitem-label">En Yüksek Level</div>
         <div class="pitem-value v-accent">${user.farthest_level}</div>
       </div>
       <div class="pitem">
-        <div class="pitem-label">Toplam Süre</div>
+        <div class="pitem-label">Toplam Oynama Süresi</div>
         <div class="pitem-value">${fmtMin(user.total_play_minutes)}</div>
       </div>
       <div class="pitem">
-        <div class="pitem-label">Toplam Fail</div>
-        <div class="pitem-value ${user.total_fails > 5 ? 'v-danger' : user.total_fails > 0 ? 'v-warning' : 'v-success'}">${user.total_fails}</div>
-      </div>
-      <div class="pitem">
-        <div class="pitem-label">Oturum Sayısı</div>
+        <div class="pitem-label">Toplam Oturum</div>
         <div class="pitem-value">${user.total_sessions}</div>
       </div>
       <div class="pitem">
-        <div class="pitem-label">Kurulum Tarihi</div>
+        <div class="pitem-label">Fail / Reset Sayısı</div>
+        <div class="pitem-value ${user.total_fails > 5 ? 'v-danger' : 'v-success'}">${user.total_fails} / ${user.total_resets}</div>
+      </div>
+      <div class="pitem">
+        <div class="pitem-label">İlk Kurulum</div>
         <div class="pitem-value v-sm">${user.first_open}</div>
       </div>
       <div class="pitem">
         <div class="pitem-label">Son Görülme</div>
         <div class="pitem-value v-sm">${user.last_seen}</div>
       </div>
+      <div class="pitem">
+        <div class="pitem-label">Platform & Versiyon</div>
+        <div class="pitem-value v-sm">${user.platform || '—'} (v${user.app_version || '1.0'})</div>
+      </div>
+    </div>
+
+    <div class="sec-title">📅 Aktif Olunan Günler Zaman Çizelgesi (${activeDatesArr.length} gün)</div>
+    <div class="active-dates-wrap">
+      ${dateBadges || '<span style="color:var(--text-muted);font-size:12px">Aktif gün kaydı yok</span>'}
     </div>`;
 
-  let levelsHtml;
+  let levelsHtml = '';
   if (!levels.length) {
-    levelsHtml = `<div class="empty"><div class="empty-icon">📋</div>Level verisi henüz yok</div>`;
+    levelsHtml = `<div class="empty">Level verisi henüz yok</div>`;
   } else {
     const rows = levels.map(l => {
       const parsedId = parseInt(l.id);
-      const li   = l.level_index !== undefined ? l.level_index + 1 : (!isNaN(parsedId) ? parsedId + 1 : '?');
+      const li = l.level_index !== undefined ? l.level_index + 1 : (!isNaN(parsedId) ? parsedId + 1 : '?');
       const done = l.completions > 0;
       const quit = (l.quits || 0) > 0;
-      const outcome = done  ? '<span class="outcome-done">✅ Geçti</span>'
-                    : quit  ? '<span class="outcome-quit">🚪 Çıktı</span>'
-                    :         '<span class="outcome-try">⏳ Deniyor</span>';
+      const outcome = done  ? '<span style="color:var(--success);font-weight:600">✅ Geçti</span>'
+                    : quit  ? '<span style="color:var(--danger);font-weight:600">🚪 Çıktı</span>'
+                    :         '<span style="color:var(--warning);font-weight:600">⏳ Deniyor</span>';
       return `
         <tr>
           <td style="font-weight:700">Level ${li}</td>
-          <td>${l.attempts  || 0}</td>
-          <td class="${done ? 'c-done' : ''}">${l.completions || 0}</td>
-          <td class="${(l.fails||0)>2 ? 'c-fail' : ''}">${l.fails || 0}</td>
-          <td class="${(l.quits||0)>0 ? 'c-quit' : ''}">${l.quits || 0}</td>
-          <td>${l.resets    || 0}</td>
+          <td>${l.attempts || 0}</td>
+          <td style="${done ? 'color:var(--success);font-weight:600' : ''}">${l.completions || 0}</td>
+          <td style="${(l.fails||0)>2 ? 'color:var(--danger);font-weight:700' : ''}">${l.fails || 0}</td>
+          <td style="${(l.quits||0)>0 ? 'color:var(--warning);font-weight:700' : ''}">${l.quits || 0}</td>
           <td>${l.best_time ? fmtSec(l.best_time) : '—'}</td>
           <td>${fmtSec(l.total_time_spent)}</td>
           <td>${outcome}</td>
@@ -676,12 +1749,11 @@ function renderPanel(user, levels) {
     }).join('');
 
     levelsHtml = `
-      <div style="overflow-x:auto; border-radius:8px; border:1px solid var(--border)">
-        <table class="lvl-table">
+      <div class="table-container" style="margin-top:10px">
+        <table class="data-table" style="font-size:12px">
           <thead><tr>
             <th>Level</th><th>Deneme</th><th>Tamamlama</th>
-            <th>Fail</th><th>Quit</th><th>Reset</th>
-            <th>En İyi Süre</th><th>Toplam Süre</th><th>Sonuç</th>
+            <th>Fail</th><th>Quit</th><th>En İyi</th><th>Toplam Süre</th><th>Sonuç</th>
           </tr></thead>
           <tbody>${rows}</tbody>
         </table>
@@ -689,12 +1761,9 @@ function renderPanel(user, levels) {
   }
 
   document.getElementById('pBody').innerHTML = `
-    <div class="sec-title" style="margin-top:0">Profil Özeti</div>
+    <div class="sec-title" style="margin-top:0">👤 Oyuncu Özeti</div>
     ${profileHtml}
-    <div class="sec-title" style="margin-top:24px">
-      Level Geçmişi
-      <span style="font-weight:400;text-transform:none;letter-spacing:0">(${levels.length} level)</span>
-    </div>
+    <div class="sec-title" style="margin-top:24px">🎮 Level Oynanış Geçmişi (${levels.length} level)</div>
     ${levelsHtml}`;
 }
 
@@ -703,58 +1772,81 @@ function closePanel() {
   document.getElementById('panel').classList.remove('open');
 }
 
-// ── CSV Export ────────────────────────────────────────────────
-function exportCSV() {
-  const headers = ['UserID','Farthest Level','Play Minutes','Sessions',
-                   'Fails','Resets','Retries','Last Seen','Install Date',
-                   'Status','Days Since Last Seen','Platform','App Version'];
+// ── CSV EXPORTS ───────────────────────────────────────────────
+function exportCohortCSV() {
+  const headers = ['Cohort Date', 'New Users', 'D0', 'D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7', 'D14', 'D30'];
+  const rows = globalCohortMatrix.map(r => [
+    r.dateStr,
+    r.cohortSize,
+    ...RET_DAYS.map(d => r.retention[d] ? (r.retention[d].isMatured ? r.retention[d].rate + '%' : 'N/A') : '')
+  ]);
+
+  downloadCSV(`colormatch3d_cohort_retention_${new Date().toISOString().slice(0,10)}.csv`, [headers, ...rows]);
+}
+
+function exportUsersCSV() {
+  const headers = ['UserID', 'Farthest Level', 'Play Minutes', 'Sessions', 'Active Days Count',
+                   'Fails', 'Resets', 'Retries', 'Last Seen', 'Install Date',
+                   'Retention Segment', 'Status', 'Platform', 'App Version'];
   const rows = allUsers.map(u => [
-    u.device_id, u.farthest_level, u.total_play_minutes, u.total_sessions,
+    u.device_id, u.farthest_level, u.total_play_minutes, u.total_sessions, u.activeDaysCount,
     u.total_fails, u.total_resets, u.total_retries,
-    u.last_seen, u.first_open, u.status, u.daysSince,
+    u.last_seen, u.first_open, u.retSegmentLabel, u.status,
     u.platform, u.app_version
   ]);
-  const csv = [headers, ...rows].map(r => r.map(v => `"${v}"`).join(',')).join('\n');
+
+  downloadCSV(`colormatch3d_users_${new Date().toISOString().slice(0,10)}.csv`, [headers, ...rows]);
+}
+
+function downloadCSV(filename, dataRows) {
+  const csv = dataRows.map(r => r.map(v => `"${v}"`).join(',')).join('\n');
   const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
   a.href = url;
-  a.download = `colormatch3d_users_${new Date().toISOString().slice(0,10)}.csv`;
+  a.download = filename;
   a.click();
 }
 
 // ── Helpers ───────────────────────────────────────────────────
+function formatDateKey(d) {
+  return d.toISOString().slice(0, 10);
+}
+function parseDateKey(str) {
+  if (!str) return null;
+  const parts = str.split('-');
+  if (parts.length !== 3) return new Date(str);
+  return new Date(Date.UTC(+parts[0], +parts[1] - 1, +parts[2]));
+}
+function fmtCohortDate(str) {
+  const d = parseDateKey(str);
+  if (!d) return str;
+  return d.toLocaleDateString('tr-TR', { day:'2-digit', month:'short', year:'numeric' });
+}
 function fmtDate(d) {
   return d.toLocaleDateString('tr-TR', { day:'2-digit', month:'short', year:'numeric' });
 }
 function fmtMin(m) {
-  if (!m || m < 1)  return '< 1 dk';
-  if (m < 60)       return Math.round(m) + ' dk';
-  return Math.floor(m/60) + 'sa ' + Math.round(m%60) + 'dk';
+  if (!m || m < 1) return '< 1 dk';
+  if (m < 60) return Math.round(m) + ' dk';
+  return Math.floor(m / 60) + 'sa ' + Math.round(m % 60) + 'dk';
 }
 function fmtSec(s) {
   if (!s || s === 0) return '—';
   if (s < 60) return s + 's';
-  return Math.floor(s/60) + ':' + String(s%60).padStart(2,'0');
-}
-function showLoading() {
-  document.getElementById('tbody').innerHTML = `
-    <tr><td colspan="10">
-      <div class="loading"><div class="spinner"></div><div>Veriler yükleniyor…</div></div>
-    </td></tr>`;
+  return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
 }
 function showError(msg) {
-  document.getElementById('tbody').innerHTML = `
-    <tr><td colspan="10">
-      <div class="empty">
-        <div class="empty-icon">❌</div>
-        <div style="color:var(--danger);margin-bottom:8px">${msg}</div>
-        <div style="font-size:12px">Firebase Console → Firestore rules veya index ayarlarını kontrol et.</div>
-      </div>
-    </td></tr>`;
+  document.getElementById('cohortBody').innerHTML = `
+    <tr><td colspan="12"><div class="empty">❌ Hata: ${msg}</div></td></tr>`;
 }
 
 // ── Bootstrap ─────────────────────────────────────────────────
+window.addEventListener('resize', () => {
+  if (document.getElementById('tab-retention').classList.contains('active')) {
+    renderRetentionChart();
+  }
+});
 loadData();
 </script>
 </body>
