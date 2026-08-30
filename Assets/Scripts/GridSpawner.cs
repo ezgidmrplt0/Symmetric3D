@@ -124,6 +124,13 @@ public partial class GridSpawner : MonoBehaviour
             return;
         }
 
+        // PlayerPrefs'i her zaman güncel level ile senkron tut
+        if (PlayerPrefs.GetInt("CurrentLevelIndex", 0) != currentLevelIndex)
+        {
+            PlayerPrefs.SetInt("CurrentLevelIndex", currentLevelIndex);
+            PlayerPrefs.Save();
+        }
+
         if (currentLevelIndex < levels.Count && levels[currentLevelIndex] != null)
             SpawnLevel(levels[currentLevelIndex]);
     }

@@ -344,76 +344,43 @@ public class LevelPanelManager : MonoBehaviour
     Sprite GetIconForType(LevelData.LevelType type, out float scaleMultiplier)
     {
         scaleMultiplier = 1.0f;
-        int levelNum = PlayerPrefs.GetInt("CurrentLevelIndex", 0) + 1;
 
-        // Level 16+ -> GIFT (Hediye Paketi)
-        if (levelNum >= 16)
+        // Classic = Gift/Reward (mekanik değil)
+        if (type == LevelData.LevelType.Classic)
         {
             if (giftSprite != null) return giftSprite;
 #if UNITY_EDITOR
             Sprite loadedGift = UnityEditor.AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Violet Theme Ui/Colored Icons/Gift.png");
             if (loadedGift != null) { giftSprite = loadedGift; return loadedGift; }
 #endif
+            return null;
         }
-        // Level 11-15 -> FROZEN
-        else if (levelNum >= 11)
+
+        // mechanicIcons listesinden type'a göre ikon bul
+        foreach (var item in mechanicIcons)
         {
-            foreach (var item in mechanicIcons)
+            if (item.icon != null && item.levelType == type)
             {
-                if (item.icon != null && item.levelType == LevelData.LevelType.Frozen)
-                {
-                    scaleMultiplier = item.scaleMultiplier > 0 ? item.scaleMultiplier : 1.15f;
-                    return item.icon;
-                }
+                scaleMultiplier = item.scaleMultiplier > 0 ? item.scaleMultiplier : 1.15f;
+                return item.icon;
             }
-#if UNITY_EDITOR
-            Sprite frozenSprite = UnityEditor.AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Images/Frozen.png");
-            if (frozenSprite != null) { scaleMultiplier = 1.15f; return frozenSprite; }
-#endif
         }
-        // Level 6-10 -> LINKED
-        else if (levelNum >= 6)
+
+        // Editor fallback
+#if UNITY_EDITOR
+        string fallbackPath = null;
+        if (type == LevelData.LevelType.Rotation) fallbackPath = "Assets/Images/Rotation.png";
+        else if (type == LevelData.LevelType.Linked) fallbackPath = "Assets/Images/Linked(1).png";
+        else if (type == LevelData.LevelType.Frozen) fallbackPath = "Assets/Images/Frozen.png";
+
+        if (fallbackPath != null)
         {
-            foreach (var item in mechanicIcons)
-            {
-                if (item.icon != null && item.levelType == LevelData.LevelType.Linked)
-                {
-                    scaleMultiplier = item.scaleMultiplier > 0 ? item.scaleMultiplier : 1.15f;
-                    return item.icon;
-                }
-            }
-#if UNITY_EDITOR
-            Sprite linkSprite = UnityEditor.AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Images/Linked(1).png");
-            if (linkSprite != null) { scaleMultiplier = 1.15f; return linkSprite; }
-#endif
+            Sprite editorSprite = UnityEditor.AssetDatabase.LoadAssetAtPath<Sprite>(fallbackPath);
+            if (editorSprite != null) { scaleMultiplier = 1.15f; return editorSprite; }
         }
-        // Level 1-5 -> ROTATION
-        else
-        {
-            foreach (var item in mechanicIcons)
-            {
-                if (item.icon != null && item.levelType == LevelData.LevelType.Rotation)
-                {
-                    scaleMultiplier = item.scaleMultiplier > 0 ? item.scaleMultiplier : 1.15f;
-                    return item.icon;
-                }
-            }
-#if UNITY_EDITOR
-            Sprite rotSprite = UnityEditor.AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Images/Rotation.png");
-            if (rotSprite != null) { scaleMultiplier = 1.15f; return rotSprite; }
 #endif
-            if (shufflePreviewSprite != null) { scaleMultiplier = 1.15f; return shufflePreviewSprite; }
-        }
 
         if (giftSprite != null) return giftSprite;
-#if UNITY_EDITOR
-        Sprite fallbackGift = UnityEditor.AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Violet Theme Ui/Colored Icons/Gift.png");
-        if (fallbackGift != null) return fallbackGift;
-#endif
-
-        if (nextMechanicPreviewImage != null && nextMechanicPreviewImage.sprite != null)
-            return nextMechanicPreviewImage.sprite;
-
         return null;
     }
 
@@ -565,15 +532,7 @@ public class LevelPanelManager : MonoBehaviour
 
             if (nextMechanicLabel != null)
             {
-                int levelNum = PlayerPrefs.GetInt("CurrentLevelIndex", 0) + 1;
-                if (levelNum >= 16)
-                {
-                    nextMechanicLabel.text = "NEXT REWARD";
-                }
-                else
-                {
-                    nextMechanicLabel.text = "NEXT MECHANIC";
-                }
+                nextMechanicLabel.text = (nextType == LevelData.LevelType.Classic) ? "NEXT REWARD" : "NEXT MECHANIC";
                 nextMechanicLabel.gameObject.SetActive(true);
             }
 
