@@ -49,6 +49,13 @@ public partial class GridSpawner
                 );
                 GameObject gridObj = Instantiate(gridPrefab, transform.position + worldPos, Quaternion.identity, transform);
                 activeSpawnedObjects.Add(gridObj);
+
+                LevelData.FrozenCellData frozenData = level.GetFrozenCell(pos, 0);
+                if (frozenData != null)
+                {
+                    FrozenGridCell fgc = gridObj.AddComponent<FrozenGridCell>();
+                    fgc.Initialize(pos, 0, frozenData.requiredMatches);
+                }
             }
         }
         else
@@ -57,13 +64,21 @@ public partial class GridSpawner
             {
                 for (int y = 0; y < level.gridY; y++)
                 {
-                    Vector3 pos = new Vector3(
+                    Vector2Int pos = new Vector2Int(x, y);
+                    Vector3 worldPos = new Vector3(
                         x * (gridSize + spacing) - offsetX,
                         y * (gridSize + spacing) - offsetY,
                         0
                     );
-                    GameObject gridObj = Instantiate(gridPrefab, transform.position + pos, Quaternion.identity, transform);
+                    GameObject gridObj = Instantiate(gridPrefab, transform.position + worldPos, Quaternion.identity, transform);
                     activeSpawnedObjects.Add(gridObj);
+
+                    LevelData.FrozenCellData frozenData = level.GetFrozenCell(pos, 0);
+                    if (frozenData != null)
+                    {
+                        FrozenGridCell fgc = gridObj.AddComponent<FrozenGridCell>();
+                        fgc.Initialize(pos, 0, frozenData.requiredMatches);
+                    }
                 }
             }
         }
@@ -81,11 +96,14 @@ public partial class GridSpawner
                 Quaternion.Euler(0, 0, piece.rotationZ), transform);
             activeSpawnedObjects.Add(newObj);
 
+            bool isPieceFrozen = level.IsCellFrozen(piece.gridPosition, piece.faceIndex);
+
             DragObject dobj = newObj.GetComponent<DragObject>();
             if (dobj != null)
             {
                 dobj.linkId = piece.linkId;
                 dobj.canRotate = piece.canRotate;
+                dobj.SetFrozen(isPieceFrozen);
             }
 
             // Group ekleme

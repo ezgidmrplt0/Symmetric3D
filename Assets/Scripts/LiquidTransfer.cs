@@ -158,6 +158,7 @@ public class LiquidTransfer : MonoBehaviour
 
         VibrationManager.TryVibrate();
         AudioManager.PlayTransfer();
+        FrozenGridCell.NotifyMatchCompleted();
 
         if (EffectsManager.Instance != null)
         {

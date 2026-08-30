@@ -45,6 +45,23 @@ public partial class DragObject
                 }
             }
 
+            // Donuk boş hücreler de engel oluşturur
+            if (!collisionFound && FrozenGridCell.activeFrozenCells != null)
+            {
+                foreach (var fc in FrozenGridCell.activeFrozenCells)
+                {
+                    if (fc != null && !fc.isDefrosted)
+                    {
+                        float dsq = (nextPos - fc.transform.position).sqrMagnitude;
+                        if (dsq < collisionDistance * collisionDistance)
+                        {
+                            collisionFound = true;
+                            break;
+                        }
+                    }
+                }
+            }
+
             if (!collisionFound)
                 collisionFound = IsDiagonallyBlocked(currentPos, nextPos, allObjects, sameParentOnly: false);
 
@@ -65,6 +82,19 @@ public partial class DragObject
                     if (dsqY < collisionDistance * collisionDistance) blockY = true;
                     
                     if (blockX && blockY) break;
+                }
+
+                if (FrozenGridCell.activeFrozenCells != null)
+                {
+                    foreach (var fc in FrozenGridCell.activeFrozenCells)
+                    {
+                        if (fc == null || fc.isDefrosted) continue;
+                        float dsqX = (tryX - fc.transform.position).sqrMagnitude;
+                        if (dsqX < collisionDistance * collisionDistance) blockX = true;
+                        float dsqY = (tryY - fc.transform.position).sqrMagnitude;
+                        if (dsqY < collisionDistance * collisionDistance) blockY = true;
+                        if (blockX && blockY) break;
+                    }
                 }
 
                 if (!blockX) blockX = IsDiagonallyBlocked(currentPos, tryX, allObjects, sameParentOnly: false);

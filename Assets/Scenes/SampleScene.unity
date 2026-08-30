@@ -903,10 +903,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b22311f00a80ca021b52c77366b3fb56, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  pickupSFX: {fileID: 8300000, guid: bdd253768b8a104059260e1d53793727, type: 3}
-  placeSFX: {fileID: 8300000, guid: 55736ecb91c0ba5b3b42d87680dd9a98, type: 3}
-  rotateSFX: {fileID: 8300000, guid: 7ff087405a00e59e18b0af7ebabcc702, type: 3}
-  transferSFX: {fileID: 8300000, guid: 4ef7fb4eef01dfdf388ae6ac6f3098c0, type: 3}
+  pickupSFX: {fileID: 8300000, guid: 5f3d2c3575c2d5449b53d8919c6294dd, type: 3}
+  placeSFX: {fileID: 8300000, guid: c416edaf5c17d2f49a9450d0d094ef36, type: 3}
+  rotateSFX: {fileID: 8300000, guid: 7642fca0168a2db4ebc57bdc4cb5f8a1, type: 3}
+  transferSFX: {fileID: 8300000, guid: 2785e64cf77f8944ab9e5e180ba812ef, type: 3}
   buttonClickSFX: {fileID: 8300000, guid: 73ac5fd7cca1fb66c9fe0edcca41eb73, type: 3}
   winSFX: {fileID: 0}
   bgMusic: {fileID: 0}

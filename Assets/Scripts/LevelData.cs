@@ -42,6 +42,14 @@ public class LevelData : ScriptableObject
         public bool canRotate = true;
     }
 
+    [System.Serializable]
+    public class FrozenCellData
+    {
+        public Vector2Int gridPosition;
+        public int faceIndex = 0;
+        public int requiredMatches = 3;
+    }
+
     [Header("Level Bilgileri")]
     public string levelDisplayName = "Yeni Level";
     public LevelType levelType = LevelType.Classic;
@@ -61,6 +69,45 @@ public class LevelData : ScriptableObject
 
     [Header("Parçalar")]
     public List<PieceData> pieces = new List<PieceData>();
+
+    [Header("Donuk (Frozen) Gridler")]
+    public List<FrozenCellData> frozenCells = new List<FrozenCellData>();
+
+    public FrozenCellData GetFrozenCell(Vector2Int pos, int faceIndex = 0)
+    {
+        if (frozenCells == null) return null;
+        return frozenCells.Find(f => f.gridPosition == pos && f.faceIndex == faceIndex);
+    }
+
+    public bool IsCellFrozen(Vector2Int pos, int faceIndex = 0)
+    {
+        return GetFrozenCell(pos, faceIndex) != null;
+    }
+
+    public void SetFrozenCell(Vector2Int pos, int faceIndex, int requiredMatches)
+    {
+        if (frozenCells == null) frozenCells = new List<FrozenCellData>();
+        var existing = GetFrozenCell(pos, faceIndex);
+        if (existing != null)
+        {
+            existing.requiredMatches = requiredMatches;
+        }
+        else
+        {
+            frozenCells.Add(new FrozenCellData
+            {
+                gridPosition = pos,
+                faceIndex = faceIndex,
+                requiredMatches = requiredMatches
+            });
+        }
+    }
+
+    public void RemoveFrozenCell(Vector2Int pos, int faceIndex = 0)
+    {
+        if (frozenCells == null) return;
+        frozenCells.RemoveAll(f => f.gridPosition == pos && f.faceIndex == faceIndex);
+    }
 
     public bool IsUnlocked(LevelSequenceData sequence, int currentProgress)
     {

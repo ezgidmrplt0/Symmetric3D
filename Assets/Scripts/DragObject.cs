@@ -55,6 +55,14 @@ public partial class DragObject : MonoBehaviour
     public int linkId = 0;
     private bool hasPlayedPickupSound = false;
 
+    [Header("Donuk (Frozen) Durumu")]
+    public bool isFrozen = false;
+
+    public void SetFrozen(bool frozen)
+    {
+        isFrozen = frozen;
+    }
+
     // ──────────────────────────────────────────────────────────────
     // BAŞLANGIÇ
     // ──────────────────────────────────────────────────────────────
@@ -153,6 +161,14 @@ public partial class DragObject : MonoBehaviour
 
             if (hit.transform == transform || hit.transform.IsChildOf(transform))
             {
+                // Parça donuk (kilitli) ise hareket ettirilemez!
+                if (isFrozen)
+                {
+                    EffectsManager.Instance?.ShakeTransform(transform);
+                    VibrationManager.TryVibrate();
+                    return;
+                }
+
                 // Transfer animasyonu devam ediyorsa hiçbir şey yapma (tween'i öldürme!)
                 LiquidTransfer transfer = GetComponentInChildren<LiquidTransfer>();
                 if (transfer != null && transfer.transferring) return;
@@ -312,8 +328,15 @@ public partial class DragObject : MonoBehaviour
         }
 
 
-        // Engelli hücre kontrolü
+        // Engelli veya Donuk hücre kontrolü
         if (targetGrid.name.Contains("Blocked"))
+        {
+            ReturnToStart();
+            return;
+        }
+
+        FrozenGridCell frozenCell = targetGrid.GetComponent<FrozenGridCell>() ?? targetGrid.GetComponentInChildren<FrozenGridCell>();
+        if (frozenCell != null && !frozenCell.isDefrosted)
         {
             ReturnToStart();
             return;

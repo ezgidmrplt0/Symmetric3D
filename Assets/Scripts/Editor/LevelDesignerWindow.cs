@@ -17,6 +17,10 @@ public class LevelDesignerWindow : EditorWindow
     private bool brushCanRotate = false;
 
     private bool isGridEditMode = false;
+    private bool isFrozenEditMode = false;
+    private int frozenRequiredMatches = 3;
+    private bool brushIsFrozen = false;
+    private int brushFrozenCount = 3;
     private int currentFaceIndex = 0;
     private Vector2 scrollPos;
 
@@ -204,20 +208,54 @@ public class LevelDesignerWindow : EditorWindow
 
         GUILayout.Space(6);
 
-        // ── 3. BÖLÜM: Grid Şekillendirme ────────────────────────────
-        DrawSectionHeader("🧱 Grid Şekillendirme");
+        // ── 3. BÖLÜM: Grid & Donukluk Şekillendirme ────────────────────────────
+        DrawSectionHeader("🧱 Grid & ❄️ Donukluk Şekillendirme");
         
+        EditorGUILayout.BeginHorizontal();
         Color oldGuiColor = GUI.backgroundColor;
         GUI.backgroundColor = isGridEditMode ? Color.green : Color.white;
-        if (GUILayout.Button(isGridEditMode ? "✅ Grid Düzenleme Modu: AÇIK" : "⬛ Grid Düzenleme Modu: KAPALI", GUILayout.Height(30)))
+        if (GUILayout.Button(isGridEditMode ? "✅ Grid Düzenleme: AÇIK" : "⬛ Grid Düzenleme: KAPALI", GUILayout.Height(30)))
         {
             isGridEditMode = !isGridEditMode;
+            if (isGridEditMode) isFrozenEditMode = false;
+        }
+
+        GUI.backgroundColor = isFrozenEditMode ? new Color(0.35f, 0.85f, 1f) : Color.white;
+        if (GUILayout.Button(isFrozenEditMode ? "❄️ Donuk Grid Modu: AÇIK" : "❄️ Donuk Grid Modu: KAPALI", GUILayout.Height(30)))
+        {
+            isFrozenEditMode = !isFrozenEditMode;
+            if (isFrozenEditMode) isGridEditMode = false;
         }
         GUI.backgroundColor = oldGuiColor;
+        EditorGUILayout.EndHorizontal();
         
         if (isGridEditMode)
         {
             EditorGUILayout.HelpBox("Grid Düzenleme Modu: Grid üzerindeki hücrelere tıklayarak onları aktif/pasif yapabilirsiniz.", MessageType.Info);
+        }
+        else if (isFrozenEditMode)
+        {
+            EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+            EditorGUILayout.LabelField("❄️ Donukluk Çözülme Sayacı (Eşleştirme Sayısı)", EditorStyles.boldLabel);
+            
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.PrefixLabel("Hızlı Seç:");
+            int[] countPresets = { 1, 2, 3, 4, 5, 6, 8, 10 };
+            foreach (int cnt in countPresets)
+            {
+                Color pCol = GUI.backgroundColor;
+                if (frozenRequiredMatches == cnt) GUI.backgroundColor = new Color(0.35f, 0.9f, 1f);
+                if (GUILayout.Button(cnt.ToString(), GUILayout.Width(28), GUILayout.Height(22)))
+                {
+                    frozenRequiredMatches = cnt;
+                }
+                GUI.backgroundColor = pCol;
+            }
+            EditorGUILayout.EndHorizontal();
+
+            frozenRequiredMatches = EditorGUILayout.IntSlider("Gereken Eşleştirme (Açılma Sayacı)", frozenRequiredMatches, 1, 20);
+            EditorGUILayout.HelpBox($"❄️ Seçili Sayaç: {frozenRequiredMatches} Eşleştirme\n• Harita hücresine Sol Tık = Donuk yap ({frozenRequiredMatches} eşleştirme)\n• Harita hücresine Sağ Tık = Donukluğu kaldır.", MessageType.Info);
+            EditorGUILayout.EndVertical();
         }
 
         GUILayout.Space(6);
@@ -329,6 +367,31 @@ public class LevelDesignerWindow : EditorWindow
             brushCanRotate = false;
         }
 
+        // ❄️ Donuk Olarak Yerleştir Seçeneği
+        GUILayout.Space(4);
+        EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+        brushIsFrozen = EditorGUILayout.Toggle("❄️ Bu Parçayı Donuk Olarak Yerleştir", brushIsFrozen);
+        if (brushIsFrozen)
+        {
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.PrefixLabel("   └ Hızlı Sayaç:");
+            int[] bPresets = { 1, 2, 3, 4, 5, 6 };
+            foreach (int bcnt in bPresets)
+            {
+                Color bCol = GUI.backgroundColor;
+                if (brushFrozenCount == bcnt) GUI.backgroundColor = new Color(0.35f, 0.9f, 1f);
+                if (GUILayout.Button(bcnt.ToString(), GUILayout.Width(28), GUILayout.Height(20)))
+                {
+                    brushFrozenCount = bcnt;
+                }
+                GUI.backgroundColor = bCol;
+            }
+            EditorGUILayout.EndHorizontal();
+
+            brushFrozenCount = EditorGUILayout.IntSlider("   └ Gereken Eşleştirme Sayacı", brushFrozenCount, 1, 20);
+        }
+        EditorGUILayout.EndVertical();
+
         GUILayout.Space(6);
 
         // ── 5. BÖLÜM: Harita / Grid ──────────────────────────────
@@ -340,6 +403,7 @@ public class LevelDesignerWindow : EditorWindow
 
         GUILayout.Space(4);
         DrawGrid();
+        DrawFrozenCellsList();
 
         GUILayout.Space(10);
 
@@ -571,6 +635,17 @@ public class LevelDesignerWindow : EditorWindow
                     canRotate = p.canRotate
                 });
             }
+
+            newLevel.frozenCells = new List<LevelData.FrozenCellData>();
+            foreach (var fc in currentLevel.frozenCells)
+            {
+                newLevel.frozenCells.Add(new LevelData.FrozenCellData
+                {
+                    gridPosition = fc.gridPosition,
+                    faceIndex = fc.faceIndex,
+                    requiredMatches = fc.requiredMatches
+                });
+            }
         }
         else if (currentLevel != null)
         {
@@ -770,15 +845,37 @@ public class LevelDesignerWindow : EditorWindow
                 bool isCellActive = targetCustomGrid.Count == 0 || targetCustomGrid.Contains(pos);
                 LevelData.PieceData piece = GetPieceAt(x, y);
 
+                int targetFaceIdx = currentLevel.boardMode == LevelData.BoardMode.Shape3D ? currentFaceIndex : 0;
+                LevelData.FrozenCellData frozenData = currentLevel.GetFrozenCell(pos, targetFaceIdx);
+                bool isCellFrozen = frozenData != null;
+
                 string buttonText = "";
                 Color bgColor = isCellActive ? new Color(0.3f, 0.3f, 0.3f) : new Color(0.15f, 0.15f, 0.15f);
 
-                if (isGridEditMode)
+                if (isFrozenEditMode)
+                {
+                    if (isCellFrozen)
+                    {
+                        bgColor = new Color(0.25f, 0.75f, 1f);
+                        buttonText = $"❄️ {frozenData.requiredMatches}\nDONUK";
+                    }
+                    else if (isCellActive)
+                    {
+                        bgColor = new Color(0.28f, 0.28f, 0.28f);
+                        buttonText = "Normal\n(+)";
+                    }
+                    else
+                    {
+                        buttonText = "—";
+                    }
+                }
+                else if (isGridEditMode)
                 {
                     buttonText = isCellActive ? "AÇIK" : "KAPALI";
                 }
                 else if (isCellActive)
                 {
+                    string freezeBadge = isCellFrozen ? $" [❄️{frozenData.requiredMatches}]" : "";
                     if (piece != null)
                     {
                         bgColor = piece.liquidColor;
@@ -796,10 +893,15 @@ public class LevelDesignerWindow : EditorWindow
                             4 => "4/4",
                             _ => piece.currentSlices.ToString() + "/4"
                         };
-                        string linkTxt = piece.linkId > 0 ? $"\n[L{piece.linkId}]" : "";
-                        string rotateTxt = (currentLevel.levelType.HasFlag(LevelData.LevelType.Rotation) && piece.canRotate) ? "\n[R]" : "";
+                        string linkTxt = piece.linkId > 0 ? $"[L{piece.linkId}]" : "";
+                        string rotateTxt = (currentLevel.levelType.HasFlag(LevelData.LevelType.Rotation) && piece.canRotate) ? "[R]" : "";
 
-                        buttonText = $"{sliceLabel}\n{yon}{linkTxt}{rotateTxt}";
+                        buttonText = $"{sliceLabel}{freezeBadge}\n{yon} {linkTxt} {rotateTxt}";
+                    }
+                    else if (isCellFrozen)
+                    {
+                        bgColor = new Color(0.2f, 0.65f, 0.95f);
+                        buttonText = $"Boş\n❄️ {frozenData.requiredMatches}";
                     }
                     else
                     {
@@ -817,21 +919,47 @@ public class LevelDesignerWindow : EditorWindow
 
                 Event e = Event.current;
                 
-                // Sağ tık: Silme (Edit modunda değilse) - GUI.Button'dan önce yakalamalıyız
-                if (!isGridEditMode && e.type == EventType.MouseDown && e.button == 1 && bRect.Contains(e.mousePosition))
+                // Sağ tık: Silme - GUI.Button'dan önce yakalamalıyız
+                if (e.type == EventType.MouseDown && e.button == 1 && bRect.Contains(e.mousePosition))
                 {
-                    if (piece != null)
+                    if (isFrozenEditMode)
                     {
-                        Undo.RecordObject(currentLevel, "Parça Sil");
-                        currentLevel.pieces.Remove(piece);
-                        EditorUtility.SetDirty(currentLevel);
-                        e.Use();
+                        if (isCellFrozen)
+                        {
+                            Undo.RecordObject(currentLevel, "Donukluk Sil");
+                            currentLevel.RemoveFrozenCell(pos, targetFaceIdx);
+                            EditorUtility.SetDirty(currentLevel);
+                            e.Use();
+                        }
+                    }
+                    else if (!isGridEditMode)
+                    {
+                        if (piece != null)
+                        {
+                            Undo.RecordObject(currentLevel, "Parça Sil");
+                            currentLevel.pieces.Remove(piece);
+                            EditorUtility.SetDirty(currentLevel);
+                            e.Use();
+                        }
+                        else if (isCellFrozen)
+                        {
+                            Undo.RecordObject(currentLevel, "Donukluk Sil");
+                            currentLevel.RemoveFrozenCell(pos, targetFaceIdx);
+                            EditorUtility.SetDirty(currentLevel);
+                            e.Use();
+                        }
                     }
                 }
 
                 if (GUI.Button(bRect, buttonText))
                 {
-                    if (isGridEditMode)
+                    if (isFrozenEditMode && isCellActive)
+                    {
+                        Undo.RecordObject(currentLevel, "Donukluk Ayarla");
+                        currentLevel.SetFrozenCell(pos, targetFaceIdx, frozenRequiredMatches);
+                        EditorUtility.SetDirty(currentLevel);
+                    }
+                    else if (isGridEditMode)
                     {
                         Undo.RecordObject(currentLevel, "Grid Hücresi Tıkla");
                         
@@ -846,6 +974,7 @@ public class LevelDesignerWindow : EditorWindow
                         {
                             targetCustomGrid.Remove(pos);
                             if (piece != null) currentLevel.pieces.Remove(piece);
+                            currentLevel.RemoveFrozenCell(pos, targetFaceIdx);
                         }
                         else
                         {
@@ -872,6 +1001,11 @@ public class LevelDesignerWindow : EditorWindow
                             piece.canRotate = brushCanRotate;
                             if (currentLevel.boardMode == LevelData.BoardMode.Shape3D) piece.faceIndex = currentFaceIndex;
 
+                            if (brushIsFrozen)
+                            {
+                                currentLevel.SetFrozenCell(pos, targetFaceIdx, brushFrozenCount);
+                            }
+
                             EditorUtility.SetDirty(currentLevel);
                         }
                     }
@@ -884,6 +1018,42 @@ public class LevelDesignerWindow : EditorWindow
             GUILayout.FlexibleSpace();
             EditorGUILayout.EndHorizontal();
         }
+    }
+
+    void DrawFrozenCellsList()
+    {
+        if (currentLevel == null || currentLevel.frozenCells == null || currentLevel.frozenCells.Count == 0) return;
+
+        GUILayout.Space(4);
+        EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+        EditorGUILayout.LabelField($"❄️ Seviyedeki Donuk Gridler ({currentLevel.frozenCells.Count} Adet)", EditorStyles.boldLabel);
+        
+        for (int i = 0; i < currentLevel.frozenCells.Count; i++)
+        {
+            var fc = currentLevel.frozenCells[i];
+            EditorGUILayout.BeginHorizontal();
+            string faceInfo = currentLevel.boardMode == LevelData.BoardMode.Shape3D ? $" [Yüzey {fc.faceIndex}]" : "";
+            EditorGUILayout.LabelField($"📍 ({fc.gridPosition.x}, {fc.gridPosition.y}){faceInfo}", GUILayout.Width(110));
+            
+            EditorGUI.BeginChangeCheck();
+            int newMatches = EditorGUILayout.IntSlider(fc.requiredMatches, 1, 20);
+            if (EditorGUI.EndChangeCheck())
+            {
+                Undo.RecordObject(currentLevel, "Donukluk Sayacı Değiştir");
+                fc.requiredMatches = newMatches;
+                EditorUtility.SetDirty(currentLevel);
+            }
+            
+            if (GUILayout.Button("🗑️ Sil", GUILayout.Width(45)))
+            {
+                Undo.RecordObject(currentLevel, "Donukluk Sil");
+                currentLevel.frozenCells.RemoveAt(i);
+                EditorUtility.SetDirty(currentLevel);
+                break;
+            }
+            EditorGUILayout.EndHorizontal();
+        }
+        EditorGUILayout.EndVertical();
     }
 
     LevelData.PieceData GetPieceAt(int x, int y) 

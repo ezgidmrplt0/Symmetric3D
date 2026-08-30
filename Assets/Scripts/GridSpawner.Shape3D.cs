@@ -74,7 +74,7 @@ public partial class GridSpawner
             if (!faceData.isActive) continue;
 
             spawnedFaceRoots[i] = marker.transform;
-            SpawnFaceGrid(marker, faceData, gridSize);
+            SpawnFaceGrid(marker, faceData, gridSize, level, i);
         }
 
         SpawnShapePieces(level, def, gridSize);
@@ -86,7 +86,7 @@ public partial class GridSpawner
     // YÜZEY GRİDİ
     // ──────────────────────────────────────────────────────────────
 
-    private void SpawnFaceGrid(ShapeFaceMarker marker, LevelData.FaceLayoutData faceData, float gridSize)
+    private void SpawnFaceGrid(ShapeFaceMarker marker, LevelData.FaceLayoutData faceData, float gridSize, LevelData level, int faceIndex)
     {
         int gx = faceData.gridX;
         // Üçgen yüzlerde gridY her zaman gridX'e eşit olmalı (row-based centering için)
@@ -138,6 +138,13 @@ public partial class GridSpawner
                 }
 
                 activeSpawnedObjects.Add(gridObj);
+
+                LevelData.FrozenCellData frozenData = level.GetFrozenCell(new Vector2Int(x, y), faceIndex);
+                if (frozenData != null)
+                {
+                    FrozenGridCell fgc = gridObj.AddComponent<FrozenGridCell>();
+                    fgc.Initialize(new Vector2Int(x, y), faceIndex, frozenData.requiredMatches);
+                }
             }
         }
     }
@@ -203,11 +210,14 @@ public partial class GridSpawner
 
             activeSpawnedObjects.Add(newObj);
 
+            bool isPieceFrozen = level.IsCellFrozen(piece.gridPosition, piece.faceIndex);
+
             DragObject dobj = newObj.GetComponent<DragObject>();
             if (dobj != null)
             {
                 dobj.linkId = piece.linkId;
                 dobj.canRotate = piece.canRotate;
+                dobj.SetFrozen(isPieceFrozen);
             }
 
             if (piece.linkId > 0)

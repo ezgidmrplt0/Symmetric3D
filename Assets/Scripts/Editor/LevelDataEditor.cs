@@ -41,6 +41,34 @@ public class LevelDataEditor : Editor
             EditorGUILayout.EndVertical();
         }
 
+        // Donuk Gridler (Frozen Cells) Editörü
+        if (level.frozenCells != null && level.frozenCells.Count > 0)
+        {
+            GUILayout.Space(6);
+            EditorGUILayout.BeginVertical("box");
+            EditorGUILayout.LabelField($"❄️ Donuk Gridler ({level.frozenCells.Count} Adet)", EditorStyles.boldLabel);
+
+            EditorGUI.BeginChangeCheck();
+            for (int i = 0; i < level.frozenCells.Count; i++)
+            {
+                var fc = level.frozenCells[i];
+                EditorGUILayout.BeginHorizontal();
+                string faceStr = level.boardMode == LevelData.BoardMode.Shape3D ? $" [Yüz {fc.faceIndex}]" : "";
+                EditorGUILayout.LabelField($"📍 ({fc.gridPosition.x}, {fc.gridPosition.y}){faceStr}", GUILayout.Width(110));
+                fc.requiredMatches = EditorGUILayout.IntSlider("Sayaç", fc.requiredMatches, 1, 20);
+                if (GUILayout.Button("🗑️ Sil", GUILayout.Width(45)))
+                {
+                    level.frozenCells.RemoveAt(i);
+                    break;
+                }
+                EditorGUILayout.EndHorizontal();
+            }
+            if (EditorGUI.EndChangeCheck())
+                EditorUtility.SetDirty(level);
+
+            EditorGUILayout.EndVertical();
+        }
+
         GUILayout.Space(10);
 
         if (level.boardMode == LevelData.BoardMode.Shape3D)
