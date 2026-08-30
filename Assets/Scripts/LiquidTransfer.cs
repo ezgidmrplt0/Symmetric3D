@@ -235,13 +235,16 @@ public class LiquidTransfer : MonoBehaviour
         // Sahnede hâlâ DragObject var mı? (Destroy 1 frame sonra gerçekleşir, o yüzden kısa delay)
         DOVirtual.DelayedCall(0.15f, () =>
         {
-            // Sadece DragObject olan ve yok edilmeyen (scaling down olmayan) objeleri say
+            // Sadece aktif, yok edilmeyen ve geçerli dilime sahip objeleri say
             DragObject[] allObjects = FindObjectsOfType<DragObject>();
             List<DragObject> remaining = new List<DragObject>();
             foreach(var obj in allObjects)
             {
+                if (obj == null || !obj.gameObject.activeInHierarchy) continue;
+                if (obj.transform.localScale.x <= 0.05f) continue;
+
                 LiquidTransfer lt = obj.GetComponentInChildren<LiquidTransfer>();
-                if(lt != null && !lt.transferring)
+                if(lt != null && !lt.transferring && lt.currentSlices > 0 && lt.currentSlices < lt.maxSlices)
                 {
                     remaining.Add(obj);
                 }
@@ -252,8 +255,11 @@ public class LiquidTransfer : MonoBehaviour
                 // Eğer gerçekten hiç parça kalmadıysa (transferring olanlar dahil hepsi bittiyse)
                 LiquidTransfer[] allLiquids = FindObjectsOfType<LiquidTransfer>();
                 bool anyTransferring = false;
-                foreach(var l in allLiquids) if(l != null && l.transferring) anyTransferring = true;
-
+                foreach(var l in allLiquids)
+                {
+                    if (l != null && l.gameObject != null && l.gameObject.activeInHierarchy && l.transferring)
+                        anyTransferring = true;
+                }
 
                 if (!anyTransferring)
                 {
@@ -263,10 +269,9 @@ public class LiquidTransfer : MonoBehaviour
                 }
             }
             
-            // Hâlâ parça var or some pieces are still transferring
+            // Hâlâ parça varsa hamle kalıp kalmadığını kontrol et
             if (remaining.Count > 0)
             {
-                // Hamle kalıp kalmadığını kontrol et
                 FindObjectOfType<GridSpawner>()?.CheckForFail();
             }
         });

@@ -112,6 +112,7 @@ public partial class GridSpawner : MonoBehaviour
 
     public void RestartLevel()
     {
+        GameManager.Instance?.ResetLevelState();
         SpawnCurrentLevel();
     }
 
@@ -310,6 +311,9 @@ public partial class GridSpawner : MonoBehaviour
 
     public void CheckForFail()
     {
+        // Eğer level tamamlandıysa veya zaten fail olduysa tekrar tetikleme
+        if (GameManager.Instance != null && GameManager.Instance.IsLevelCompleting) return;
+
         if (PossibleMovesExist()) return;
 
         GameManager.Instance?.LevelFail();
@@ -320,23 +324,51 @@ public partial class GridSpawner : MonoBehaviour
         LiquidTransfer[] all = FindObjectsOfType<LiquidTransfer>();
         List<LiquidTransfer> activePieces = new List<LiquidTransfer>();
 
-
         foreach (var lt in all)
         {
+            if (lt == null || lt.gameObject == null || !lt.gameObject.activeInHierarchy)
+                continue;
+
+            // Sıvı aktarımı sürüyorsa hamle devam ediyor demektir
             if (lt.transferring)
             {
                 return true;
             }
-            if (lt != null && lt.gameObject.activeInHierarchy)
-                activePieces.Add(lt);
+
+            // Yok edilmekte / tamamlanmış / boşalmış parçaları sayma
+            if (lt.currentSlices <= 0 || lt.currentSlices >= lt.maxSlices)
+                continue;
+
+            // Parça yok olma (küçülme) animasyonundaysa sayma
+            if (lt.transform.parent != null && lt.transform.parent.localScale.x <= 0.05f)
+                continue;
+
+            activePieces.Add(lt);
         }
 
-        if (activePieces.Count == 0)
+        // Tahtada parça kalmadıysa fail değildir (LevelComplete tetiklenecektir)
+        if (activePieces.Count <= 0)
         {
             return true;
         }
 
+        // Tek bir parça kaldıysa eşleşebileceği başka parça olamaz -> FAIL
         if (activePieces.Count == 1)
+        {
+            return false;
+        }
+
+        // Donuk olmayan (serbestçe sürüklenebilen) parça sayısı
+        int unfrozenCount = 0;
+        foreach (var piece in activePieces)
+        {
+            DragObject dobj = piece.GetComponentInParent<DragObject>();
+            if (dobj == null || !dobj.isFrozen)
+                unfrozenCount++;
+        }
+
+        // Eğer tahtada kalan TÜM parçalar donuksa ve hiçbiri hareket edemiyorsa -> FAIL
+        if (unfrozenCount == 0)
         {
             return false;
         }
@@ -345,7 +377,7 @@ public partial class GridSpawner : MonoBehaviour
         {
             for (int j = i + 1; j < activePieces.Count; j++)
             {
-                if (CanInteractionsExist(activePieces[i], activePieces[j]))
+                if (CanInteractionsExist(activePieces[i], activePieces[j], unfrozenCount))
                 {
                     return true;
                 }
@@ -355,9 +387,11 @@ public partial class GridSpawner : MonoBehaviour
         return false;
     }
 
-    private bool CanInteractionsExist(LiquidTransfer a, LiquidTransfer b)
+    private bool CanInteractionsExist(LiquidTransfer a, LiquidTransfer b, int unfrozenCount = 2)
     {
         if (a == null || b == null) return false;
+        if (a.currentSlices <= 0 || a.currentSlices >= a.maxSlices) return false;
+        if (b.currentSlices <= 0 || b.currentSlices >= b.maxSlices) return false;
 
         // Aynı linked grubundaki objeler hiçbir zaman birbirini tamamlayamaz
         DragObject dobjA = a.GetComponentInParent<DragObject>();
@@ -365,27 +399,40 @@ public partial class GridSpawner : MonoBehaviour
         if (dobjA != null && dobjB != null && dobjA.linkId > 0 && dobjA.linkId == dobjB.linkId)
             return false;
 
+        // İki parça da donuksa ve kilitleri çözecek başka serbest eşleşme yoksa hareket edemezler
+        bool aFrozen = dobjA != null && dobjA.isFrozen;
+        bool bFrozen = dobjB != null && dobjB.isFrozen;
+        if (aFrozen && bFrozen && unfrozenCount < 2)
+            return false;
+
+        // Renk ve Dilim sayısı eşleşmesi
         bool colorMatch = ColorMixData.ColorsMatch(a.liquidColor, b.liquidColor);
         bool sliceMatch = a.currentSlices == b.currentSlices;
-        bool notFull    = a.currentSlices < a.maxSlices;
-        bool capable    = colorMatch && sliceMatch && notFull;
 
-        if (!capable) return false;
+        if (!colorMatch || !sliceMatch) return false;
 
-        if (!CurrentLevelType.HasFlag(LevelData.LevelType.Rotation))
-        {
-            Vector3 myFace    = a.transform.up;
-            Vector3 otherFace = b.transform.up;
+        // Rotasyon ve Yönlenebilirlik Kontrolü
+        bool levelHasRotation = CurrentLevelType.HasFlag(LevelData.LevelType.Rotation);
+        bool canRotA = levelHasRotation && (dobjA != null && dobjA.canRotate && dobjA.linkId == 0);
+        bool canRotB = levelHasRotation && (dobjB != null && dobjB.canRotate && dobjB.linkId == 0);
 
-            if (Vector3.Dot(myFace, -otherFace) < 0.9f)
-            {
-                // Shape3D modunda parçalar yüzey değiştirebilir → yön uyuşmasa da fail sayma
-                bool is3D = levels != null &&
-                            currentLevelIndex < levels.Count &&
-                            levels[currentLevelIndex].boardMode == LevelData.BoardMode.Shape3D;
-                if (!is3D) return false;
-            }
-        }
+        // En az biri döndürülebiliyorsa birbirine bakacak şekilde ayarlanabilir
+        if (canRotA || canRotB)
+            return true;
+
+        // Shape3D modunda parçalar farklı yüzeylere taşınarak 90° göreceli yön değiştirebilir
+        bool is3D = levels != null &&
+                    currentLevelIndex < levels.Count &&
+                    levels[currentLevelIndex] != null &&
+                    levels[currentLevelIndex].boardMode == LevelData.BoardMode.Shape3D;
+        if (is3D)
+            return true;
+
+        // 2D modunda ve hiçbiri dönemiyorsa, yönlerinin zıt (karşı karşıya) bakması zorunludur
+        Vector3 myFace = a.transform.up;
+        Vector3 otherFace = b.transform.up;
+        if (Vector3.Dot(myFace, -otherFace) < 0.8f)
+            return false;
 
         return true;
     }
