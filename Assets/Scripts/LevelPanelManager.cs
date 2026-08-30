@@ -346,13 +346,29 @@ public class LevelPanelManager : MonoBehaviour
         scaleMultiplier = 1.0f;
         int levelNum = PlayerPrefs.GetInt("CurrentLevelIndex", 0) + 1;
 
-        // Level 11+ (Seviye 11 ve sonrası) -> GIFT (Hediye Paketi)
-        if (levelNum >= 11)
+        // Level 16+ -> GIFT (Hediye Paketi)
+        if (levelNum >= 16)
         {
             if (giftSprite != null) return giftSprite;
 #if UNITY_EDITOR
             Sprite loadedGift = UnityEditor.AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Violet Theme Ui/Colored Icons/Gift.png");
             if (loadedGift != null) { giftSprite = loadedGift; return loadedGift; }
+#endif
+        }
+        // Level 11-15 -> FROZEN
+        else if (levelNum >= 11)
+        {
+            foreach (var item in mechanicIcons)
+            {
+                if (item.icon != null && item.levelType == LevelData.LevelType.Frozen)
+                {
+                    scaleMultiplier = item.scaleMultiplier > 0 ? item.scaleMultiplier : 1.15f;
+                    return item.icon;
+                }
+            }
+#if UNITY_EDITOR
+            Sprite frozenSprite = UnityEditor.AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Images/Frozen.png");
+            if (frozenSprite != null) { scaleMultiplier = 1.15f; return frozenSprite; }
 #endif
         }
         // Level 6-10 -> LINKED
@@ -550,7 +566,7 @@ public class LevelPanelManager : MonoBehaviour
             if (nextMechanicLabel != null)
             {
                 int levelNum = PlayerPrefs.GetInt("CurrentLevelIndex", 0) + 1;
-                if (levelNum >= 11)
+                if (levelNum >= 16)
                 {
                     nextMechanicLabel.text = "NEXT REWARD";
                 }

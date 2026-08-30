@@ -9,7 +9,8 @@ public class LevelData : ScriptableObject
     {
         Classic  = 1 << 0,
         Rotation = 1 << 1,
-        Linked   = 1 << 2
+        Linked   = 1 << 2,
+        Frozen   = 1 << 3
     }
 
     public enum BoardMode

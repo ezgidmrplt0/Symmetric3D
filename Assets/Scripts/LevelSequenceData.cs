@@ -20,6 +20,7 @@ public class LevelSequenceData : ScriptableObject
         new LevelTypeConfig { levelType = LevelData.LevelType.Classic,  unlockAtProgress = 0   },
         new LevelTypeConfig { levelType = LevelData.LevelType.Rotation, unlockAtProgress = 100 },
         new LevelTypeConfig { levelType = LevelData.LevelType.Linked,   unlockAtProgress = 200 },
+        new LevelTypeConfig { levelType = LevelData.LevelType.Frozen,   unlockAtProgress = 300 },
     };
 
     // ── Sıralı Level Listesi ─────────────────────────────────────

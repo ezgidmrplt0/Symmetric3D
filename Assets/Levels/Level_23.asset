@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Level_23
   m_EditorClassIdentifier: 
   levelDisplayName: Level_23
-  levelType: -1
+  levelType: 7
   timeLimit: 150
   boardMode: 0
   gridX: 4

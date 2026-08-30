@@ -114,6 +114,23 @@ public class TutorialManager : MonoBehaviour
             }
         }
 
+        // --- HARDCODED TUTORIAL: Inspector'da entry olmasa bile çalışır ---
+        if (!found && currentLevel != null)
+        {
+            if (spawner.currentLevelIndex == 5 || currentLevel.name.Contains("Rotation"))
+            {
+                found = true;
+            }
+            else if (spawner.currentLevelIndex == 10 || currentLevel.name.Contains("Linked"))
+            {
+                found = true;
+            }
+            else if (currentLevel.name == "Ice")
+            {
+                found = true;
+            }
+        }
+
         if (!found)
         {
             if (handImage != null) handImage.gameObject.SetActive(false);
@@ -126,12 +143,10 @@ public class TutorialManager : MonoBehaviour
         {
             if (_rotationTutorialStep == 0)
             {
-                // Adım 1: Objenin üzerine tek dokunuş (Tap / Rotate)
                 activeTutorial.path = new Vector2Int[] { new Vector2Int(0, 0) };
             }
             else
             {
-                // Adım 2: Objeyi sağdaki boş hücreye sürükleme (Drag / Transfer)
                 activeTutorial.path = new Vector2Int[] { new Vector2Int(0, 0), new Vector2Int(1, 0) };
             }
         }
@@ -139,8 +154,13 @@ public class TutorialManager : MonoBehaviour
         // --- LEVEL 11 LINKED TUTORIAL ADIMLARI ---
         if (spawner.currentLevelIndex == 10 || (currentLevel != null && currentLevel.name.Contains("Linked")))
         {
-            // Mor parçadan (1, 1) sağdaki boş hücreye (2, 1) 1 grid sağa sürükle
             activeTutorial.path = new Vector2Int[] { new Vector2Int(1, 1), new Vector2Int(2, 1) };
+        }
+
+        // --- ICE (FROZEN) TUTORIAL ---
+        if (currentLevel != null && currentLevel.name == "Ice")
+        {
+            activeTutorial.path = new Vector2Int[] { new Vector2Int(0, 0), new Vector2Int(1, 0) };
         }
 
         // --- ÖZEL PANEL KONTROLÜ (KAPALI) ---

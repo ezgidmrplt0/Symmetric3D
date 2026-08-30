@@ -168,7 +168,7 @@ public class GameManager : MonoBehaviour
 
     /// <summary>
     /// Mevcut seviye numarasına göre yeni bir tür açıldı mı kontrol eder.
-    /// Level 5 -> Rotation, Level 10 -> Linked, Level 15+ -> Gift
+    /// Level 5 -> Rotation, Level 10 -> Linked, Level 15 -> Frozen, Level 20+ -> Gift
     /// </summary>
     public bool GetTypeForProgress(out LevelData.LevelType unlockedType)
     {
@@ -186,7 +186,12 @@ public class GameManager : MonoBehaviour
             unlockedType = LevelData.LevelType.Linked;
             return true;
         }
-        else if (levelNum > 10 && (levelNum % 5 == 0))
+        else if (levelNum == 15)
+        {
+            unlockedType = LevelData.LevelType.Frozen;
+            return true;
+        }
+        else if (levelNum > 15 && (levelNum % 5 == 0))
         {
             return true;
         }
@@ -198,7 +203,8 @@ public class GameManager : MonoBehaviour
     /// Oynanan seviye numarasına göre gösterilecek mekanik veya ödül türünü döner:
     /// - Level 1-5: Rotation
     /// - Level 6-10: Linked
-    /// - Level 11+: Gift / Reward
+    /// - Level 11-15: Frozen
+    /// - Level 16+: Gift / Reward
     /// </summary>
     public bool GetNextMechanicToUnlock(out LevelData.LevelType nextType)
     {
@@ -211,6 +217,10 @@ public class GameManager : MonoBehaviour
         else if (levelNum <= 10)
         {
             nextType = LevelData.LevelType.Linked;
+        }
+        else if (levelNum <= 15)
+        {
+            nextType = LevelData.LevelType.Frozen;
         }
         else
         {

@@ -83,7 +83,7 @@ public partial class GridSpawner : MonoBehaviour
         currentLevelIndex = PlayerPrefs.GetInt("CurrentLevelIndex", 0);
 
         if (levels != null && currentLevelIndex >= levels.Count)
-            currentLevelIndex = 0;
+            currentLevelIndex = levels.Count - 1;
 
         // İlk açılışta mevcut level başlangıcını logla
         GameManager.Instance?.ResetLevelState();
@@ -135,8 +135,7 @@ public partial class GridSpawner : MonoBehaviour
             return;
         }
 
-        // Bir sonraki seviyeye sırayla ve atlamadan geç (Level 22 -> Level 23 -> Level 24)
-        currentLevelIndex = (currentLevelIndex + 1) % levels.Count;
+        currentLevelIndex = Mathf.Min(currentLevelIndex + 1, levels.Count - 1);
 
         PlayerPrefs.SetInt("CurrentLevelIndex", currentLevelIndex);
         PlayerPrefs.Save();
