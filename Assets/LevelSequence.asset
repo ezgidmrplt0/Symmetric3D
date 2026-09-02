@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 673ccc51f94d5bd4db1b4c4ecea9b68c, type: 3}
   m_Name: LevelSequence
-  m_EditorClassIdentifier:
+  m_EditorClassIdentifier: 
   typeConfigs:
   - levelType: 1
     unlockAtProgress: 0
@@ -64,5 +64,3 @@ MonoBehaviour:
   - {fileID: 11400000, guid: c8ba71bf4aca82e408090ed2659aea76, type: 2}
   - {fileID: 11400000, guid: f30ac78839f87cf469c7a54d376af031, type: 2}
   - {fileID: 11400000, guid: b584f7c6e2b298ab6979dac75c7dd681, type: 2}
-  - {fileID: 11400000, guid: bb146f508a4f4ec3af68cf292554a81c, type: 2}
-  - {fileID: 11400000, guid: e134fbe118ed4a678b186ebb65733cb7, type: 2}
