@@ -1236,6 +1236,8 @@
           <thead>
             <tr>
               <th>Level No</th>
+              <th>Ulaşan Oyuncu</th>
+              <th>Funnel (İlk Levele Göre)</th>
               <th>Yeni Sürüm Deneme</th>
               <th>Tamamlama</th>
               <th>Geçme Oranı (Pass Rate)</th>
@@ -1247,7 +1249,7 @@
             </tr>
           </thead>
           <tbody id="levelTableBody">
-            <tr><td colspan="9"><div class="loading"><div class="spinner"></div><div>Level verileri yükleniyor...</div></div></td></tr>
+            <tr><td colspan="11"><div class="loading"><div class="spinner"></div><div>Level verileri yükleniyor...</div></div></td></tr>
           </tbody>
         </table>
       </div>
@@ -1289,7 +1291,11 @@ firebase.initializeApp({
 const db = firebase.firestore();
 
 // ── State ─────────────────────────────────────────────────────
-let versionScope        = 'sept2'; // 'sept2' (VARSAYILAN: 2 Eylül ve Sonrası) veya 'all' (Tüm Zamanlar)
+// Yeni sürüm miladı. Bir sonraki büyük sürümde SADECE bu satırı değiştir —
+// tarih filtreleri, kohort tabloları ve KPI'lar hep buradan okur.
+const VERSION_CUTOFF_DATE = '2026-09-02';
+
+let versionScope        = 'sept2'; // 'sept2' (VARSAYILAN: milat ve sonrası) veya 'all' (Tüm Zamanlar)
 let allUsersRaw         = [];
 let allSessionsRaw      = [];
 let allLevelDataRaw     = [];
@@ -1332,7 +1338,7 @@ function setVersionScope(scope) {
     btnAll.className = 'scope-btn';
     document.getElementById('bannerTitle').textContent = 'Aktif Kapsam: Yeni Oyun Sürümü (2 Eylül 2026 Miladı)';
     document.getElementById('bannerSub').textContent = 'Oyun baştan yapıldığı için eski test verileri izole edildi. Tüm metrikler, zorluk dengeleri ve başarı analizleri 2 Eylül ve sonrasına aittir.';
-    document.getElementById('bannerBadge').textContent = 'Milat: 2026-09-02';
+    document.getElementById('bannerBadge').textContent = 'Milat: ' + VERSION_CUTOFF_DATE;
   } else {
     btnSept2.className = 'scope-btn';
     btnAll.className = 'scope-btn all-active';
@@ -1345,17 +1351,21 @@ function setVersionScope(scope) {
 }
 
 function applyScopeFilter() {
-  const MILESTONE_DATE = '2026-09-02';
+  const MILESTONE_DATE = VERSION_CUTOFF_DATE;
 
   if (versionScope === 'sept2') {
     // 2 Eylül ve Sonrası:
     allSessions = allSessionsRaw.filter(s => s.dateStr >= MILESTONE_DATE);
 
-    // Active users: Either installed on/after 2026-09-02, or played on/after 2026-09-02
+    // Milat sonrası oturumu olan kullanıcıları önce indeksle — her kullanıcı için
+    // oturum listesini baştan taramak (O(n×m)) veri büyüdükçe sayfayı kilitliyordu.
+    const usersInScope = new Set(allSessions.map(s => s.userId));
+
+    // Aktif kullanıcı: ya milat sonrası kurmuş ya da milat sonrası oynamış
     allUsers = allUsersRaw.filter(u =>
       u.installDateStr >= MILESTONE_DATE ||
       u.activeDatesSet.has(MILESTONE_DATE) ||
-      allSessions.some(s => s.userId === u.device_id)
+      usersInScope.has(u.device_id)
     );
 
     allLevelData = Object.values(sept2LevelDataMap).sort((a, b) => a.level_index - b.level_index);
@@ -1382,7 +1392,41 @@ function applyScopeFilter() {
   renderLevelTable();
 }
 
-// ── Load Data (Direct Subcollection Fetching) ──────────────────
+// ── Alt Koleksiyon Çekme ──────────────────────────────────────
+// Önce tek bir collectionGroup sorgusu denenir (N kullanıcı için 1 istek).
+// Firestore kuralları collection group sorgusuna izin vermiyorsa kullanıcı
+// bazlı çekmeye düşülür (N istek) — böylece kural durumundan bağımsız çalışır.
+//
+// Hızlı yol için gereken kural:
+//   match /{path=**}/sessions/{doc}      { allow read: if <mevcut koşul>; }
+//   match /{path=**}/level_history/{doc} { allow read: if <mevcut koşul>; }
+async function fetchSubcollection(name, uids) {
+  try {
+    const snap = await db.collectionGroup(name).get();
+    return snap.docs.map(d => ({
+      uid: d.ref.parent.parent.id,
+      id: d.id,
+      data: d.data() || {}
+    }));
+  } catch(e) {
+    console.warn(`'${name}' collectionGroup okunamadı (${e.message}) — kullanıcı bazlı çekmeye düşülüyor.`);
+  }
+
+  const out = [];
+  const batchSize = 25;
+  for (let i = 0; i < uids.length; i += batchSize) {
+    const batch = uids.slice(i, i + batchSize);
+    await Promise.all(batch.map(async (uid) => {
+      try {
+        const snap = await db.collection('users').doc(uid).collection(name).get();
+        snap.docs.forEach(d => out.push({ uid, id: d.id, data: d.data() || {} }));
+      } catch(e) {}
+    }));
+  }
+  return out;
+}
+
+// ── Load Data ─────────────────────────────────────────────────
 async function loadData() {
   const refreshBtn = document.getElementById('refreshBtn');
   refreshBtn.textContent = '⟳ Yükleniyor…';
@@ -1394,105 +1438,109 @@ async function loadData() {
   sept2LevelDataMap = {};
 
   try {
+    // 1) Root dokümanlar
     const usersSnap = await db.collection('users').get();
-    const rawDocs = usersSnap.docs;
+    const rawData = {};
+    usersSnap.docs.forEach(doc => { rawData[doc.id] = doc.data() || {}; });
+    const uids = Object.keys(rawData);
 
+    // 2) meta/profile — root'un üzerine merge edilir (daha güncel olan bu)
+    const metaDocs = await fetchSubcollection('meta', uids);
+    metaDocs.forEach(m => {
+      if (m.id !== 'profile') return;
+      rawData[m.uid] = { ...(rawData[m.uid] || {}), ...m.data };
+    });
+
+    // 3) Kullanıcı nesnelerini kur
+    const userMap = {};
+    Object.keys(rawData).forEach(uid => {
+      const u = buildUser(uid, rawData[uid]);
+      userMap[uid] = u;
+      allUsersRaw.push(u);
+    });
+
+    // 4) Oturumlar
+    const usersWithRecentSession = new Set();
+    const sessionDocs = await fetchSubcollection('sessions', uids);
+    sessionDocs.forEach(({ uid, id, data: sd }) => {
+      const userObj = userMap[uid];
+
+      const startTs = sd.start_time?.toDate?.() ||
+                      (sd.start_time?.seconds ? new Date(sd.start_time.seconds * 1000) : null);
+      const dateKey = sd.date || (startTs ? formatDateKey(startTs) : '');
+
+      if (dateKey && userObj) userObj.activeDatesSet.add(dateKey);
+      if (dateKey && dateKey >= VERSION_CUTOFF_DATE) usersWithRecentSession.add(uid);
+
+      allSessionsRaw.push({
+        id,
+        userId: uid,
+        startTs: startTs ? startTs.getTime() : 0,
+        startTimeStr: startTs ? startTs.toLocaleString('tr-TR') : (sd.date || '—'),
+        dateStr: dateKey,
+        durationSeconds: sd.duration_seconds || 0,
+        levelsPlayed: sd.levels_played || 0,
+        deviceModel: sd.device_model || '—',
+        osVersion: sd.os_version || '—',
+        platform: sd.platform || userObj?.platform || '',
+        appVersion: sd.app_version || userObj?.app_version || '',
+        country: sd.country || userObj?.country || '',
+        language: sd.language || userObj?.language || ''
+      });
+    });
+
+    // 5) Level geçmişi
     const levelAggMap = {};
-    const batchSize = 25;
+    const blankLevel = (idx) => ({
+      level_index: idx, players: 0, attempts: 0, completions: 0,
+      fails: 0, quits: 0, resets: 0, total_time: 0
+    });
 
-    for (let i = 0; i < rawDocs.length; i += batchSize) {
-      const batch = rawDocs.slice(i, i + batchSize);
-      await Promise.all(batch.map(async (doc) => {
-        let uData = doc.data() || {};
-        const uid = doc.id;
+    const levelDocs = await fetchSubcollection('level_history', uids);
+    levelDocs.forEach(({ uid, id, data: ld }) => {
+      const lIdx = ld.level_index !== undefined ? ld.level_index : parseInt(id);
+      if (isNaN(lIdx)) return;
 
-        // Profile
-        try {
-          const profSnap = await db.collection('users').doc(uid).collection('meta').doc('profile').get();
-          if (profSnap.exists) {
-            uData = { ...uData, ...profSnap.data() };
-          }
-        } catch(e) {}
+      const userObj = userMap[uid];
 
-        const userObj = buildUser(uid, uData);
-        let userHasSept2Session = false;
+      // farthest_level alanı geçmişte kaybolabildiği için gerçek ilerlemeyi
+      // level_history'den türet — bu veri her zaman doğru.
+      if (userObj && lIdx > userObj.farthest_level) userObj.farthest_level = lIdx;
 
-        // Sessions
-        try {
-          const sessSnap = await db.collection('users').doc(uid).collection('sessions').get();
-          sessSnap.docs.forEach(sDoc => {
-            const sd = sDoc.data() || {};
-            const startTs = sd.start_time?.toDate?.() || (sd.start_time?.seconds ? new Date(sd.start_time.seconds * 1000) : null);
-            const dateKey = sd.date || (startTs ? formatDateKey(startTs) : '');
+      // Level geçmişindeki tarihleri de aktif günlere ekle
+      if (userObj) {
+        if (ld.first_attempt?.toDate) userObj.activeDatesSet.add(formatDateKey(ld.first_attempt.toDate()));
+        if (ld.last_played?.toDate)   userObj.activeDatesSet.add(formatDateKey(ld.last_played.toDate()));
+      }
 
-            if (dateKey) userObj.activeDatesSet.add(dateKey);
-            if (dateKey >= '2026-09-02') userHasSept2Session = true;
+      const lastPlayedDate = ld.last_played?.toDate ? formatDateKey(ld.last_played.toDate()) : null;
+      const isRecent = (lastPlayedDate && lastPlayedDate >= VERSION_CUTOFF_DATE) ||
+                       usersWithRecentSession.has(uid);
 
-            allSessionsRaw.push({
-              id: sDoc.id,
-              userId: uid,
-              startTs: startTs ? startTs.getTime() : 0,
-              startTimeStr: startTs ? startTs.toLocaleString('tr-TR') : (sd.date || '—'),
-              dateStr: dateKey,
-              durationSeconds: sd.duration_seconds || 0,
-              levelsPlayed: sd.levels_played || 0,
-              deviceModel: sd.device_model || '—',
-              osVersion: sd.os_version || '—',
-              platform: sd.platform || userObj.platform || '',
-              appVersion: sd.app_version || userObj.app_version || '',
-              country: sd.country || userObj.country || '',
-              language: sd.language || userObj.language || ''
-            });
-          });
-        } catch(e) {}
+      const accumulate = (target) => {
+        target.players     += 1;                          // bu levele ulaşan oyuncu sayısı
+        target.attempts    += (ld.attempts    || 0);
+        target.completions += (ld.completions || 0);
+        target.fails       += (ld.fails       || 0);
+        target.quits       += (ld.quits       || 0);
+        target.resets      += (ld.resets      || 0);
+        target.total_time  += (ld.total_time_spent || 0);
+      };
 
-        // Level History
-        try {
-          const lvlSnap = await db.collection('users').doc(uid).collection('level_history').get();
-          lvlSnap.docs.forEach(lDoc => {
-            const ld = lDoc.data() || {};
-            const lIdx = ld.level_index !== undefined ? ld.level_index : parseInt(lDoc.id);
+      if (!levelAggMap[lIdx]) levelAggMap[lIdx] = blankLevel(lIdx);
+      accumulate(levelAggMap[lIdx]);
 
-            const lastPlayedDate = ld.last_played?.toDate ? formatDateKey(ld.last_played.toDate()) : null;
-            const isSept2Level = (lastPlayedDate === '2026-09-02' || userHasSept2Session);
+      if (isRecent) {
+        if (!sept2LevelDataMap[lIdx]) sept2LevelDataMap[lIdx] = blankLevel(lIdx);
+        accumulate(sept2LevelDataMap[lIdx]);
+      }
+    });
 
-            if (!isNaN(lIdx)) {
-              // All-time map
-              if (!levelAggMap[lIdx]) {
-                levelAggMap[lIdx] = {
-                  level_index: lIdx, attempts: 0, completions: 0, fails: 0, quits: 0, resets: 0, total_time: 0
-                };
-              }
-              levelAggMap[lIdx].attempts += (ld.attempts || 0);
-              levelAggMap[lIdx].completions += (ld.completions || 0);
-              levelAggMap[lIdx].fails += (ld.fails || 0);
-              levelAggMap[lIdx].quits += (ld.quits || 0);
-              levelAggMap[lIdx].resets += (ld.resets || 0);
-              levelAggMap[lIdx].total_time += (ld.total_time_spent || 0);
-
-              // Sept 2 map
-              if (isSept2Level) {
-                if (!sept2LevelDataMap[lIdx]) {
-                  sept2LevelDataMap[lIdx] = {
-                    level_index: lIdx, attempts: 0, completions: 0, fails: 0, quits: 0, resets: 0, total_time: 0
-                  };
-                }
-                sept2LevelDataMap[lIdx].attempts += (ld.attempts || 0);
-                sept2LevelDataMap[lIdx].completions += (ld.completions || 0);
-                sept2LevelDataMap[lIdx].fails += (ld.fails || 0);
-                sept2LevelDataMap[lIdx].quits += (ld.quits || 0);
-                sept2LevelDataMap[lIdx].resets += (ld.resets || 0);
-                sept2LevelDataMap[lIdx].total_time += (ld.total_time_spent || 0);
-              }
-            }
-          });
-        } catch(e) {}
-
-        userObj.activeDaysCount = userObj.activeDatesSet.size;
-        assignRetentionSegment(userObj);
-        allUsersRaw.push(userObj);
-      }));
-    }
+    // 6) Türetilmiş alanları tamamla
+    allUsersRaw.forEach(u => {
+      u.activeDaysCount = u.activeDatesSet.size;
+      assignRetentionSegment(u);
+    });
 
     allSessionsRaw.sort((a, b) => b.startTs - a.startTs);
     allLevelDataRaw = Object.values(levelAggMap).sort((a, b) => a.level_index - b.level_index);
@@ -1504,7 +1552,6 @@ async function loadData() {
     return;
   }
 
-  // Apply default scope ('sept2')
   applyScopeFilter();
 
   document.getElementById('lastRefresh').textContent =
@@ -1600,7 +1647,7 @@ function updateUAMetricsFromInputs() {
   const impressions = parseFloat(impInput?.value) || 500;
   const clicks = parseFloat(clkInput?.value) || 25;
   const spend = parseFloat(spdInput?.value) || 5;
-  const totalInstalls = allUsers.filter(u => u.installDateStr === '2026-09-02').length || allUsers.length;
+  const totalInstalls = allUsers.filter(u => u.installDateStr === VERSION_CUTOFF_DATE).length || allUsers.length;
 
   document.getElementById('badgeRealInstalls').textContent = `Yeni İndirme: ${totalInstalls} Oyuncu`;
 
@@ -1649,7 +1696,7 @@ function updateUAMetricsFromInputs() {
 function renderOverviewKPICards() {
   const isSept2 = (versionScope === 'sept2');
   const totalInstalls = isSept2
-    ? allUsers.filter(u => u.installDateStr === '2026-09-02').length
+    ? allUsers.filter(u => u.installDateStr === VERSION_CUTOFF_DATE).length
     : allUsers.length;
   const totalSessions = allSessions.length;
   const totalDau = isSept2 ? allUsers.length : (dailyMetricsList[0]?.dauSet?.size || allUsers.length);
@@ -1954,7 +2001,8 @@ function buildUser(uid, d) {
   const userObj = {
     device_id:          uid,
     short_id:           uid.slice(0, 8) + '…',
-    farthest_level:     parseInt(d.farthest_level || 0),
+    // level_history taranırken bu değerin üzerine gerçek maksimum yazılır (bkz. loadData)
+    farthest_level:     Number.isFinite(parseInt(d.farthest_level)) ? parseInt(d.farthest_level) : 0,
     total_play_minutes: +(parseFloat(d.total_play_minutes || 0)).toFixed(1),
     total_sessions:     parseInt(d.total_sessions || 0),
     total_fails:        parseInt(d.total_fails || 0),
@@ -2011,7 +2059,7 @@ function processRetentionAnalytics() {
   const tbody = document.getElementById('cohortBody');
   if (!tbody) return;
 
-  const todayStr = '2026-09-02';
+  const todayStr = VERSION_CUTOFF_DATE;
   const newUsersCount = allUsers.filter(u => u.installDateStr === todayStr).length || allUsers.length;
 
   tbody.innerHTML = `
@@ -2086,13 +2134,18 @@ function renderLevelTable() {
   if (!tbody) return;
 
   if (allLevelData.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="9"><div class="empty">Henüz level oynanış verisi kaydedilmedi</div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="11"><div class="empty">Henüz level oynanış verisi kaydedilmedi</div></td></tr>`;
     return;
   }
+
+  // Funnel tabanı: ilk levele ulaşan oyuncu sayısı
+  const basePlayers = allLevelData[0]?.players || 0;
 
   tbody.innerHTML = allLevelData.map(l => {
     const passRate = l.attempts > 0 ? Math.min(100, Math.round((l.completions / l.attempts) * 100)) : 100;
     const avgTime = l.attempts > 0 ? Math.round(l.total_time / l.attempts) : 0;
+    const players = l.players || 0;
+    const funnelPct = basePlayers > 0 ? Math.round((players / basePlayers) * 100) : 0;
 
     let evalTag = '<span style="color:var(--success)">🟢 Dengeli & Akıcı</span>';
     if (l.fails > 3) evalTag = '<span style="color:var(--danger)">🔴 Çok Zor</span>';
@@ -2101,6 +2154,13 @@ function renderLevelTable() {
     return `
       <tr>
         <td style="font-weight:700">Level ${l.level_index + 1}</td>
+        <td style="font-weight:700">${players}</td>
+        <td>
+          <div class="level-bar-wrap">
+            <div class="level-bar-track"><div class="level-bar-fill" style="width:${funnelPct}%"></div></div>
+            <span style="font-weight:700">${funnelPct}%</span>
+          </div>
+        </td>
         <td>${l.attempts}</td>
         <td style="color:var(--success);font-weight:600">${l.completions}</td>
         <td>

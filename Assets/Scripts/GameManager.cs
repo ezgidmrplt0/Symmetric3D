@@ -31,6 +31,11 @@ public class GameManager : MonoBehaviour
 
     private float levelStartTime = 0f;
 
+    // Arka planda geçen süre level süresine yazılmasın diye takip edilir
+    // (Time.realtimeSinceStartup uygulama arka plandayken de işlemeye devam eder).
+    private float pauseStartTime = 0f;
+    private bool  isPaused       = false;
+
     [HideInInspector] public bool hitProgressHundred;   // Bu level'da 100% barajı aşıldı mı?
 
     public bool IsLevelCompleting => levelCompleting;
@@ -141,6 +146,24 @@ public class GameManager : MonoBehaviour
         FirebaseManager.Instance?.LogLevelStart(levelIndex);
         FirebaseManager.Instance?.SetCurrentLevel(levelIndex);
         FirebaseManager.Instance?.SetFarthestLevel(levelIndex);
+    }
+
+    /// <summary>
+    /// Uygulama arka plandayken geçen süreyi level süresinden düşer — aksi halde
+    /// telefonu cebine koyup bir saat sonra dönen oyuncu o levele 60 dakika yazdırır.
+    /// </summary>
+    void OnApplicationPause(bool pauseStatus)
+    {
+        if (pauseStatus)
+        {
+            pauseStartTime = Time.realtimeSinceStartup;
+            isPaused       = true;
+        }
+        else if (isPaused)
+        {
+            isPaused = false;
+            levelStartTime += Time.realtimeSinceStartup - pauseStartTime;
+        }
     }
 
     /// <summary>

@@ -554,6 +554,12 @@ public class LevelPanelManager : MonoBehaviour
             nextMechanicPreviewImage.color    = Color.white;
             nextMechanicPreviewImage.gameObject.SetActive(true);
         }
+        else
+        {
+            // İkon bulunamadıysa paneli temizle — aksi halde bir önceki levelden
+            // kalan yazı ve boş kutu ekranda asılı kalıyor.
+            HideMechanicPreview();
+        }
     }
 
     void HideMechanicPreview()
