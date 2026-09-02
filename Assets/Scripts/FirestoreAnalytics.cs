@@ -94,6 +94,9 @@ public class FirestoreAnalytics : MonoBehaviour
 
             if (!snap.Exists)
             {
+                string countryCode = GetDeviceCountry();
+                string languageStr = GetDeviceLanguage();
+
                 // İlk kez açılış — profil oluştur
                 var data = new Dictionary<string, object>
                 {
@@ -101,6 +104,9 @@ public class FirestoreAnalytics : MonoBehaviour
                     { "install_date",       todayStr },
                     { "platform",           Application.platform.ToString() },
                     { "app_version",        Application.version },
+                    { "country",            countryCode },
+                    { "language",           languageStr },
+                    { "device_model",       SystemInfo.deviceModel },
                     { "total_play_minutes", 0 },
                     { "total_sessions",     0 },
                     { "farthest_level",     0 },
@@ -122,6 +128,9 @@ public class FirestoreAnalytics : MonoBehaviour
                     { "install_date",       todayStr },
                     { "platform",           Application.platform.ToString() },
                     { "app_version",        Application.version },
+                    { "country",            countryCode },
+                    { "language",           languageStr },
+                    { "device_model",       SystemInfo.deviceModel },
                     { "farthest_level",     0 },
                     { "total_sessions",     0 },
                     { "total_fails",        0 },
@@ -189,6 +198,30 @@ public class FirestoreAnalytics : MonoBehaviour
     // OTURUM YÖNETİMİ
     // ─────────────────────────────────────────────────────────────
 
+    private string GetDeviceCountry()
+    {
+        try
+        {
+            return System.Globalization.RegionInfo.CurrentRegion.TwoLetterISORegionName;
+        }
+        catch
+        {
+            return "TR";
+        }
+    }
+
+    private string GetDeviceLanguage()
+    {
+        try
+        {
+            return Application.systemLanguage.ToString();
+        }
+        catch
+        {
+            return "Turkish";
+        }
+    }
+
     private void StartSession()
     {
         if (!isReady) return;
@@ -203,7 +236,11 @@ public class FirestoreAnalytics : MonoBehaviour
             { "duration_seconds",   0 },
             { "levels_played",      0 },
             { "device_model",       SystemInfo.deviceModel },
-            { "os_version",         SystemInfo.operatingSystem }
+            { "os_version",         SystemInfo.operatingSystem },
+            { "platform",           Application.platform.ToString() },
+            { "app_version",        Application.version },
+            { "country",            GetDeviceCountry() },
+            { "language",           GetDeviceLanguage() }
         };
 
         db.Collection(COLLECTION_USERS).Document(userId)
@@ -211,13 +248,21 @@ public class FirestoreAnalytics : MonoBehaviour
           .SetAsync(data);
 
         // Profilde toplam oturum sayısını artır ve aktif günü ekle
+        var sessionUpdates = new Dictionary<string, object>
+        {
+            { "total_sessions", FieldValue.Increment(1) },
+            { "active_dates",   FieldValue.ArrayUnion(todayStr) }
+        };
+
         db.Collection(COLLECTION_USERS).Document(userId)
           .Collection("meta").Document(DOC_PROFILE)
-          .UpdateAsync(new Dictionary<string, object>
-          {
-              { "total_sessions", FieldValue.Increment(1) },
-              { "active_dates",   FieldValue.ArrayUnion(todayStr) }
-          });
+          .UpdateAsync(sessionUpdates);
+
+        UpdateRootDoc(new Dictionary<string, object>
+        {
+            { "total_sessions", FieldValue.Increment(1) },
+            { "active_dates",   FieldValue.ArrayUnion(todayStr) }
+        });
 #endif
     }
 
