@@ -14,7 +14,9 @@ public class FrozenGridCell : MonoBehaviour
     public int remainingMatches = 3;
     public bool isDefrosted = false;
 
-    [Header("Görsel Referanslar")]
+    [Header("Referanslar")]
+    public DragObject frozenPiece;
+
     private GameObject iceVisualRoot;
     private TextMeshPro counterText;
 
@@ -260,16 +262,9 @@ public class FrozenGridCell : MonoBehaviour
 
     private void UnlockPieceOnThisCell()
     {
-        DragObject[] allPieces = FindObjectsOfType<DragObject>();
-        foreach (var piece in allPieces)
+        if (frozenPiece != null)
         {
-            if (piece == null) continue;
-            float dist = Vector2.Distance(new Vector2(piece.transform.position.x, piece.transform.position.y),
-                                         new Vector2(transform.position.x, transform.position.y));
-            if (dist < 0.65f)
-            {
-                piece.SetFrozen(false);
-            }
+            frozenPiece.SetFrozen(false);
         }
     }
 

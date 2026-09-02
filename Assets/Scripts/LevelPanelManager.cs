@@ -349,9 +349,11 @@ public class LevelPanelManager : MonoBehaviour
         if (type == LevelData.LevelType.Classic)
         {
             if (giftSprite != null) return giftSprite;
+            Sprite loaded = Resources.Load<Sprite>("Gift");
+            if (loaded != null) { giftSprite = loaded; return loaded; }
 #if UNITY_EDITOR
-            Sprite loadedGift = UnityEditor.AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Violet Theme Ui/Colored Icons/Gift.png");
-            if (loadedGift != null) { giftSprite = loadedGift; return loadedGift; }
+            Sprite editorGift = UnityEditor.AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Violet Theme Ui/Colored Icons/Gift.png");
+            if (editorGift != null) { giftSprite = editorGift; return editorGift; }
 #endif
             return null;
         }

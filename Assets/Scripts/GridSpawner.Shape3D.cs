@@ -218,6 +218,19 @@ public partial class GridSpawner
                 dobj.linkId = piece.linkId;
                 dobj.canRotate = piece.canRotate;
                 dobj.SetFrozen(isPieceFrozen);
+
+                if (isPieceFrozen)
+                {
+                    foreach (var fgcObj in activeSpawnedObjects)
+                    {
+                        FrozenGridCell fgc = fgcObj.GetComponent<FrozenGridCell>();
+                        if (fgc != null && fgc.gridPosition == piece.gridPosition && fgc.faceIndex == piece.faceIndex)
+                        {
+                            fgc.frozenPiece = dobj;
+                            break;
+                        }
+                    }
+                }
             }
 
             if (piece.linkId > 0)
