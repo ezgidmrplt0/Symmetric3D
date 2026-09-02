@@ -117,7 +117,11 @@ public class TutorialManager : MonoBehaviour
         // --- HARDCODED TUTORIAL: Inspector'da entry olmasa bile çalışır ---
         if (!found && currentLevel != null)
         {
-            if (spawner.currentLevelIndex == 5 || currentLevel.name.Contains("Rotation"))
+            if (spawner.currentLevelIndex == 0 || currentLevel.name == "Level_01")
+            {
+                found = true;
+            }
+            else if (spawner.currentLevelIndex == 5 || currentLevel.name.Contains("Rotation"))
             {
                 found = true;
             }
@@ -136,6 +140,14 @@ public class TutorialManager : MonoBehaviour
             if (handImage != null) handImage.gameObject.SetActive(false);
             if (specialTutorialPanel != null) specialTutorialPanel.SetActive(false);
             return;
+        }
+
+        // --- LEVEL 1 CLASSIC TUTORIAL ---
+        // Oyunun temel kuralını (ağız ağıza getirme) hiçbir yerde öğretmiyorduk.
+        // El, sağ alttaki parçayı sol alta sürükleyerek eşleşmeyi gösterir.
+        if (spawner.currentLevelIndex == 0 || (currentLevel != null && currentLevel.name == "Level_01"))
+        {
+            activeTutorial.path = new Vector2Int[] { new Vector2Int(1, 0), new Vector2Int(0, 0) };
         }
 
         // --- LEVEL 6 ROTATION TUTORIAL ADIMLARI ---
