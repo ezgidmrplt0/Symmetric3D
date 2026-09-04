@@ -1,0 +1,669 @@
+<title>Firebase Telemetri Reçetesi</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zilla+Slab:wght@500;600;700&family=Source+Sans+3:wght@400;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --ground:      #F5F7F9;
+    --surface:     #FFFFFF;
+    --surface-alt: #EDF1F5;
+    --ink:         #1B2330;
+    --ink-soft:    #4A5A6E;
+    --ink-faint:   #7C8A9C;
+    --rule:        #D5DDE6;
+    --accent:      #B26A11;
+    --accent-soft: #FBF0DD;
+    --bug:         #A83E33;
+    --bug-soft:    #FBE9E7;
+    --fix:         #256B4E;
+    --fix-soft:    #E3F2EA;
+    --code-bg:     #1A2029;
+    --code-ink:    #DCE3EC;
+
+    --display: "Zilla Slab", Georgia, serif;
+    --body:    "Source Sans 3", system-ui, -apple-system, sans-serif;
+    --mono:    "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:      #12171F;
+      --surface:     #1A212B;
+      --surface-alt: #222B37;
+      --ink:         #E4EAF1;
+      --ink-soft:    #A6B4C4;
+      --ink-faint:   #74849A;
+      --rule:        #2E3947;
+      --accent:      #E8A64B;
+      --accent-soft: #2E2617;
+      --bug:         #E07A6D;
+      --bug-soft:    #2E1D1B;
+      --fix:         #63BE95;
+      --fix-soft:    #16281F;
+      --code-bg:     #0D1218;
+      --code-ink:    #D3DCE7;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground:      #12171F;
+    --surface:     #1A212B;
+    --surface-alt: #222B37;
+    --ink:         #E4EAF1;
+    --ink-soft:    #A6B4C4;
+    --ink-faint:   #74849A;
+    --rule:        #2E3947;
+    --accent:      #E8A64B;
+    --accent-soft: #2E2617;
+    --bug:         #E07A6D;
+    --bug-soft:    #2E1D1B;
+    --fix:         #63BE95;
+    --fix-soft:    #16281F;
+    --code-bg:     #0D1218;
+    --code-ink:    #D3DCE7;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: 16px;
+    line-height: 1.65;
+    margin: 0;
+    padding: 0 20px 80px;
+  }
+
+  .wrap { max-width: 860px; margin: 0 auto; }
+
+  header {
+    padding: 56px 0 32px;
+    border-bottom: 2px solid var(--ink);
+  }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 14px;
+  }
+  h1 {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: clamp(32px, 5.5vw, 46px);
+    line-height: 1.1;
+    margin: 0 0 16px;
+    text-wrap: balance;
+    letter-spacing: -0.01em;
+  }
+  .lede {
+    font-size: 18px;
+    color: var(--ink-soft);
+    margin: 0;
+    max-width: 60ch;
+  }
+
+  h2 {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 24px;
+    margin: 52px 0 14px;
+    letter-spacing: -0.005em;
+  }
+  h3 {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 18px;
+    margin: 28px 0 8px;
+  }
+  p { max-width: 66ch; margin: 0 0 14px; }
+
+  .note {
+    background: var(--surface-alt);
+    border-left: 3px solid var(--accent);
+    padding: 14px 18px;
+    margin: 20px 0;
+    font-size: 15px;
+    color: var(--ink-soft);
+    max-width: 66ch;
+  }
+  .note strong { color: var(--ink); }
+
+  /* ── prompt bloğu ─────────────────────────────── */
+  .prompt-shell {
+    margin: 28px 0 8px;
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    overflow: hidden;
+    background: var(--code-bg);
+  }
+  .prompt-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 10px 14px;
+    background: rgba(255,255,255,0.04);
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+  .prompt-bar span {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #8FA0B4;
+  }
+  button.copy {
+    font-family: var(--body);
+    font-weight: 600;
+    font-size: 14px;
+    color: #12171F;
+    background: var(--accent);
+    border: none;
+    border-radius: 4px;
+    padding: 7px 16px;
+    cursor: pointer;
+    transition: filter .15s ease;
+  }
+  button.copy:hover { filter: brightness(1.1); }
+  button.copy:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+  button.copy.done { background: var(--fix); color: #fff; }
+
+  pre.prompt {
+    margin: 0;
+    padding: 20px 22px;
+    max-height: 560px;
+    overflow: auto;
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--code-ink);
+    white-space: pre-wrap;
+    word-break: break-word;
+    tab-size: 2;
+  }
+
+  /* ── tuzak kartları ───────────────────────────── */
+  .traps { display: grid; gap: 14px; margin: 20px 0; }
+  .trap {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    padding: 16px 18px;
+  }
+  .trap h4 {
+    font-family: var(--display);
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0 0 6px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .chip {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 3px;
+    font-weight: 500;
+  }
+  .chip.bug { background: var(--bug-soft);  color: var(--bug); }
+  .chip.fix { background: var(--fix-soft);  color: var(--fix); }
+  .trap p { font-size: 15px; margin: 0 0 8px; color: var(--ink-soft); }
+  .trap p:last-child { margin-bottom: 0; }
+  .trap code {
+    font-family: var(--mono);
+    font-size: 0.88em;
+    background: var(--surface-alt);
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: var(--ink);
+  }
+
+  .tbl-scroll { overflow-x: auto; margin: 18px 0; }
+  table { border-collapse: collapse; width: 100%; font-size: 15px; min-width: 460px; }
+  th, td { text-align: left; padding: 9px 14px 9px 0; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    font-weight: 500;
+  }
+  td code { font-family: var(--mono); font-size: 0.9em; color: var(--accent); }
+
+  footer {
+    margin-top: 56px;
+    padding-top: 20px;
+    border-top: 1px solid var(--rule);
+    font-size: 14px;
+    color: var(--ink-faint);
+    max-width: 66ch;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+</style>
+
+<div class="wrap">
+
+<header>
+  <p class="eyebrow">Unity · Firebase · Aktarım notu</p>
+  <h1>Firebase Telemetri Reçetesi</h1>
+  <p class="lede">Bir mobil oyunda kurulup canlıda test edilmiş analitik mimarisi — ve onu kurarken sessizce veri kaybettiren altı tuzağın kaydı.</p>
+</header>
+
+<h2>Nasıl kullanılır</h2>
+<p>Aşağıdaki metni yeni projendeki asistana olduğu gibi yapıştır. İçinde hem kurulacak mimari hem de o mimariyi ilk seferde doğru kurmak için gereken uyarılar var.</p>
+
+<div class="note">
+  <strong>Neden uyarılar önemli:</strong> Bu tuzakların hepsi ilk projede fark edilmeden canlıya çıktı. Sonuç, 50 kullanıcıdan 47'sinin dashboard'da &ldquo;level 0&rdquo;da görünmesiydi — oyuncular aslında oynuyordu, oyun sadece veriyi göndermiyordu. Hiçbiri hata vermiyordu, o yüzden aylarca fark edilmedi.
+</div>
+
+<div class="prompt-shell">
+  <div class="prompt-bar">
+    <span>Yapıştırılacak prompt</span>
+    <button class="copy" id="copyBtn" type="button">Kopyala</button>
+  </div>
+  <pre class="prompt" id="promptText"># Görev
+
+Unity ile geliştirilen bu mobil oyuna Firebase tabanlı oyuncu analitiği kur. Aşağıda, canlıda çalışan başka bir projede kurulmuş ve hataları ayıklanmış bir mimari var. Aynı yapıyı bu projeye uyarla.
+
+Önce projeyi incele: hangi Unity sürümü, Firebase SDK kurulu mu, oyun döngüsü nasıl işliyor (level bazlı mı, sonsuz mu), hangi olaylar anlamlı. Sonra aşağıdaki yapıyı projenin kendi terminolojisine uyarlayarak kur.
+
+# Mimari — üç dosya
+
+## 1. FirebaseManager.cs
+Firebase Analytics + Crashlytics köprüsü. Singleton, DontDestroyOnLoad.
+
+Sorumlulukları:
+- FirebaseApp.CheckAndFixDependenciesAsync() ile init
+- Analytics event'lerini göndermek
+- Kullanıcı özelliklerini (user property) set etmek
+- Uygulama arka plana geçtiğinde/kapandığında oturum sonu kaydı
+
+KRİTİK: Init asenkron. Uygulamanın ilk karesinde tetiklenen olaylar SDK hazır
+olmadan gelir. Bunları "if (!isReady) return;" ile atma — kuyruğa al, init
+bitince sırayla gönder:
+
+    private readonly List<Action> pendingEvents = new List<Action>();
+    private const int MAX_PENDING_EVENTS = 64;
+
+    private bool Defer(Action action)
+    {
+        if (isReady) return false;
+        if (pendingEvents.Count < MAX_PENDING_EVENTS) pendingEvents.Add(action);
+        return true;
+    }
+
+    private void MarkReady()
+    {
+        isReady = true;
+        var queued = new List<Action>(pendingEvents);
+        pendingEvents.Clear();
+        foreach (var a in queued)
+        {
+            try { a(); }
+            catch (Exception e) { Debug.LogWarning("[Firebase] " + e.Message); }
+        }
+    }
+
+Her public Log metodu şu kalıpta olsun:
+
+    public void LogLevelStart(int levelIndex, LevelContext ctx = default)
+    {
+        // yerel durum SDK'dan bağımsız, HEMEN güncellenir
+        activeLevel = levelIndex;
+        levelActive = true;
+
+        if (Defer(() => SendLevelStart(levelIndex, ctx))) return;
+        SendLevelStart(levelIndex, ctx);
+    }
+
+Yerel durumu (aktif level, zaman sayaçları) kuyruğun dışında tut — aksi halde
+init sırasında başlayan level "aktif değil" sanılır.
+
+## 2. FirestoreAnalytics.cs
+Oyuncu başına derin geçmiş. Analytics'in veremediği kullanıcı bazlı detay burada.
+
+Veri yapısı:
+  users/{deviceId}                            → dashboard'un listelediği özet
+  users/{deviceId}/meta/profile               → aynı özetin detaylı kopyası
+  users/{deviceId}/sessions/{sessionId}       → oturum kayıtları
+  users/{deviceId}/level_history/{levelIndex} → level bazlı detay
+
+KRİTİK KURAL 1 — Asla UpdateAsync kullanma, hep SetAsync(MergeAll):
+
+    private void Merge(DocumentReference doc, Dictionary<string, object> data, string tag)
+    {
+        doc.SetAsync(data, SetOptions.MergeAll).ContinueWithOnMainThread(task =>
+        {
+            if (task.IsFaulted)
+                Debug.LogWarning("[Firestore] '" + tag + "' yazılamadı: " +
+                                 task.Exception?.GetBaseException().Message);
+        });
+    }
+
+UpdateAsync, hedef doküman yoksa NOT_FOUND fırlatır. Task sonucu kontrol
+edilmediği için bu sessizce veri kaybettirir. SetAsync(MergeAll) dokümanı
+yoksa oluşturur. FieldValue.Increment ve ArrayUnion merge-set içinde çalışır.
+
+KRİTİK KURAL 2 — Her yazmanın sonucunu logla. Yukarıdaki Merge bunu yapıyor.
+Hata loglaması olmadan "veri mi bozuk, ben mi yanlış bakıyorum" sorusunu
+cevaplayamazsın.
+
+KRİTİK KURAL 3 — Firestore'dan OKUMA yapma. "En uzak level", "en iyi süre",
+"kurulum tarihi" gibi karşılaştırma gerektiren değerleri PlayerPrefs'te yerel
+tut, sadece değiştiğinde yaz:
+
+    if (levelIndex > PlayerPrefs.GetInt(PREF_FARTHEST, -1))
+    {
+        PlayerPrefs.SetInt(PREF_FARTHEST, levelIndex);
+        MergeProfileAndRoot(new Dictionary<string, object>
+        {
+            { "farthest_level", levelIndex }
+        }, "farthest_level");
+    }
+
+Bu, level başına 2 okuma + 2 yazmayı tek yazmaya indirir. Firestore ücretsiz
+kotası günde 50k okuma / 20k yazma; okuma başına ayrıca ağ gidiş-dönüşü var.
+
+KRİTİK KURAL 4 — Süreleri kırp. Time.realtimeSinceStartup uygulama arka
+plandayken de işler. Telefonu cebine koyup bir saat sonra dönen oyuncu o
+seviyeye 60 dakika yazdırır:
+
+    private const double MAX_EVENT_SECONDS = 3600;
+    private static long SaneSeconds(double s)
+    {
+        if (double.IsNaN(s) || s <= 0) return 0;
+        return (long)Math.Min(s, MAX_EVENT_SECONDS);
+    }
+
+Ayrıca OnApplicationPause'da arka planda geçen süreyi sayaçlardan düş.
+
+KRİTİK KURAL 5 — Kısa arka plan kesintisi yeni oturum sayılmasın:
+
+    private const double NEW_SESSION_AFTER_SECONDS = 30;
+
+Bildirim çubuğunu açıp kapatmak yeni oturum sayılırsa oturum sayısı şişer.
+
+## 3. LevelContext.cs
+Olay anındaki oynanış bağlamını taşıyan struct. Altı parametreyi tek tek her
+metot imzasına eklemek yerine tek yapı hâlinde geçir.
+
+    public struct LevelContext
+    {
+        public int  levelType;        // mekanik bayrakları
+        public int  movesMade;        // bu denemede yapılan hamle
+        public int  rotationsUsed;    // mekanik keşfedildi mi
+        public int  matchesMade;      // ne kadar yaklaştı
+        public int  piecesRemaining;  // olay anındaki durum
+        public int  attemptNumber;    // bu levelin kaçıncı denemesi
+        public bool tutorialShown;    // tutorial görüldü mü
+    }
+
+EN DEĞERLİ ALAN: movesMade. "Oyuncu 8 kez sıfırladı" tek başına bir şey
+söylemez. Sıfır hamleyle sıfırladıysa tahtayı ANLAMADI; sekiz hamleyle
+sıfırladıysa anladı ama ÇÖZEMEDİ. İkisi farklı problem, farklı çözüm.
+Bu ayrımı yapamazsan tasarım kararı veremezsin.
+
+Sayaçları oyun mantığındaki doğal kancalara bağla (başarılı yerleştirme,
+döndürme, eşleşme) ve her deneme başında sıfırla.
+
+# Olay şeması
+
+level_start     → level_index, level_type, attempt_number, tutorial_shown
+level_complete  → + duration_seconds, moves_made, rotations_used
+level_fail      → + moves_made, matches_made, pieces_remaining
+level_retry     → + moves_made, matches_made, pieces_remaining
+level_reset     → + moves_made, matches_made, rotations_used, pieces_remaining
+level_quit      → + duration_seconds, moves_made, pieces_remaining
+session_end     → duration_seconds, levels_played
+
+Firestore'a türetilmiş sayaçlar da yaz — dashboard'da hesaplamadan okunsun:
+  zero_move_resets, zero_move_fails, zero_move_retries
+  total_moves, total_rotations
+  last_reset_moves, last_fail_pieces, last_solve_moves
+
+# Firestore güvenlik kuralları
+
+Dashboard alt koleksiyonları toplu okuyacaksa collection group sorgusu gerekir.
+"match /users/{document=**}" bunları KAPSAMAZ — her collection group ayrı
+kural ister:
+
+    match /{path=**}/meta/{doc}          { allow read: if <koşul>; }
+    match /{path=**}/sessions/{doc}      { allow read: if <koşul>; }
+    match /{path=**}/level_history/{doc} { allow read: if <koşul>; }
+
+Bu kural yoksa sorgu "Missing or insufficient permissions" ile reddedilir.
+Dashboard tarafında collection group'u dene, hata alırsan kullanıcı bazlı
+çekmeye düş — böylece kural durumundan bağımsız çalışır.
+
+GÜVENLİK: "allow read, write: if true" ile başlama. En azından silmeyi kapat:
+
+    allow read, create, update: if true;
+    allow delete: if false;
+
+Oyun hiçbir zaman silmez; bu tek satır en kötü senaryoyu (verinin silinmesi)
+ortadan kaldırır. Kalıcı çözüm anonim auth + kullanıcı bazlı yazma izni.
+
+# BigQuery
+
+Firebase Console → Project Settings → Integrations → BigQuery → Link.
+Google Analytics'i seç, Daily export yeter, reklam kimliğini dahil etme.
+
+Bunu PROJENİN BAŞINDA aç — geçmiş veriyi almaz, sadece bağlandıktan sonraki
+event'ler akar. Her geciken gün kalıcı veri kaybı.
+
+Ham event'lerde user_pseudo_id bazında DISTINCT sayabilirsin; elle yazılmış
+Firestore toplama mantığından çok daha güvenilir. Funnel sorgusu:
+
+    WITH starts AS (
+      SELECT
+        (SELECT value.int_value FROM UNNEST(event_params)
+         WHERE key = 'level_index') AS level_index,
+        user_pseudo_id
+      FROM `PROJE.analytics_PROPERTY_ID.events_*`
+      WHERE _TABLE_SUFFIX BETWEEN '20260101'
+                              AND FORMAT_DATE('%Y%m%d', CURRENT_DATE())
+        AND event_name = 'level_start'
+    ),
+    completes AS (
+      SELECT
+        (SELECT value.int_value FROM UNNEST(event_params)
+         WHERE key = 'level_index') AS level_index,
+        user_pseudo_id
+      FROM `PROJE.analytics_PROPERTY_ID.events_*`
+      WHERE _TABLE_SUFFIX BETWEEN '20260101'
+                              AND FORMAT_DATE('%Y%m%d', CURRENT_DATE())
+        AND event_name = 'level_complete'
+    )
+    SELECT
+      s.level_index + 1 AS level_no,
+      COUNT(DISTINCT s.user_pseudo_id) AS ulasan_oyuncu,
+      COUNT(DISTINCT c.user_pseudo_id) AS bitiren_oyuncu,
+      ROUND(100 * COUNT(DISTINCT c.user_pseudo_id)
+                / NULLIF(COUNT(DISTINCT s.user_pseudo_id), 0), 1) AS bitirme_yuzdesi
+    FROM starts s
+    LEFT JOIN completes c
+      ON s.level_index = c.level_index
+     AND s.user_pseudo_id = c.user_pseudo_id
+    GROUP BY level_no
+    ORDER BY level_no
+
+Takılma noktasını bulmak için aynı kalıpla level_reset event'inde moves_made
+dağılımına bak — sıfır hamleli reset oranı yüksekse level anlaşılmıyor,
+düşükse gerçekten zor:
+
+    SELECT
+      (SELECT value.int_value FROM UNNEST(event_params)
+       WHERE key = 'level_index') + 1 AS level_no,
+      COUNTIF((SELECT value.int_value FROM UNNEST(event_params)
+               WHERE key = 'moves_made') = 0) AS sifir_hamleli_reset,
+      COUNT(*) AS toplam_reset
+    FROM `PROJE.analytics_PROPERTY_ID.events_*`
+    WHERE event_name = 'level_reset'
+    GROUP BY level_no
+    ORDER BY level_no
+
+# Doğrulama
+
+Kod yazdıktan sonra MUTLAKA gerçek cihazda doğrula. Editör tüm asset'lere
+erişebilir, build ise sadece referans edilenleri içerir — "editörde çalışıyor,
+telefonda çalışmıyor" bu projenin en sık hatasıydı.
+
+    adb shell setprop debug.firebase.analytics.app <paket.adı>
+
+Sonra Firebase Console → Analytics → DebugView. Event'ler 10-20 saniyede akar.
+
+Firestore yazmaları DebugView'de GÖRÜNMEZ, onlar için logcat:
+
+    adb logcat -s Unity:V | grep -i -E "Firestore|Firebase"
+
+Şu satırı görmelisin: "[Firebase] N bekleyen olay gönderiliyor."
+Bu, kuyruğun çalıştığının ve ilk level_start'ın kaybolmadığının kanıtıdır.
+
+# İlk yapılacaklar
+
+1. Mevcut kodu incele, hangi olayların anlamlı olduğunu belirle
+2. Üç dosyayı kur (FirebaseManager, FirestoreAnalytics, LevelContext)
+3. Sayaçları oyun mantığındaki kancalara bağla
+4. Firestore kurallarını yaz (collection group + delete kapalı)
+5. BigQuery export'u aç
+6. Gerçek cihazda DebugView + logcat ile doğrula
+7. Bir hafta veri biriktir, sonra oku</pre>
+</div>
+
+<h2>Prompt'un içindeki altı tuzak</h2>
+<p>Aşağıdakiler teorik uyarı değil — hepsi ilk projede canlıya çıktı, hiçbiri hata vermedi ve hepsi veri kaybettirdi.</p>
+
+<div class="traps">
+
+  <div class="trap">
+    <h4>Asenkron init yarışı <span class="chip bug">Her açılışın ilk olayı</span></h4>
+    <p><code>CheckAndFixDependenciesAsync()</code> callback'i ilk kareden sonra döner. <code>Start()</code> içinde tetiklenen olay <code>isReady</code> false olduğu için düşer.</p>
+    <p><span class="chip fix">Çözüm</span> Olay kuyruğu — hazır olana kadar biriktir, init bitince sırayla gönder.</p>
+  </div>
+
+  <div class="trap">
+    <h4>UpdateAsync sessiz kaybı <span class="chip bug">Doküman yoksa tüm yazma</span></h4>
+    <p>Hedef doküman yoksa NOT_FOUND fırlatır. Task sonucu kontrol edilmediği için hiçbir yerde görünmez. Yukarıdaki tuzakla birleşince zincirleme kayıp: ilk olay düşer → doküman oluşmaz → sonraki tüm yazmalar da kaybolur.</p>
+    <p><span class="chip fix">Çözüm</span> <code>SetAsync(MergeAll)</code> — yoksa oluşturur, varsa birleştirir.</p>
+  </div>
+
+  <div class="trap">
+    <h4>Hata yutma <span class="chip bug">Teşhis imkânsız</span></h4>
+    <p>Her <code>SetAsync</code>/<code>UpdateAsync</code> sonucu atılıyordu. Kota aşımı, izin hatası, NOT_FOUND — hepsi görünmez.</p>
+    <p><span class="chip fix">Çözüm</span> Her yazmada <code>task.IsFaulted</code> kontrolü ve konsol uyarısı.</p>
+  </div>
+
+  <div class="trap">
+    <h4>Okuma-önce-yaz <span class="chip bug">Kota ve gecikme</span></h4>
+    <p>&ldquo;En uzak level&rdquo; ve &ldquo;en iyi süre&rdquo; için her level başında Firestore okunuyordu: level başına 2 okuma + 2 yazma, her biri telefonda ağ gidiş-dönüşü.</p>
+    <p><span class="chip fix">Çözüm</span> Karşılaştırma değerlerini PlayerPrefs'te tut, yalnızca değişince yaz.</p>
+  </div>
+
+  <div class="trap">
+    <h4>Arka plan süresi <span class="chip bug">Şişmiş oynanış süresi</span></h4>
+    <p><code>Time.realtimeSinceStartup</code> uygulama arka plandayken de işler. Telefonu cebine koyan oyuncu o seviyeye saatler yazdırır.</p>
+    <p><span class="chip fix">Çözüm</span> <code>OnApplicationPause</code>'da geçen süreyi sayaçlardan düş, ayrıca üst sınırla kırp.</p>
+  </div>
+
+  <div class="trap">
+    <h4>Oturum şişmesi <span class="chip bug">&ldquo;19 oturum / 2 gün&rdquo;</span></h4>
+    <p>Her ön plana dönüş yeni oturum açıyordu. Bildirim çubuğunu açıp kapatmak bile oturum sayılıyordu.</p>
+    <p><span class="chip fix">Çözüm</span> 30 saniyeden kısa kesintide aynı oturumu sürdür.</p>
+  </div>
+
+</div>
+
+<h2>Ne ölçüldü</h2>
+<div class="tbl-scroll">
+<table>
+  <thead>
+    <tr><th>Katman</th><th>Ne için</th><th>Nerede okunur</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>FirebaseAnalytics</code></td>
+      <td>Ham event akışı, funnel, retention</td>
+      <td>BigQuery (SQL), GA4 arayüzü</td>
+    </tr>
+    <tr>
+      <td><code>Firestore</code></td>
+      <td>Oyuncu başına geçmiş, level bazlı detay</td>
+      <td>Kendi dashboard'un</td>
+    </tr>
+    <tr>
+      <td><code>Crashlytics</code></td>
+      <td>Çökme ve yakalanmamış istisnalar</td>
+      <td>Firebase Console</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<p>İki kaynağı birden tutmanın sebebi, birinin diğerini doğrulaması. İlk projede Firestore'daki funnel &ldquo;Level 1'de Level 2'den az oyuncu&rdquo; gibi imkânsız bir tablo gösterdi — bu çelişki olmasa init yarışı hiç fark edilmeyecekti.</p>
+
+<footer>
+  Bu reçete tek bir Unity oyununda kuruldu, canlıda 128 oyuncuyla test edildi ve yukarıdaki altı hata ayıklandıktan sonra bu hâle geldi. Yeni projede olay adlarını ve <code>LevelContext</code> alanlarını kendi oyun döngüne göre değiştir; mimari ve uyarılar aynen geçerli.
+</footer>
+
+</div>
+
+<script>
+  (function () {
+    var btn = document.getElementById('copyBtn');
+    var src = document.getElementById('promptText');
+
+    function flash(msg) {
+      var old = btn.textContent;
+      btn.textContent = msg;
+      btn.classList.add('done');
+      setTimeout(function () {
+        btn.textContent = old;
+        btn.classList.remove('done');
+      }, 1800);
+    }
+
+    function selectAll() {
+      var range = document.createRange();
+      range.selectNodeContents(src);
+      var sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+
+    btn.addEventListener('click', function () {
+      var text = src.textContent;
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(
+          function () { flash('Kopyalandı'); },
+          function () { selectAll(); flash('Seçildi — Ctrl+C'); }
+        );
+        return;
+      }
+
+      try {
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        var ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+        ok ? flash('Kopyalandı') : (selectAll(), flash('Seçildi — Ctrl+C'));
+      } catch (e) {
+        selectAll();
+        flash('Seçildi — Ctrl+C');
+      }
+    });
+  })();
+</script>

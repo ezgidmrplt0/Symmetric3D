@@ -285,6 +285,7 @@ public partial class DragObject : MonoBehaviour
             transform.localPosition = startLocalPos;
             targetRotZ = cachedLocalRotZ + 90f;
             AudioManager.PlayRotate();
+            GameManager.Instance?.RegisterRotation();
             transform.DOKill();
             transform.DOLocalRotate(new Vector3(0, 0, targetRotZ), 0.3f)
                 .SetEase(Ease.OutBack)
@@ -360,6 +361,8 @@ public partial class DragObject : MonoBehaviour
         cachedDragObjects = null;
         cachedGridCells = null;
         cachedGridCellPositions = null;
+
+        GameManager.Instance?.RegisterMove();
 
         if (IsShape3DMode())
         {

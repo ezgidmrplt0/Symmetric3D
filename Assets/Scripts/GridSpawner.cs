@@ -289,6 +289,23 @@ public partial class GridSpawner : MonoBehaviour
         );
     }
 
+    /// <summary>
+    /// Tahtada hâlâ eşleşme bekleyen parça sayısı. Boşalmış (0 dilim) ve dolmuş
+    /// (max dilim) parçalar sayılmaz — onlar yok olma animasyonundadır.
+    /// </summary>
+    public int CountActivePieces()
+    {
+        LiquidTransfer[] all = FindObjectsOfType<LiquidTransfer>();
+        int count = 0;
+        foreach (var lt in all)
+        {
+            if (lt == null || lt.gameObject == null || !lt.gameObject.activeInHierarchy) continue;
+            if (lt.currentSlices <= 0 || lt.currentSlices >= lt.maxSlices) continue;
+            count++;
+        }
+        return count;
+    }
+
     public DragObject GetPieceAt(Vector2Int gridPos, int faceIndex = 0)
     {
         DragObject[] all = FindObjectsOfType<DragObject>();

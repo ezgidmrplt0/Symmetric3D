@@ -877,14 +877,38 @@
   <div class="tab-content" id="tab-levels">
 
     <div style="padding:12px 18px; background:rgba(99,102,241,0.08); border:1px solid rgba(99,102,241,0.3); border-radius:var(--radius-md); margin-bottom:18px; font-size:12.5px; line-height:1.5; color:#e0e7ff;">
-      🎮 <strong>Level Analizi:</strong> Oyuncuların hangi levellerde takıldığını, nerede oyundan çıktığını ve geçme oranlarını buradan görebilirsiniz.
+      🎮 <strong>Level Analizi & Telemetri:</strong> Oyuncuların hangi levellerde takıldığını, 0 hamleyle pes etme (mekanik anlaşılmama) oranlarını ve ortalama hamle verilerini buradan görebilirsiniz.
+    </div>
+
+    <!-- 1. LEVEL TELEMETRİ & ZORLUK KPI KARTLARI -->
+    <div class="kpi-grid" id="levelSummaryKpis" style="margin-bottom:20px;">
+      <div class="kpi-card rose">
+        <div class="kpi-label">En Yüksek Drop (Pes Edilen) Level</div>
+        <div class="kpi-value" id="kpiWorstDropLevel">—</div>
+        <div class="kpi-sub" id="kpiWorstDropSub">Oyuncu kaybı en yüksek seviye</div>
+      </div>
+      <div class="kpi-card amber">
+        <div class="kpi-label">Mekanik Sorunlu (0-Hamle Terk) Level</div>
+        <div class="kpi-value" id="kpiWorstZeroMoveLevel">—</div>
+        <div class="kpi-sub" id="kpiWorstZeroMoveSub">Anlaşılmama / tutorial yetersizliği</div>
+      </div>
+      <div class="kpi-card cyan">
+        <div class="kpi-label">Ortalama Pes Etme Hamlesi</div>
+        <div class="kpi-value" id="kpiAvgQuitMoves">—</div>
+        <div class="kpi-sub" id="kpiAvgQuitMovesSub">Oyuncu kaçıncı hamlede pes ediyor</div>
+      </div>
+      <div class="kpi-card emerald">
+        <div class="kpi-label">Genel Geçme Başarısı</div>
+        <div class="kpi-value" id="kpiOverallPassRate">—</div>
+        <div class="kpi-sub" id="kpiOverallPassRateSub">Tüm leveller ortalaması</div>
+      </div>
     </div>
 
     <div class="section-card">
       <div class="section-head">
         <div>
           <div class="section-title">🎮 Level Bazlı Başarı & Zorluk Dengesi</div>
-          <div class="section-desc">Seçili dönemde oynanan levellerin tamamlanma, takılma ve süre verileri</div>
+          <div class="section-desc">Seçili dönemde oynanan levellerin tamamlanma, takılma, 0-hamle terk ve hamle bağlam verileri</div>
         </div>
       </div>
 
@@ -896,13 +920,15 @@
               <th>Ulaşan Oyuncu</th>
               <th>Geçen Oyuncu</th>
               <th>Geçme Oranı (Pass %)</th>
-              <th>Takılma / Çıkış (Drop)</th>
+              <th>Takılma / Terk (Drop)</th>
+              <th>0-Hamle Terk (Anlaşılmama)</th>
+              <th>Ort. Terk Hamlesi</th>
               <th>Ortalama Süre</th>
-              <th>Zorluk Durumu</th>
+              <th>Zorluk & Teşhis Durumu</th>
             </tr>
           </thead>
           <tbody id="levelTableBody">
-            <tr><td colspan="7"><div class="loading"><div class="spinner"></div><div>Level verileri yükleniyor...</div></div></td></tr>
+            <tr><td colspan="9"><div class="loading"><div class="spinner"></div><div>Level verileri yükleniyor...</div></div></td></tr>
           </tbody>
         </table>
       </div>
@@ -1547,7 +1573,10 @@ async function loadData() {
     const levelAggMap = {};
     const blankLevel = (idx) => ({
       level_index: idx, players: 0, attempts: 0, completions: 0,
-      fails: 0, quits: 0, resets: 0, total_time: 0
+      fails: 0, quits: 0, resets: 0, total_time: 0,
+      zero_move_resets: 0, zero_move_fails: 0, zero_move_retries: 0,
+      last_reset_moves: 0, last_fail_moves: 0, last_quit_moves: 0,
+      total_moves: 0
     });
 
     const levelDocs = await fetchSubcollection('level_history', uids);
@@ -1586,13 +1615,20 @@ async function loadData() {
                        usersWithRecentSession.has(uid);
 
       const accumulate = (target) => {
-        target.players     += 1;                          // bu levele ulaşan oyuncu sayısı
-        target.attempts    += (ld.attempts    || 0);
-        target.completions += (ld.completions || 0);
-        target.fails       += (ld.fails       || 0);
-        target.quits       += (ld.quits       || 0);
-        target.resets      += (ld.resets      || 0);
-        target.total_time  += (ld.total_time_spent || 0);
+        target.players           += 1;                          // bu levele ulaşan oyuncu sayısı
+        target.attempts          += (ld.attempts          || 0);
+        target.completions       += (ld.completions       || 0);
+        target.fails             += (ld.fails             || 0);
+        target.quits             += (ld.quits             || 0);
+        target.resets            += (ld.resets            || 0);
+        target.total_time        += (ld.total_time_spent  || 0);
+        target.zero_move_resets  += (ld.zero_move_resets  || 0);
+        target.zero_move_fails   += (ld.zero_move_fails   || 0);
+        target.zero_move_retries += (ld.zero_move_retries || 0);
+        target.last_reset_moves  += (ld.last_reset_moves  || 0);
+        target.last_fail_moves   += (ld.last_fail_moves   || 0);
+        target.last_quit_moves   += (ld.last_quit_moves   || 0);
+        target.total_moves       += (ld.total_moves       || 0);
       };
 
       if (!levelAggMap[lIdx]) levelAggMap[lIdx] = blankLevel(lIdx);
@@ -3009,22 +3045,88 @@ function renderLevelTable() {
   if (!tbody) return;
 
   if (allLevelData.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="7"><div class="empty">Henüz level oynanış verisi kaydedilmedi</div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9"><div class="empty">Henüz level oynanış verisi kaydedilmedi</div></td></tr>`;
     return;
   }
 
+  let worstDropLvl = null, maxDropCount = -1;
+  let worstZeroLvl = null, maxZeroRatio = -1;
+  let sumQuitMoves = 0, totalDropEvents = 0;
+  let totalAttempts = 0, totalCompletions = 0;
+
+  allLevelData.forEach(l => {
+    const attempts = l.attempts || 0;
+    const completions = l.completions || 0;
+    const fails = l.fails || 0;
+    const quits = l.quits || 0;
+    const resets = l.resets || 0;
+    const drops = fails + quits + resets;
+
+    totalAttempts += attempts;
+    totalCompletions += completions;
+
+    const zDrops = (l.zero_move_resets || 0) + (l.zero_move_fails || 0) + (l.zero_move_retries || 0);
+    const zRatio = drops > 0 ? (zDrops / drops) : 0;
+
+    const lvlQuitMoves = (l.last_reset_moves || 0) + (l.last_fail_moves || 0) + (l.last_quit_moves || 0);
+    sumQuitMoves += lvlQuitMoves;
+    totalDropEvents += drops;
+
+    if (drops > maxDropCount) {
+      maxDropCount = drops;
+      worstDropLvl = l.level_index + 1;
+    }
+
+    if (drops >= 2 && zRatio > maxZeroRatio) {
+      maxZeroRatio = zRatio;
+      worstZeroLvl = l.level_index + 1;
+    }
+  });
+
+  const overallPassRate = totalAttempts > 0 ? Math.round((totalCompletions / totalAttempts) * 100) : 100;
+  const globalAvgQuitMoves = totalDropEvents > 0 ? (sumQuitMoves / totalDropEvents).toFixed(1) : '—';
+
+  // KPI Güncellemeleri
+  const elWorstDrop = document.getElementById('kpiWorstDropLevel');
+  const elWorstDropSub = document.getElementById('kpiWorstDropSub');
+  if (elWorstDrop) elWorstDrop.textContent = worstDropLvl ? `Level ${worstDropLvl}` : '—';
+  if (elWorstDropSub) elWorstDropSub.textContent = maxDropCount > 0 ? `${maxDropCount} terk/takılma gerçekleşti` : 'Henüz terk yok';
+
+  const elWorstZero = document.getElementById('kpiWorstZeroMoveLevel');
+  const elWorstZeroSub = document.getElementById('kpiWorstZeroMoveSub');
+  if (elWorstZero) elWorstZero.textContent = worstZeroLvl ? `Level ${worstZeroLvl}` : '—';
+  if (elWorstZeroSub) elWorstZeroSub.textContent = maxZeroRatio > 0 ? `%${Math.round(maxZeroRatio * 100)} terk 0-hamlede gerçekleşti` : '0-hamle terki yok';
+
+  const elAvgQuit = document.getElementById('kpiAvgQuitMoves');
+  if (elAvgQuit) elAvgQuit.textContent = globalAvgQuitMoves !== '—' ? `${globalAvgQuitMoves} Hamle` : '—';
+
+  const elPassRate = document.getElementById('kpiOverallPassRate');
+  if (elPassRate) elPassRate.textContent = `%${overallPassRate}`;
+
+  // Tablo İçeriği
   tbody.innerHTML = allLevelData.map(l => {
     const attempts = l.attempts || 0;
     const completions = l.completions || 0;
     const passRate = attempts > 0 ? Math.min(100, Math.round((completions / attempts) * 100)) : 100;
     const avgTime = attempts > 0 ? Math.round(l.total_time / attempts) : 0;
     const players = l.players || 0;
-    const drops = (l.fails || 0) + (l.quits || 0);
+    const drops = (l.fails || 0) + (l.quits || 0) + (l.resets || 0);
+
+    const zeroMoveDrops = (l.zero_move_resets || 0) + (l.zero_move_fails || 0) + (l.zero_move_retries || 0);
+    const zeroMovePct = drops > 0 ? Math.round((zeroMoveDrops / drops) * 100) : 0;
+
+    const totalQuitMoves = (l.last_reset_moves || 0) + (l.last_fail_moves || 0) + (l.last_quit_moves || 0);
+    const avgQuitMoves = drops > 0 ? (totalQuitMoves / drops).toFixed(1) : '—';
 
     let evalBadge = '<span class="badge active" style="background:rgba(16,185,129,0.15);color:#34d399;border:1px solid rgba(16,185,129,0.3)">🟢 Kolay & Akıcı</span>';
-    if (l.fails > 4 || passRate < 45) {
-      evalBadge = '<span class="badge churned" style="background:rgba(239,68,68,0.15);color:#f87171;border:1px solid rgba(239,68,68,0.3)">🔴 Zor (Takılma Var)</span>';
-    } else if (l.quits > 2 || passRate < 65) {
+    
+    if (zeroMoveDrops > 0 && zeroMovePct >= 35) {
+      evalBadge = `<span class="badge churned" style="background:rgba(239,68,68,0.18);color:#f87171;border:1px solid rgba(239,68,68,0.4)">⚠️ Mekanik Anlaşılmadı (%${zeroMovePct} 0-Hamle)</span>`;
+    } else if (drops > 3 && avgQuitMoves !== '—' && parseFloat(avgQuitMoves) >= 4.0) {
+      evalBadge = `<span class="badge risk" style="background:rgba(245,158,11,0.18);color:#fbbf24;border:1px solid rgba(245,158,11,0.4)">🔥 Aşırı Zor (Ort. ${avgQuitMoves} Hamle)</span>`;
+    } else if (drops > 4 || passRate < 45) {
+      evalBadge = '<span class="badge churned" style="background:rgba(239,68,68,0.15);color:#f87171;border:1px solid rgba(239,68,68,0.3)">🔴 Zor (Yüksek Takılma)</span>';
+    } else if (drops > 2 || passRate < 65) {
       evalBadge = '<span class="badge risk" style="background:rgba(245,158,11,0.15);color:#fbbf24;border:1px solid rgba(245,158,11,0.3)">🟡 Orta / Dengeli</span>';
     }
 
@@ -3039,7 +3141,9 @@ function renderLevelTable() {
             <span style="font-weight:700">${passRate}%</span>
           </div>
         </td>
-        <td style="${drops > 2 ? 'color:#f87171;font-weight:700' : 'color:var(--text-muted)'}">${drops} (${l.quits || 0} çıkış)</td>
+        <td style="${drops > 2 ? 'color:#f87171;font-weight:700' : 'color:var(--text-muted)'}">${drops} (${l.quits || 0} çıkış, ${l.resets || 0} reset)</td>
+        <td style="${zeroMoveDrops > 0 ? 'color:#fbbf24;font-weight:700' : 'color:var(--text-muted)'}">${zeroMoveDrops} (%${zeroMovePct})</td>
+        <td style="font-weight:600;color:var(--accent)">${avgQuitMoves}</td>
         <td>${fmtSec(avgTime)}</td>
         <td>${evalBadge}</td>
       </tr>`;

@@ -491,7 +491,7 @@ public class FirestoreAnalytics : MonoBehaviour
     // LEVEL OLAYLARI
     // ─────────────────────────────────────────────────────────────
 
-    public void LogLevelStart(int levelIndex)
+    public void LogLevelStart(int levelIndex, LevelContext ctx = default)
     {
         if (!isReady) return;
 
@@ -503,9 +503,12 @@ public class FirestoreAnalytics : MonoBehaviour
 #if ENABLE_FIREBASE
         var levelData = new Dictionary<string, object>
         {
-            { "level_index", levelIndex },
-            { "attempts",    FieldValue.Increment(1) },
-            { "last_played", Timestamp.FromDateTime(DateTime.UtcNow) }
+            { "level_index",   levelIndex },
+            { "level_type",    ctx.levelType },
+            { "attempts",      FieldValue.Increment(1) },
+            { "last_attempt_number", ctx.attemptNumber },
+            { "tutorial_shown",      ctx.tutorialShown },
+            { "last_played",   Timestamp.FromDateTime(DateTime.UtcNow) }
         };
 
         // first_attempt yalnızca bu cihazda level ilk kez açıldığında yazılır.
@@ -533,7 +536,7 @@ public class FirestoreAnalytics : MonoBehaviour
 #endif
     }
 
-    public void LogLevelComplete(int levelIndex, float durationSeconds)
+    public void LogLevelComplete(int levelIndex, float durationSeconds, LevelContext ctx = default)
     {
         if (!isReady) return;
         levelActive = false;
@@ -546,6 +549,9 @@ public class FirestoreAnalytics : MonoBehaviour
             { "level_index",      levelIndex },
             { "completions",      FieldValue.Increment(1) },
             { "total_time_spent", FieldValue.Increment(safeDuration) },
+            { "total_moves",      FieldValue.Increment(ctx.movesMade) },
+            { "total_rotations",  FieldValue.Increment(ctx.rotationsUsed) },
+            { "last_solve_moves", ctx.movesMade },
             { "last_played",      Timestamp.FromDateTime(DateTime.UtcNow) }
         };
 
@@ -578,7 +584,7 @@ public class FirestoreAnalytics : MonoBehaviour
         }
     }
 
-    public void LogLevelFail(int levelIndex, float durationSeconds)
+    public void LogLevelFail(int levelIndex, float durationSeconds, LevelContext ctx = default)
     {
         if (!isReady) return;
         levelActive = false;
@@ -589,9 +595,12 @@ public class FirestoreAnalytics : MonoBehaviour
         Merge(GetLevelRef(levelIndex), new Dictionary<string, object>
         {
             { "level_index",      levelIndex },
-            { "fails",            FieldValue.Increment(1) },
-            { "total_time_spent", FieldValue.Increment(safeDuration) },
-            { "last_played",      Timestamp.FromDateTime(DateTime.UtcNow) }
+            { "fails",              FieldValue.Increment(1) },
+            { "total_time_spent",   FieldValue.Increment(safeDuration) },
+            { "last_fail_moves",    ctx.movesMade },
+            { "last_fail_pieces",   ctx.piecesRemaining },
+            { "zero_move_fails",    FieldValue.Increment(ctx.movesMade == 0 ? 1 : 0) },
+            { "last_played",        Timestamp.FromDateTime(DateTime.UtcNow) }
         }, "level_fail");
 
         MergeProfileAndRoot(new Dictionary<string, object>
@@ -603,7 +612,7 @@ public class FirestoreAnalytics : MonoBehaviour
         AddPlayTime(safeDuration);
     }
 
-    public void LogLevelRetry(int levelIndex)
+    public void LogLevelRetry(int levelIndex, LevelContext ctx = default)
     {
         if (!isReady) return;
 
@@ -613,9 +622,11 @@ public class FirestoreAnalytics : MonoBehaviour
 #if ENABLE_FIREBASE
         var updates = new Dictionary<string, object>
         {
-            { "level_index", levelIndex },
-            { "retries",     FieldValue.Increment(1) },
-            { "last_played", Timestamp.FromDateTime(DateTime.UtcNow) }
+            { "level_index",      levelIndex },
+            { "retries",          FieldValue.Increment(1) },
+            { "last_retry_moves", ctx.movesMade },
+            { "zero_move_retries", FieldValue.Increment(ctx.movesMade == 0 ? 1 : 0) },
+            { "last_played",      Timestamp.FromDateTime(DateTime.UtcNow) }
         };
         if (safeElapsed > 0)
             updates["total_time_spent"] = FieldValue.Increment(safeElapsed);
@@ -635,7 +646,7 @@ public class FirestoreAnalytics : MonoBehaviour
         levelActive    = true;
     }
 
-    public void LogLevelReset(int levelIndex)
+    public void LogLevelReset(int levelIndex, LevelContext ctx = default)
     {
         if (!isReady) return;
 
@@ -645,9 +656,15 @@ public class FirestoreAnalytics : MonoBehaviour
 #if ENABLE_FIREBASE
         var updates = new Dictionary<string, object>
         {
-            { "level_index", levelIndex },
-            { "resets",      FieldValue.Increment(1) },
-            { "last_played", Timestamp.FromDateTime(DateTime.UtcNow) }
+            { "level_index",       levelIndex },
+            { "resets",            FieldValue.Increment(1) },
+            { "last_reset_moves",  ctx.movesMade },
+            { "last_reset_pieces", ctx.piecesRemaining },
+            // 0 hamleyle reset = tahtayı anlamadı. Bu sayaç "zor mu, anlaşılmaz mı"
+            // sorusunu doğrudan cevaplar.
+            { "zero_move_resets",  FieldValue.Increment(ctx.movesMade == 0 ? 1 : 0) },
+            { "total_moves",       FieldValue.Increment(ctx.movesMade) },
+            { "last_played",       Timestamp.FromDateTime(DateTime.UtcNow) }
         };
         if (safeElapsed > 0)
             updates["total_time_spent"] = FieldValue.Increment(safeElapsed);
@@ -667,7 +684,7 @@ public class FirestoreAnalytics : MonoBehaviour
         levelActive    = true;
     }
 
-    public void LogLevelQuit(int levelIndex, float durationSeconds)
+    public void LogLevelQuit(int levelIndex, float durationSeconds, LevelContext ctx = default)
     {
         if (!isReady || levelIndex < 0) return;
         levelActive = false;
@@ -680,6 +697,8 @@ public class FirestoreAnalytics : MonoBehaviour
             { "level_index",      levelIndex },
             { "quits",            FieldValue.Increment(1) },
             { "total_time_spent", FieldValue.Increment(safeDuration) },
+            { "last_quit_moves",  ctx.movesMade },
+            { "last_quit_pieces", ctx.piecesRemaining },
             { "last_played",      Timestamp.FromDateTime(DateTime.UtcNow) }
         }, "level_quit");
 

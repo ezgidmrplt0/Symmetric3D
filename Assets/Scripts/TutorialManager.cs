@@ -53,6 +53,9 @@ public class TutorialManager : MonoBehaviour
         Invoke("StartTutorial", 0.5f);
     }
 
+    /// <summary>Bu levelde tutorial eli gösteriliyor mu (analitik için).</summary>
+    public bool TutorialActiveForCurrentLevel { get; private set; }
+
     private void Update()
     {
         if (!Application.isPlaying || handImage == null) return;
@@ -134,6 +137,8 @@ public class TutorialManager : MonoBehaviour
                 found = true;
             }
         }
+
+        TutorialActiveForCurrentLevel = found;
 
         if (!found)
         {

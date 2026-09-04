@@ -448,7 +448,7 @@ public class LevelPanelManager : MonoBehaviour
     {
         AudioManager.PlayButtonClick();
         int levelIndex = PlayerPrefs.GetInt("CurrentLevelIndex", 0);
-        FirebaseManager.Instance?.LogLevelRetry(levelIndex);
+        FirebaseManager.Instance?.LogLevelRetry(levelIndex, GameManager.Instance?.BuildContext() ?? default);
 
         failPanelRoot.transform.DOScale(0f, 0.2f).SetEase(Ease.InBack).SetUpdate(true).OnComplete(() =>
         {
@@ -470,7 +470,7 @@ public class LevelPanelManager : MonoBehaviour
             failPanelRoot.SetActive(false);
 
         int levelIndex = PlayerPrefs.GetInt("CurrentLevelIndex", 0);
-        FirebaseManager.Instance?.LogLevelReset(levelIndex);
+        FirebaseManager.Instance?.LogLevelReset(levelIndex, GameManager.Instance?.BuildContext() ?? default);
 
         GameManager.Instance?.ResetLevelState();
         if (gridSpawner == null) gridSpawner = FindObjectOfType<GridSpawner>();

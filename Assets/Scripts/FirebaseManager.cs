@@ -138,7 +138,7 @@ public class FirebaseManager : MonoBehaviour
     // LEVEL OLAYLARI
     // ─────────────────────────────────────────────────────────────
 
-    public void LogLevelStart(int levelIndex)
+    public void LogLevelStart(int levelIndex, LevelContext ctx = default)
     {
         // Yerel durum SDK'dan bağımsız olarak hemen güncellenir —
         // aksi halde init sırasında başlayan level "aktif değil" sanılır.
@@ -147,89 +147,118 @@ public class FirebaseManager : MonoBehaviour
         levelActive        = true;
         sessionLevelsPlayed++;
 
-        if (Defer(() => SendLevelStart(levelIndex))) return;
-        SendLevelStart(levelIndex);
+        if (Defer(() => SendLevelStart(levelIndex, ctx))) return;
+        SendLevelStart(levelIndex, ctx);
     }
 
-    private void SendLevelStart(int levelIndex)
+    private void SendLevelStart(int levelIndex, LevelContext ctx)
     {
 #if ENABLE_FIREBASE
         FirebaseAnalytics.LogEvent("level_start",
             new Parameter("level_index",         levelIndex),
-            new Parameter("session_level_count", sessionLevelsPlayed));
+            new Parameter("session_level_count", sessionLevelsPlayed),
+            new Parameter("level_type",          ctx.levelType),
+            new Parameter("attempt_number",      ctx.attemptNumber),
+            new Parameter("tutorial_shown",      ctx.tutorialShown ? 1 : 0));
 #endif
-        Firestore?.LogLevelStart(levelIndex);
+        Firestore?.LogLevelStart(levelIndex, ctx);
     }
 
-    public void LogLevelComplete(int levelIndex, float durationSeconds, float timeRemaining = 0f)
+    public void LogLevelComplete(int levelIndex, float durationSeconds, float timeRemaining = 0f,
+                                 LevelContext ctx = default)
     {
         levelActive = false;
 
-        if (Defer(() => SendLevelComplete(levelIndex, durationSeconds, timeRemaining))) return;
-        SendLevelComplete(levelIndex, durationSeconds, timeRemaining);
+        if (Defer(() => SendLevelComplete(levelIndex, durationSeconds, timeRemaining, ctx))) return;
+        SendLevelComplete(levelIndex, durationSeconds, timeRemaining, ctx);
     }
 
-    private void SendLevelComplete(int levelIndex, float durationSeconds, float timeRemaining)
+    private void SendLevelComplete(int levelIndex, float durationSeconds, float timeRemaining,
+                                   LevelContext ctx)
     {
 #if ENABLE_FIREBASE
         FirebaseAnalytics.LogEvent("level_complete",
             new Parameter("level_index",      levelIndex),
             new Parameter("duration_seconds", durationSeconds),
-            new Parameter("time_remaining",   timeRemaining));
+            new Parameter("time_remaining",   timeRemaining),
+            new Parameter("level_type",       ctx.levelType),
+            new Parameter("moves_made",       ctx.movesMade),
+            new Parameter("rotations_used",   ctx.rotationsUsed),
+            new Parameter("attempt_number",   ctx.attemptNumber));
 #endif
-        Firestore?.LogLevelComplete(levelIndex, durationSeconds);
+        Firestore?.LogLevelComplete(levelIndex, durationSeconds, ctx);
     }
 
-    public void LogLevelFail(int levelIndex, float durationSeconds)
+    public void LogLevelFail(int levelIndex, float durationSeconds, LevelContext ctx = default)
     {
         levelActive = false;
 
-        if (Defer(() => SendLevelFail(levelIndex, durationSeconds))) return;
-        SendLevelFail(levelIndex, durationSeconds);
+        if (Defer(() => SendLevelFail(levelIndex, durationSeconds, ctx))) return;
+        SendLevelFail(levelIndex, durationSeconds, ctx);
     }
 
-    private void SendLevelFail(int levelIndex, float durationSeconds)
+    private void SendLevelFail(int levelIndex, float durationSeconds, LevelContext ctx)
     {
 #if ENABLE_FIREBASE
         FirebaseAnalytics.LogEvent("level_fail",
             new Parameter("level_index",      levelIndex),
-            new Parameter("duration_seconds", durationSeconds));
+            new Parameter("duration_seconds", durationSeconds),
+            new Parameter("level_type",       ctx.levelType),
+            new Parameter("moves_made",       ctx.movesMade),
+            new Parameter("matches_made",     ctx.matchesMade),
+            new Parameter("pieces_remaining", ctx.piecesRemaining),
+            new Parameter("attempt_number",   ctx.attemptNumber));
 #endif
-        Firestore?.LogLevelFail(levelIndex, durationSeconds);
+        Firestore?.LogLevelFail(levelIndex, durationSeconds, ctx);
     }
 
-    public void LogLevelRetry(int levelIndex)
+    public void LogLevelRetry(int levelIndex, LevelContext ctx = default)
     {
         levelStartRealtime = Time.realtimeSinceStartup;
         levelActive        = true;
 
-        if (Defer(() => SendLevelRetry(levelIndex))) return;
-        SendLevelRetry(levelIndex);
+        if (Defer(() => SendLevelRetry(levelIndex, ctx))) return;
+        SendLevelRetry(levelIndex, ctx);
     }
 
-    private void SendLevelRetry(int levelIndex)
+    private void SendLevelRetry(int levelIndex, LevelContext ctx)
     {
 #if ENABLE_FIREBASE
-        FirebaseAnalytics.LogEvent("level_retry", new Parameter("level_index", levelIndex));
+        FirebaseAnalytics.LogEvent("level_retry",
+            new Parameter("level_index",      levelIndex),
+            new Parameter("level_type",       ctx.levelType),
+            new Parameter("moves_made",       ctx.movesMade),
+            new Parameter("matches_made",     ctx.matchesMade),
+            new Parameter("pieces_remaining", ctx.piecesRemaining),
+            new Parameter("attempt_number",   ctx.attemptNumber));
 #endif
-        Firestore?.LogLevelRetry(levelIndex);
+        Firestore?.LogLevelRetry(levelIndex, ctx);
     }
 
-    public void LogLevelReset(int levelIndex)
+    public void LogLevelReset(int levelIndex, LevelContext ctx = default)
     {
         levelStartRealtime = Time.realtimeSinceStartup;
         levelActive        = true;
 
-        if (Defer(() => SendLevelReset(levelIndex))) return;
-        SendLevelReset(levelIndex);
+        if (Defer(() => SendLevelReset(levelIndex, ctx))) return;
+        SendLevelReset(levelIndex, ctx);
     }
 
-    private void SendLevelReset(int levelIndex)
+    private void SendLevelReset(int levelIndex, LevelContext ctx)
     {
 #if ENABLE_FIREBASE
-        FirebaseAnalytics.LogEvent("level_reset", new Parameter("level_index", levelIndex));
+        // moves_made burada kilit: 0 ise oyuncu tahtayı anlamadan sıfırladı,
+        // yüksekse denedi ama çözemedi. İkisi farklı tasarım problemi.
+        FirebaseAnalytics.LogEvent("level_reset",
+            new Parameter("level_index",      levelIndex),
+            new Parameter("level_type",       ctx.levelType),
+            new Parameter("moves_made",       ctx.movesMade),
+            new Parameter("matches_made",     ctx.matchesMade),
+            new Parameter("rotations_used",   ctx.rotationsUsed),
+            new Parameter("pieces_remaining", ctx.piecesRemaining),
+            new Parameter("attempt_number",   ctx.attemptNumber));
 #endif
-        Firestore?.LogLevelReset(levelIndex);
+        Firestore?.LogLevelReset(levelIndex, ctx);
     }
 
     /// <summary>
@@ -239,18 +268,26 @@ public class FirebaseManager : MonoBehaviour
     {
         if (levelIndex < 0) return;
 
-        if (Defer(() => SendLevelQuit(levelIndex, durationSeconds))) return;
-        SendLevelQuit(levelIndex, durationSeconds);
+        LevelContext ctx = GameManager.Instance != null
+            ? GameManager.Instance.BuildContext() : default;
+
+        if (Defer(() => SendLevelQuit(levelIndex, durationSeconds, ctx))) return;
+        SendLevelQuit(levelIndex, durationSeconds, ctx);
     }
 
-    private void SendLevelQuit(int levelIndex, float durationSeconds)
+    private void SendLevelQuit(int levelIndex, float durationSeconds, LevelContext ctx)
     {
 #if ENABLE_FIREBASE
         FirebaseAnalytics.LogEvent("level_quit",
             new Parameter("level_index",      levelIndex),
-            new Parameter("duration_seconds", durationSeconds));
+            new Parameter("duration_seconds", durationSeconds),
+            new Parameter("level_type",       ctx.levelType),
+            new Parameter("moves_made",       ctx.movesMade),
+            new Parameter("matches_made",     ctx.matchesMade),
+            new Parameter("pieces_remaining", ctx.piecesRemaining),
+            new Parameter("attempt_number",   ctx.attemptNumber));
 #endif
-        Firestore?.LogLevelQuit(levelIndex, durationSeconds);
+        Firestore?.LogLevelQuit(levelIndex, durationSeconds, ctx);
     }
 
     // ─────────────────────────────────────────────────────────────

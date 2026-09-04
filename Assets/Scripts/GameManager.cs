@@ -40,6 +40,21 @@ public class GameManager : MonoBehaviour
 
     public bool IsLevelCompleting => levelCompleting;
 
+    // ── ANALİTİK SAYAÇLARI ───────────────────────────────────────
+    // Her level denemesinde sıfırlanır. Amaç: "oyuncu takıldı mı yoksa hiç
+    // denemeden mi bıraktı" sorusunu ayırt edebilmek. 0 hamleyle reset =
+    // tahtayı anlamadı; 8 hamleyle reset = anladı ama çözemedi.
+    [HideInInspector] public int movesMade;
+    [HideInInspector] public int rotationsUsed;
+    [HideInInspector] public int matchesMade;
+
+    private const string ATTEMPT_KEY_PREFIX = "AttemptCount_";
+    [HideInInspector] public int attemptNumber = 1;
+
+    public void RegisterMove()     { movesMade++; }
+    public void RegisterRotation() { rotationsUsed++; }
+    public void RegisterMatch()    { matchesMade++; }
+
     // Level durum eventleri
     public static UnityEvent OnLevelCompleted = new UnityEvent();
     public static UnityEvent OnLevelFailed    = new UnityEvent();
@@ -109,7 +124,7 @@ public class GameManager : MonoBehaviour
 
         float duration = Time.realtimeSinceStartup - levelStartTime;
         float timeRemaining = LevelTimer.Instance != null ? LevelTimer.Instance.CurrentTime : 0f;
-        FirebaseManager.Instance?.LogLevelComplete(levelIndex, duration, timeRemaining);
+        FirebaseManager.Instance?.LogLevelComplete(levelIndex, duration, timeRemaining, BuildContext());
         FirebaseManager.Instance?.SetTotalLevelsCompleted(levelNum);
 
         // Panel'i tetikle
@@ -126,7 +141,7 @@ public class GameManager : MonoBehaviour
 
         int levelIndex = PlayerPrefs.GetInt("CurrentLevelIndex", 0);
         float duration = Time.realtimeSinceStartup - levelStartTime;
-        FirebaseManager.Instance?.LogLevelFail(levelIndex, duration);
+        FirebaseManager.Instance?.LogLevelFail(levelIndex, duration, BuildContext());
 
         OnLevelFailed.Invoke();
     }
@@ -140,12 +155,40 @@ public class GameManager : MonoBehaviour
         hitProgressHundred = false;
         levelStartTime = Time.realtimeSinceStartup;
         PlayerPrefs.SetInt(LEVEL_COMPLETING_KEY, 0);
-        PlayerPrefs.Save();
 
         int levelIndex = PlayerPrefs.GetInt("CurrentLevelIndex", 0);
-        FirebaseManager.Instance?.LogLevelStart(levelIndex);
+
+        // Denemeyi say (cihaz ömrü boyunca birikir) ve level sayaçlarını sıfırla
+        string attemptKey = ATTEMPT_KEY_PREFIX + levelIndex;
+        attemptNumber = PlayerPrefs.GetInt(attemptKey, 0) + 1;
+        PlayerPrefs.SetInt(attemptKey, attemptNumber);
+        PlayerPrefs.Save();
+
+        movesMade = rotationsUsed = matchesMade = 0;
+
+        FirebaseManager.Instance?.LogLevelStart(levelIndex, BuildContext());
         FirebaseManager.Instance?.SetCurrentLevel(levelIndex);
         FirebaseManager.Instance?.SetFarthestLevel(levelIndex);
+    }
+
+    /// <summary>
+    /// Olay anındaki oynanış bağlamını toplar. Altı parametreyi tek tek her metot
+    /// imzasına eklemek yerine tek yapı hâlinde taşınır.
+    /// </summary>
+    public LevelContext BuildContext()
+    {
+        GridSpawner spawner = FindObjectOfType<GridSpawner>();
+        return new LevelContext
+        {
+            levelType       = spawner != null ? (int)spawner.CurrentLevelType : 0,
+            movesMade       = movesMade,
+            rotationsUsed   = rotationsUsed,
+            matchesMade     = matchesMade,
+            piecesRemaining = spawner != null ? spawner.CountActivePieces() : 0,
+            attemptNumber   = attemptNumber,
+            tutorialShown   = TutorialManager.Instance != null &&
+                              TutorialManager.Instance.TutorialActiveForCurrentLevel
+        };
     }
 
     /// <summary>

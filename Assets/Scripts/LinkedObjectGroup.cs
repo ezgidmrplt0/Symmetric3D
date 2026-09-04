@@ -502,6 +502,7 @@ public class LinkedObjectGroup : MonoBehaviour
             if (spawner != null && spawner.CurrentLevelType.HasFlag(LevelData.LevelType.Rotation) && anyCanRotate)
             {
                 AudioManager.PlayRotate();
+                GameManager.Instance?.RegisterRotation();
                 foreach (var c in childDrags)
                 {
                     if (c == null || !c.canRotate) continue;
@@ -576,6 +577,7 @@ public class LinkedObjectGroup : MonoBehaviour
         if (allFit)
         {
             AudioManager.PlayPlace();
+            GameManager.Instance?.RegisterMove();
             transform.position = bestParentPosition;
             foreach (var c in childDrags)
             {
