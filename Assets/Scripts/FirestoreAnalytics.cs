@@ -29,13 +29,19 @@ public class FirestoreAnalytics : MonoBehaviour
     private const string COLLECTION_USERS    = "users";
     private const string COLLECTION_SESSIONS = "sessions";
     private const string COLLECTION_LEVELS   = "level_history";
+    private const string COLLECTION_EVENTS   = "business_events";
     private const string DOC_PROFILE         = "profile";
 
     // Yerel takip anahtarları (Firestore okumasını ortadan kaldırır)
-    private const string PREF_INSTALL_DATE = "fs_install_date";
-    private const string PREF_FARTHEST     = "fs_farthest_level";
-    private const string PREF_LEVEL_SEEN   = "fs_level_seen_";
-    private const string PREF_BEST_TIME    = "fs_best_time_";
+    private const string PREF_INSTALL_DATE   = "fs_install_date";
+    private const string PREF_FARTHEST       = "fs_farthest_level";
+    private const string PREF_LEVEL_SEEN     = "fs_level_seen_";
+    private const string PREF_BEST_TIME      = "fs_best_time_";
+    private const string PREF_ATTR_SOURCE    = "fs_attr_source";
+    private const string PREF_ATTR_MEDIUM    = "fs_attr_medium";
+    private const string PREF_ATTR_CAMP      = "fs_attr_campaign";
+    private const string PREF_CONV_FIRSTLVL  = "fs_conv_first_lvl";
+    private const string PREF_AGE_GROUP      = "fs_age_group";
 
     /// <summary>Tek bir olaya yazılabilecek en uzun süre. Arka planda geçen zamanın
     /// level süresine sızmasına karşı son savunma hattı.</summary>
@@ -109,6 +115,8 @@ public class FirestoreAnalytics : MonoBehaviour
     private DocumentReference SessionRef => RootRef.Collection(COLLECTION_SESSIONS).Document(sessionId);
     private DocumentReference GetLevelRef(int levelIndex) =>
         RootRef.Collection(COLLECTION_LEVELS).Document(levelIndex.ToString());
+    private DocumentReference GetEventRef(string eventId) =>
+        RootRef.Collection(COLLECTION_EVENTS).Document(eventId);
 
     /// <summary>
     /// Doküman yoksa oluşturur, varsa alanları birleştirir. Hata olursa konsola yazar —
@@ -185,9 +193,18 @@ public class FirestoreAnalytics : MonoBehaviour
             { "language",       GetDeviceLanguage() },
             { "device_model",   SystemInfo.deviceModel },
             { "install_date",   installDate },
+            { "source",         GetAttributionSource() },
+            { "medium",         GetAttributionMedium() },
+            { "campaign_id",    GetAttributionCampaign() },
             { "active_dates",   FieldValue.ArrayUnion(todayStr) },
             { "retention_days", FieldValue.ArrayUnion(retentionDay) }
         };
+
+        string savedAge = GetUserAgeGroup();
+        if (!string.IsNullOrEmpty(savedAge))
+        {
+            summary["age_group"] = savedAge;
+        }
 
         if (isNewUser)
         {
@@ -196,7 +213,171 @@ public class FirestoreAnalytics : MonoBehaviour
         }
 
         MergeProfileAndRoot(summary, "profile");
+
+        if (isNewUser)
+        {
+            LogRegistration();
+        }
 #endif
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // ATTRIBUTION & BUSINESS EVENTS (Kritik İş Olayları)
+    // ─────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Kullanıcının edinim kanalını (source, medium, campaign) yerel olarak saklar ve profile kaydeder.
+    /// </summary>
+    public void SetAttribution(string source, string medium = "organic", string campaign = "direct")
+    {
+        if (string.IsNullOrEmpty(source)) source = "organic";
+        if (string.IsNullOrEmpty(medium)) medium = "organic";
+        if (string.IsNullOrEmpty(campaign)) campaign = "direct";
+
+        PlayerPrefs.SetString(PREF_ATTR_SOURCE, source);
+        PlayerPrefs.SetString(PREF_ATTR_MEDIUM, medium);
+        PlayerPrefs.SetString(PREF_ATTR_CAMP, campaign);
+        PlayerPrefs.Save();
+
+#if ENABLE_FIREBASE
+        if (isReady)
+        {
+            var attrUpdate = new Dictionary<string, object>
+            {
+                { "source", source },
+                { "medium", medium },
+                { "campaign_id", campaign }
+            };
+            MergeProfileAndRoot(attrUpdate, "attribution_update");
+        }
+#endif
+    }
+
+    public string GetAttributionSource()   => PlayerPrefs.GetString(PREF_ATTR_SOURCE, "organic");
+    public string GetAttributionMedium()   => PlayerPrefs.GetString(PREF_ATTR_MEDIUM, "organic");
+    public string GetAttributionCampaign() => PlayerPrefs.GetString(PREF_ATTR_CAMP, "direct");
+
+    /// <summary>
+    /// Oyuncunun yaş grubunu ayarlar (Örn: "18-24", "25-34", "35-44", "45-54", "55+").
+    /// Hem PlayerPrefs'e hem de Firestore kullanıcı profiline senkronize eder.
+    /// </summary>
+    public void SetUserAgeGroup(string ageGroup)
+    {
+        if (string.IsNullOrEmpty(ageGroup)) return;
+        PlayerPrefs.SetString(PREF_AGE_GROUP, ageGroup);
+        PlayerPrefs.Save();
+
+#if ENABLE_FIREBASE
+        if (isReady && !string.IsNullOrEmpty(userId))
+        {
+            MergeProfileAndRoot(new Dictionary<string, object>
+            {
+                { "age_group", ageGroup }
+            }, "age_group_update");
+        }
+#endif
+        Debug.Log($"[Analytics] Yaş grubu kaydedildi: {ageGroup}");
+    }
+
+    public string GetUserAgeGroup() => PlayerPrefs.GetString(PREF_AGE_GROUP, "");
+
+    /// <summary>
+    /// Kritik iş olaylarını doğrudan Firestore veritabanına kullanıcı subcollection'ı olarak yazar.
+    /// Format: users/{userId}/business_events/{timestamp}_{eventName}
+    /// </summary>
+    public void LogBusinessEvent(string eventName, Dictionary<string, object> parameters = null)
+    {
+        if (string.IsNullOrEmpty(eventName)) return;
+
+#if ENABLE_FIREBASE
+        if (!isReady) return;
+
+        string todayStr = DateTime.UtcNow.ToString("yyyy-MM-dd");
+        string eventId = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss_") + UnityEngine.Random.Range(1000, 9999) + "_" + eventName;
+
+        var eventDoc = new Dictionary<string, object>
+        {
+            { "event_name",   eventName },
+            { "user_id",      userId },
+            { "session_id",   sessionId ?? "" },
+            { "timestamp",    Timestamp.FromDateTime(DateTime.UtcNow) },
+            { "date",         todayStr },
+            { "source",       GetAttributionSource() },
+            { "medium",       GetAttributionMedium() },
+            { "campaign_id",  GetAttributionCampaign() },
+            { "platform",     Application.platform.ToString() },
+            { "app_version",  Application.version }
+        };
+
+        if (parameters != null)
+        {
+            foreach (var kvp in parameters)
+            {
+                if (kvp.Value != null)
+                    eventDoc[kvp.Key] = kvp.Value;
+            }
+        }
+
+        Merge(GetEventRef(eventId), eventDoc, "event_" + eventName);
+
+        // Profil ve root özetinde olay sayaçlarını güncelle
+        var summaryUpdates = new Dictionary<string, object>
+        {
+            { "total_events", FieldValue.Increment(1) },
+            { "last_event_name", eventName },
+            { "last_event_time", Timestamp.FromDateTime(DateTime.UtcNow) }
+        };
+
+        if (eventName == "conversion")
+        {
+            summaryUpdates["total_conversions"] = FieldValue.Increment(1);
+        }
+
+        MergeProfileAndRoot(summaryUpdates, "event_summary_" + eventName);
+#else
+        Debug.Log("[Firestore MOCK] Business Event: " + eventName + " | Source: " + GetAttributionSource());
+#endif
+    }
+
+    /// <summary>Yeni kullanıcı kurulum / kayıt olayı (registration)</summary>
+    public void LogRegistration(string method = "device_id")
+    {
+        LogBusinessEvent("registration", new Dictionary<string, object>
+        {
+            { "registration_method", method },
+            { "install_date", PlayerPrefs.GetString(PREF_INSTALL_DATE, DateTime.UtcNow.ToString("yyyy-MM-dd")) }
+        });
+    }
+
+    /// <summary>Kullanıcı oturum / giriş olayı (login)</summary>
+    public void LogLogin(string method = "auto")
+    {
+        LogBusinessEvent("login", new Dictionary<string, object>
+        {
+            { "login_method", method },
+            { "levels_played_total", PlayerPrefs.GetInt(PREF_FARTHEST, -1) + 1 }
+        });
+    }
+
+    /// <summary>Pazarlama / kampanya görüntüleme (campaign_view)</summary>
+    public void LogCampaignView(string campaignId, string placement = "app_open")
+    {
+        LogBusinessEvent("campaign_view", new Dictionary<string, object>
+        {
+            { "viewed_campaign_id", campaignId },
+            { "placement", placement }
+        });
+    }
+
+    /// <summary>Kritik dönüşüm olayı (conversion: ilk level tamamlama, tutorial bitirme vb.)</summary>
+    public void LogConversion(string conversionType, double value = 0.0, string currency = "TRY")
+    {
+        LogBusinessEvent("conversion", new Dictionary<string, object>
+        {
+            { "conversion_type", conversionType },
+            { "value", value },
+            { "currency", currency }
+        });
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -262,6 +443,8 @@ public class FirestoreAnalytics : MonoBehaviour
             { "total_sessions", FieldValue.Increment(1) },
             { "active_dates",   FieldValue.ArrayUnion(todayStr) }
         }, "session_count");
+
+        LogLogin();
 #endif
     }
 
@@ -385,6 +568,14 @@ public class FirestoreAnalytics : MonoBehaviour
 #endif
 
         AddPlayTime(safeDuration);
+
+        // İlk level başarıyla tamamlandığında conversion olayı kaydet
+        if (levelIndex == 0 && PlayerPrefs.GetInt(PREF_CONV_FIRSTLVL, 0) == 0)
+        {
+            PlayerPrefs.SetInt(PREF_CONV_FIRSTLVL, 1);
+            PlayerPrefs.Save();
+            LogConversion("first_level_completed", 1.0, "LEVEL");
+        }
     }
 
     public void LogLevelFail(int levelIndex, float durationSeconds)

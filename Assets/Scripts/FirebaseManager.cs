@@ -291,6 +291,94 @@ public class FirebaseManager : MonoBehaviour
     }
 
     // ─────────────────────────────────────────────────────────────
+    // ATTRIBUTION & BUSINESS EVENTS
+    // ─────────────────────────────────────────────────────────────
+
+    public void SetAttribution(string source, string medium = "organic", string campaign = "direct")
+    {
+        Firestore?.SetAttribution(source, medium, campaign);
+        if (Defer(() => SetAttribution(source, medium, campaign))) return;
+#if ENABLE_FIREBASE
+        FirebaseAnalytics.SetUserProperty("attr_source", source);
+        FirebaseAnalytics.SetUserProperty("attr_medium", medium);
+        FirebaseAnalytics.SetUserProperty("attr_campaign", campaign);
+#endif
+    }
+
+    public void LogBusinessEvent(string eventName, Dictionary<string, object> parameters = null)
+    {
+        Firestore?.LogBusinessEvent(eventName, parameters);
+        if (Defer(() => SendBusinessEvent(eventName, parameters))) return;
+        SendBusinessEvent(eventName, parameters);
+    }
+
+    private void SendBusinessEvent(string eventName, Dictionary<string, object> parameters)
+    {
+#if ENABLE_FIREBASE
+        if (parameters != null && parameters.Count > 0)
+        {
+            var pList = new List<Parameter>();
+            foreach (var kvp in parameters)
+            {
+                if (kvp.Value is long l) pList.Add(new Parameter(kvp.Key, l));
+                else if (kvp.Value is int i) pList.Add(new Parameter(kvp.Key, i));
+                else if (kvp.Value is double d) pList.Add(new Parameter(kvp.Key, d));
+                else if (kvp.Value is float f) pList.Add(new Parameter(kvp.Key, f));
+                else pList.Add(new Parameter(kvp.Key, kvp.Value?.ToString() ?? ""));
+            }
+            FirebaseAnalytics.LogEvent(eventName, pList.ToArray());
+        }
+        else
+        {
+            FirebaseAnalytics.LogEvent(eventName);
+        }
+#endif
+    }
+
+    public void LogRegistration(string method = "device_id")
+    {
+        Firestore?.LogRegistration(method);
+        if (Defer(() => LogRegistration(method))) return;
+#if ENABLE_FIREBASE
+        FirebaseAnalytics.LogEvent(FirebaseAnalytics.EventSignUp,
+            new Parameter(FirebaseAnalytics.ParameterSignUpMethod, method));
+#endif
+    }
+
+    public void LogLogin(string method = "auto")
+    {
+        Firestore?.LogLogin(method);
+        if (Defer(() => LogLogin(method))) return;
+#if ENABLE_FIREBASE
+        FirebaseAnalytics.LogEvent(FirebaseAnalytics.EventLogin,
+            new Parameter(FirebaseAnalytics.ParameterMethod, method));
+#endif
+    }
+
+    public void LogCampaignView(string campaignId, string placement = "app_open")
+    {
+        Firestore?.LogCampaignView(campaignId, placement);
+        if (Defer(() => LogCampaignView(campaignId, placement))) return;
+#if ENABLE_FIREBASE
+        FirebaseAnalytics.LogEvent("campaign_view",
+            new Parameter("campaign_id", campaignId),
+            new Parameter("placement", placement));
+#endif
+    }
+
+    public void LogConversion(string conversionType, double value = 0.0, string currency = "TRY")
+    {
+        Firestore?.LogConversion(conversionType, value, currency);
+        if (Defer(() => LogConversion(conversionType, value, currency))) return;
+#if ENABLE_FIREBASE
+        FirebaseAnalytics.LogEvent("conversion",
+            new Parameter("conversion_type", conversionType),
+            new Parameter("value", value),
+            new Parameter("currency", currency));
+#endif
+    }
+
+    // ─────────────────────────────────────────────────────────────
     // UYGULAMA ARKA PLAN / KAPATMA
     // ─────────────────────────────────────────────────────────────
 

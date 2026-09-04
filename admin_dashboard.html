@@ -489,6 +489,42 @@
     }
     [data-tooltip]:hover::before { opacity: 1; transform: translateX(-50%) translateY(-10px); }
 
+    /* ── Filter Pills & Event Badges ─────────────────── */
+    .filter-pills { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .filter-pill {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 5px 12px;
+      border-radius: var(--radius-sm);
+      font-size: 11.5px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      font-family: inherit;
+    }
+    .filter-pill:hover { color: var(--text); border-color: rgba(255,255,255,0.2); }
+    .filter-pill.active {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+      box-shadow: 0 2px 8px var(--accent-glow);
+    }
+    .badge.event-reg { background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.3); }
+    .badge.event-login { background: rgba(6,182,212,0.15); color: #38bdf8; border: 1px solid rgba(6,182,212,0.3); }
+    .badge.event-campaign { background: rgba(245,158,11,0.15); color: #fbbf24; border: 1px solid rgba(245,158,11,0.3); }
+    .badge.event-conv { background: rgba(168,85,247,0.18); color: #c084fc; border: 1px solid rgba(168,85,247,0.35); }
+    .badge.event-default { background: rgba(99,102,241,0.15); color: #818cf8; border: 1px solid rgba(99,102,241,0.3); }
+
+    /* ── Retention Deep Analytics Specifics ───────────── */
+    .ret-curve-svg { width: 100%; height: 190px; overflow: visible; }
+    .ret-dot:hover { r: 7; cursor: pointer; transition: r 0.2s ease; }
+    .ret-dropoff-row { display: flex; align-items: center; gap: 10px; font-size: 12px; }
+    .ret-dropoff-title { width: 68px; font-weight: 600; color: var(--text); font-size: 12px; }
+    .ret-dropoff-track { flex: 1; height: 18px; background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; overflow: hidden; position: relative; }
+    .ret-dropoff-fill { height: 100%; border-radius: 3px; transition: width 0.5s ease; }
+    .ret-dropoff-stat { width: 110px; text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: var(--text-muted); font-weight: 600; }
+
     /* Scrollbar */
     ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
@@ -498,44 +534,34 @@
 </head>
 <body>
 
-<!-- HEADER -->
+ <!-- HEADER -->
 <div class="header">
   <div class="header-brand">
     <div class="logo">🎮</div>
     <div>
-      <div class="brand-title">ColorMatch3D Admin</div>
+      <div class="brand-title">ColorMatch3D Analitik</div>
       <div class="brand-sub">
-        <span class="live-dot"></span> Canlı İndirme, Demografi, CTR & IPM Dashboard
+        <span class="live-dot"></span> Canlı Oyuncu & Performans Takip Paneli
       </div>
     </div>
   </div>
 
-  <!-- VERSION SCOPE SWITCHER (2 EYLÜL MİLADI) -->
-  <div class="scope-box">
-    <button class="scope-btn active" id="btnScopeSept2" onclick="setVersionScope('sept2')">
-      🚀 Yeni Sürüm (2 Eylül Miladı)
-    </button>
-    <button class="scope-btn" id="btnScopeAll" onclick="setVersionScope('all')">
-      📦 Tüm Zamanlar (Eski Dahil)
-    </button>
-  </div>
-
-  <!-- VIEW SWITCHER TABS -->
+  <!-- 4 SADE ANA SEKME -->
   <div class="nav-tabs">
     <button class="nav-tab active" onclick="switchTab('overview', this)">
-      🚀 Giriş, CTR & İndirmeler
-    </button>
-    <button class="nav-tab" onclick="switchTab('demographics', this)">
-      🌍 Kitle & Demografi
+      📊 Genel Özet
     </button>
     <button class="nav-tab" onclick="switchTab('retention', this)">
-      📊 Retention
-    </button>
-    <button class="nav-tab" onclick="switchTab('users', this)">
-      👥 Oyuncular
+      📈 Geri Dönüş (Retention)
     </button>
     <button class="nav-tab" onclick="switchTab('levels', this)">
       🎮 Level Performansı
+    </button>
+    <button class="nav-tab" onclick="switchTab('demographics', this)">
+      🌍 Demografi & Kitle
+    </button>
+    <button class="nav-tab" onclick="switchTab('users', this)">
+      👥 Oyuncular & Olaylar
     </button>
   </div>
 
@@ -547,279 +573,129 @@
 
 <div class="main">
 
+  <!-- 🌟 TEK BİRLEŞİK DÖNEM & TARİH SEÇİCİ -->
+  <div style="background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-md); padding:14px 20px; margin-bottom:20px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
+    <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+      <span style="font-size:12.5px; font-weight:700; color:var(--text-muted); display:flex; align-items:center; gap:6px;">
+        <span>📅</span> <strong>İnceleme Dönemi:</strong>
+      </span>
+      <div class="filter-pills" id="periodSelectorPills">
+        <!-- JS dinamik butonları dolduracak -->
+      </div>
+    </div>
+    <div style="font-size:12px; color:var(--text-muted); background:var(--surface2); padding:6px 14px; border-radius:var(--radius-sm); border:1px solid var(--border);" id="periodSummaryBadge">
+      Görüntülenen: <strong>Yükleniyor...</strong>
+    </div>
+  </div>
+
   <!-- ════════════════════════════════════════════════════════════════ -->
-  <!-- TAB 0: OVERVIEW, GAME SUCCESS KPIS, CTR/IPM & TODAY'S SUMMARY    -->
+  <!-- SEKME 1: GENEL ÖZET (DASHBOARD)                                  -->
   <!-- ════════════════════════════════════════════════════════════════ -->
   <div class="tab-content active" id="tab-overview">
 
-    <!-- 🚀 MILESTONE BANNER -->
-    <div id="scopeNoticeBanner" style="padding:12px 18px; background:linear-gradient(90deg, rgba(16,185,129,0.15), rgba(99,102,241,0.1)); border:1px solid rgba(16,185,129,0.4); border-radius:var(--radius-md); margin-bottom:18px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
-      <div style="display:flex; align-items:center; gap:12px;">
-        <span style="font-size:24px;">🚀</span>
-        <div>
-          <div style="color:#6ee7b7; font-weight:800; font-size:13px;" id="bannerTitle">Aktif Kapsam: Yeni Oyun Sürümü (2 Eylül 2026 Miladı)</div>
-          <div style="font-size:11px; color:var(--text-muted);" id="bannerSub">Oyun baştan yapıldığı için eski test verileri izole edildi. Tüm metrikler, zorluk dengeleri ve başarı analizleri 2 Eylül ve sonrasına aittir.</div>
-        </div>
-      </div>
-      <span class="badge active" style="font-weight:700; font-size:11px;" id="bannerBadge">Milat: 2026-09-02</span>
-    </div>
-
-    <!-- 🌟 GAME SUCCESS SCORE & MONETIZATION READINESS CARDS -->
-    <div class="kpi-grid" style="grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));">
-      <div class="kpi-card indigo" style="background: linear-gradient(135deg, rgba(99,102,241,0.15), rgba(14,14,26,0.95)); border: 1px solid rgba(99,102,241,0.4);">
-        <div class="kpi-icon">🏆</div>
-        <div class="kpi-label">Yeni Sürüm Başarı Skoru (Hit Index)</div>
-        <div class="kpi-value" id="valSuccessScore">—<span class="unit">/100</span></div>
-        <div class="kpi-sub">
-          <span id="lblSuccessScore" style="font-weight:700">Hesaplanıyor...</span>
-          <span class="benchmark-tag good">Yeni Mekanik</span>
-        </div>
-      </div>
-
-      <div class="kpi-card emerald" style="background: linear-gradient(135deg, rgba(16,185,129,0.15), rgba(14,14,26,0.95)); border: 1px solid rgba(16,185,129,0.4);">
-        <div class="kpi-icon">💰</div>
-        <div class="kpi-label">Monetizasyon Hazırlık İndeksi</div>
-        <div class="kpi-value" id="valMonetizationScore">%—</div>
-        <div class="kpi-sub">
-          <span id="lblMonetizationScore" style="font-weight:700">Hesaplanıyor...</span>
-          <span class="benchmark-tag good">Reklam Uyumluluğu</span>
-        </div>
-      </div>
-
-      <div class="kpi-card cyan" style="background: linear-gradient(135deg, rgba(6,182,212,0.15), rgba(14,14,26,0.95)); border: 1px solid rgba(6,182,212,0.4);">
-        <div class="kpi-icon">⚡</div>
-        <div class="kpi-label">Yeni Sürüm Sadakat Skoru</div>
-        <div class="kpi-value" id="valHabitScore">%—</div>
-        <div class="kpi-sub">
-          <span id="lblHabitScore" style="font-weight:700">Hesaplanıyor...</span>
-          <span class="benchmark-tag good">DAU / WAU</span>
-        </div>
-      </div>
-
-      <div class="kpi-card purple" style="background: linear-gradient(135deg, rgba(168,85,247,0.15), rgba(14,14,26,0.95)); border: 1px solid rgba(168,85,247,0.4);">
-        <div class="kpi-icon">🔥</div>
-        <div class="kpi-label">Büyüme & İvme Değişimi</div>
-        <div class="kpi-value" id="valGrowthVelocity">—</div>
-        <div class="kpi-sub">
-          <span id="lblGrowthVelocity" style="font-weight:700">Hesaplanıyor...</span>
-          <span class="benchmark-tag good">Canlı İvme</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- 🎯 UA & MARKETABILITY (CTR, IPM, CVR, CPI) -->
-    <div class="section-card" style="background: linear-gradient(135deg, rgba(6, 182, 212, 0.08), rgba(14, 14, 26, 0.95)); border: 1px solid rgba(6, 182, 212, 0.3);">
-      <div class="section-head">
-        <div>
-          <div class="section-title" style="font-size:16px; color:#38bdf8;">
-            🎯 UA & Pazarlanabilirlik Analizi (CTR, IPM & CPI)
-          </div>
-          <div class="section-desc" id="uaDescText">
-            Yeni oyun sürümünüzün gerçek indirmeleri üzerinden anlık reklam CTR, IPM, CVR ve CPI değerleri
-          </div>
-        </div>
-        <div class="toolbar">
-          <span class="badge active" style="background:rgba(6,182,212,0.2); color:#38bdf8; border-color:rgba(6,182,212,0.4)" id="badgeRealInstalls">Yeni İndirme: 10 Oyuncu</span>
-        </div>
-      </div>
-
-      <!-- Campaign Input Controls -->
-      <div style="display:flex; flex-wrap:wrap; gap:12px; align-items:center; padding:14px 18px; background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius-md); margin-bottom:16px;">
-        <div style="font-size:12px; font-weight:700; color:var(--text); display:flex; align-items:center; gap:6px;">
-          📢 Yeni Sürüm Reklam Kampanyası:
-        </div>
-        <div style="display:flex; align-items:center; gap:6px;">
-          <label style="font-size:11px; color:var(--text-muted)">Reklam Gösterimleri (Impressions):</label>
-          <input type="number" id="uaImpressionsInput" value="500" min="1" step="50" class="search-box" style="width:100px; padding:6px 10px;" oninput="updateUAMetricsFromInputs()">
-        </div>
-        <div style="display:flex; align-items:center; gap:6px;">
-          <label style="font-size:11px; color:var(--text-muted)">Tıklamalar (Clicks):</label>
-          <input type="number" id="uaClicksInput" value="25" min="1" step="5" class="search-box" style="width:80px; padding:6px 10px;" oninput="updateUAMetricsFromInputs()">
-        </div>
-        <div style="display:flex; align-items:center; gap:6px;">
-          <label style="font-size:11px; color:var(--text-muted)">Harcama ($ Spend):</label>
-          <input type="number" id="uaSpendInput" value="5" min="0" step="1" class="search-box" style="width:70px; padding:6px 10px;" oninput="updateUAMetricsFromInputs()">
-        </div>
-        <button class="btn primary" onclick="updateUAMetricsFromInputs()" style="padding:6px 14px">Hesapla</button>
-      </div>
-
-      <!-- 4 KPI Cards for CTR, IPM, CVR, CPI -->
-      <div class="kpi-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin-bottom:14px;">
-        <div class="kpi-card cyan" style="padding:14px 16px;">
-          <div class="kpi-icon" style="top:12px;right:12px">🖱️</div>
-          <div class="kpi-label">CTR (Tıklama Oranı %)</div>
-          <div class="kpi-value" id="valCTR" style="font-size:24px">%—</div>
-          <div class="kpi-sub"><span id="lblCTR">Hesaplanıyor...</span></div>
-        </div>
-
-        <div class="kpi-card emerald" style="padding:14px 16px;">
-          <div class="kpi-icon" style="top:12px;right:12px">🚀</div>
-          <div class="kpi-label">IPM (Installs Per Mille)</div>
-          <div class="kpi-value" id="valIPM" style="font-size:24px">— / 1k</div>
-          <div class="kpi-sub"><span id="lblIPM">Hesaplanıyor...</span></div>
-        </div>
-
-        <div class="kpi-card indigo" style="padding:14px 16px;">
-          <div class="kpi-icon" style="top:12px;right:12px">🏬</div>
-          <div class="kpi-label">CVR (Mağaza Dönüşümü %)</div>
-          <div class="kpi-value" id="valCVR" style="font-size:24px">%—</div>
-          <div class="kpi-sub"><span id="lblCVR">Hesaplanıyor...</span></div>
-        </div>
-
-        <div class="kpi-card amber" style="padding:14px 16px;">
-          <div class="kpi-icon" style="top:12px;right:12px">💵</div>
-          <div class="kpi-label">Gerçek CPI ($ Maliyet)</div>
-          <div class="kpi-value" id="valCPI" style="font-size:24px">$—</div>
-          <div class="kpi-sub"><span id="lblCPI">Cost Per Install</span></div>
-        </div>
-      </div>
-
-      <div id="uaMarketabilityDiagnostics">
-        <div class="diag-item info">
-          <div class="diag-icon">🔍</div>
-          <div>UA ve pazarlanabilirlik verileri analiz ediliyor...</div>
-        </div>
-      </div>
-    </div>
-
-    <div style="height:10px"></div>
-
-    <!-- OVERVIEW STANDARD KPI CARDS -->
-    <div class="kpi-grid">
+    <!-- 4 BÜYÜK & NET KPI KARTI -->
+    <div class="kpi-grid" style="grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); margin-bottom:18px;">
+      
+      <!-- 1. TOPLAM OYUNCU -->
       <div class="kpi-card indigo">
-        <div class="kpi-icon">📥</div>
-        <div class="kpi-label" id="cardLabelTotalInstalls">2 Eylül Yeni İndirme</div>
-        <div class="kpi-value" id="kpiTotalInstalls">10</div>
+        <div class="kpi-icon">👥</div>
+        <div class="kpi-label">Toplam Oyuncu Sayısı</div>
+        <div class="kpi-value" id="kpiOverviewTotalUsers">0</div>
         <div class="kpi-sub">
-          <span id="subTotalInstalls">Yeni sürüm kurulumları</span>
-          <span class="benchmark-tag good">2 Eylül</span>
+          <span id="kpiOverviewTotalUsersSub">Seçilen dönemde oyuna girenler</span>
+          <span class="benchmark-tag good">Tekil Oyuncu</span>
         </div>
       </div>
 
-      <div class="kpi-card emerald">
-        <div class="kpi-icon">🚪</div>
-        <div class="kpi-label" id="cardLabelTotalSessions">Yeni Sürüm Oturumları</div>
-        <div class="kpi-value" id="kpiTotalSessions">28</div>
-        <div class="kpi-sub">
-          <span id="kpiAvgSessionsPerUser">Ort. 2.1 oturum/oyuncu</span>
-          <span class="benchmark-tag good">Girişler</span>
-        </div>
-      </div>
-
+      <!-- 2. ERTESİ GÜN GERİ DÖNÜŞ (D1) -->
       <div class="kpi-card cyan">
-        <div class="kpi-icon">📱</div>
-        <div class="kpi-label" id="cardLabelDAU">Aktif Oyuncu Sayısı (DAU)</div>
-        <div class="kpi-value" id="kpiTodayDAU">13</div>
+        <div class="kpi-icon">🎯</div>
+        <div class="kpi-label">Ertesi Gün Geri Dönüş (D1)</div>
+        <div class="kpi-value" id="kpiOverviewD1">—<span class="unit">%</span></div>
         <div class="kpi-sub">
-          <span id="subDAU">Tekil oyuncular</span>
-          <span class="benchmark-tag good">Canlı DAU</span>
+          <span id="kpiOverviewD1Sub">100 kişiden kaçı geri geldi</span>
+          <span class="benchmark-tag good" id="kpiOverviewD1Badge">Retention</span>
         </div>
       </div>
 
-      <div class="kpi-card purple">
+      <!-- 3. ORTALAMA OYUN SÜRESİ -->
+      <div class="kpi-card emerald">
         <div class="kpi-icon">⏱️</div>
-        <div class="kpi-label" id="cardLabelDuration">Toplam Oynama Süresi</div>
-        <div class="kpi-value" id="kpiTotalDuration">30.5<span class="unit">dk</span></div>
+        <div class="kpi-label">Ortalama Oynama Süresi</div>
+        <div class="kpi-value" id="kpiOverviewAvgTime">—<span class="unit">dk</span></div>
         <div class="kpi-sub">
-          <span id="kpiAvgSessionDuration">Ort. Süre: 1:05</span>
-          <span class="benchmark-tag good">Yeni Oyun</span>
+          <span id="kpiOverviewAvgTimeSub">Oyuncu başına ortalama süre</span>
+          <span class="benchmark-tag good">Süre</span>
         </div>
       </div>
 
-      <div class="kpi-card amber">
-        <div class="kpi-icon">🎮</div>
-        <div class="kpi-label">Oynanan Level Sayısı</div>
-        <div class="kpi-value" id="kpiLevelsPlayed">42</div>
+      <!-- 4. EN İLERİ LEVEL İLERLEMESİ -->
+      <div class="kpi-card purple">
+        <div class="kpi-icon">🏆</div>
+        <div class="kpi-label">En İleri Seviye</div>
+        <div class="kpi-value" id="kpiOverviewMaxLevel">—</div>
         <div class="kpi-sub">
-          <span>Yeni mekanik denemeleri</span>
-          <span class="benchmark-tag fair">42 Seviye</span>
+          <span id="kpiOverviewMaxLevelSub">Maksimum ulaşılan level</span>
+          <span class="benchmark-tag good">İlerleme</span>
         </div>
       </div>
 
-      <div class="kpi-card rose">
-        <div class="kpi-icon">✨</div>
-        <div class="kpi-label">Zirve Ulaşılan Seviye</div>
-        <div class="kpi-value" id="kpiMaxLevel">Level 42</div>
-        <div class="kpi-sub">
-          <span>En ileri oyuncu</span>
-          <span class="benchmark-tag good">Yeni Rekor</span>
+    </div>
+
+    <!-- 💡 AKILLI ÖZET & DURUM RAPORU -->
+    <div class="section-card" style="margin-bottom:20px; border-left:4px solid var(--accent); background:linear-gradient(135deg, rgba(99,102,241,0.06), var(--surface));">
+      <div style="display:flex; align-items:flex-start; gap:14px;">
+        <span style="font-size:24px;">💡</span>
+        <div>
+          <div style="font-size:14px; font-weight:700; color:#fff; margin-bottom:4px;" id="smartInsightTitle">Oyunun Durum Özeti</div>
+          <div style="font-size:12.5px; color:var(--text-muted); line-height:1.6;" id="smartInsightText">
+            Yükleniyor...
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- 🧠 PLAYER JOURNEY INSIGHTS & DIAGNOSTICS MODULE -->
-    <div class="section-card" style="background: linear-gradient(135deg, rgba(14, 14, 26, 0.95), rgba(21, 21, 38, 0.95)); border: 1px solid rgba(99, 102, 241, 0.3); box-shadow: 0 8px 32px rgba(0,0,0,0.4);">
+    <!-- 📅 AYLIK İNDİRME VE OYUNCU KATILIM ANALİZİ -->
+    <div class="section-card" style="margin-bottom:20px;">
       <div class="section-head">
         <div>
-          <div class="section-title" style="font-size:16px; color:#c7d2fe;">
-            🧠 Yeni Sürüm Player Journey Teşhis Paneli (2 Eylül Verileri)
-          </div>
-          <div class="section-desc">
-            Yenilenen oyununuzun 5 kritik aşamasından (Onboarding ➔ First Fun ➔ Core Loop ➔ Progression ➔ Retention) canlı üretilen analitik çıkarımlar
-          </div>
+          <div class="section-title">📅 Aylara Göre İndirme & Oyuncu Katılım Analizi</div>
+          <div class="section-desc">Oyuncuların oyunu hangi ayda indirdiği, aylar arası büyüme payı, aktiflik ve ulaşılan seviyeler</div>
         </div>
         <div class="toolbar">
-          <span class="badge active" style="font-size:11px">2 Eylül Yeni Oyun Analizi</span>
+          <button class="btn export" onclick="exportMonthlyInstallsCSV()">⬇ Aylık İndirme CSV</button>
         </div>
       </div>
 
-      <!-- 5 JOURNEY STAGE CARDS -->
-      <div class="journey-grid">
-        <div class="journey-card">
-          <div class="jhead"><span class="jicon">🚪</span> 1. Onboarding (Giriş)</div>
-          <div class="jmetric" id="jValOnboarding">—</div>
-          <div class="jdesc" id="jDescOnboarding">Hesaplanıyor...</div>
-        </div>
-
-        <div class="journey-card">
-          <div class="jhead"><span class="jicon">🌟</span> 2. First Fun (İlk Eğlence)</div>
-          <div class="jmetric" id="jValFirstFun">—</div>
-          <div class="jdesc" id="jDescFirstFun">Hesaplanıyor...</div>
-        </div>
-
-        <div class="journey-card">
-          <div class="jhead"><span class="jicon">♾️</span> 3. Core Loop (Oyun Döngüsü)</div>
-          <div class="jmetric" id="jValCoreLoop">—</div>
-          <div class="jdesc" id="jDescCoreLoop">Hesaplanıyor...</div>
-        </div>
-
-        <div class="journey-card">
-          <div class="jhead"><span class="jicon">📈</span> 4. Progression & Denge</div>
-          <div class="jmetric" id="jValProgression">—</div>
-          <div class="jdesc" id="jDescProgression">Hesaplanıyor...</div>
-        </div>
-
-        <div class="journey-card">
-          <div class="jhead"><span class="jicon">🔄</span> 5. Return & Retention</div>
-          <div class="jmetric" id="jValRetention">—</div>
-          <div class="jdesc" id="jDescRetention">Hesaplanıyor...</div>
-        </div>
-      </div>
-
-      <!-- AUTOMATIC DIAGNOSTICS & ADVICE LIST -->
-      <div style="margin-top:20px; padding-top:16px; border-top:1px solid var(--border);">
-        <div class="sec-title" style="color:var(--text); font-size:13px;">📌 Yeni Oyun Sürümünden Çıkarılan Teşhisler</div>
-        <div id="playerJourneyDiagnostics" style="display:flex; flex-direction:column; gap:10px; margin-top:10px;">
-          <div class="diag-item info">
-            <div class="diag-icon">🔍</div>
-            <div>Yeni sürüm teşhisleri yükleniyor...</div>
-          </div>
-        </div>
+      <div class="table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>İndirme Ayı</th>
+              <th>Yeni İndiren Oyuncu</th>
+              <th>Toplam İçindeki Payı</th>
+              <th>Aktif Oyuncu Durumu</th>
+              <th>Ulaşılan En İleri Seviye</th>
+              <th>Ortalama Oynama Süresi</th>
+              <th>İşlem</th>
+            </tr>
+          </thead>
+          <tbody id="monthlyInstallTableBody">
+            <tr><td colspan="7"><div class="loading"><div class="spinner"></div><div>Aylık indirme verileri yükleniyor...</div></div></td></tr>
+          </tbody>
+        </table>
       </div>
     </div>
 
-    <div style="height:20px"></div>
-
-    <!-- DAILY BREAKDOWN TABLE -->
+    <!-- 📅 GÜNLÜK GİRİŞ VE İNDİRME GEÇMİŞİ -->
     <div class="section-card">
       <div class="section-head">
         <div>
-          <div class="section-title">📅 Günlük İndirme & Giriş Dağılımı</div>
-          <div class="section-desc">Kapsam dahilindeki günlerin tam analitik tablosu</div>
+          <div class="section-title">📅 Günlük Oyuncu Girişleri & İndirmeler</div>
+          <div class="section-desc">Seçilen dönemde gün bazında yeni kuranlar, açılan oturumlar ve oynanan süreler</div>
         </div>
-
         <div class="toolbar">
-          <button class="btn export" onclick="exportDailyMetricsCSV()">⬇ Günlük Analiz CSV İndir</button>
+          <button class="btn export" onclick="exportDailyMetricsCSV()">⬇ Günlük Rapor CSV</button>
         </div>
       </div>
 
@@ -828,319 +704,142 @@
           <thead>
             <tr>
               <th>Tarih</th>
-              <th>Yeni İndirme (Install)</th>
-              <th>Toplam Giriş (Logins)</th>
-              <th>Tekil Aktif Oyuncu (DAU)</th>
-              <th>Toplam Oynama Süresi</th>
+              <th>Yeni İndirme (Kurulum)</th>
+              <th>Giriş Sayısı (Oturum)</th>
+              <th>Aktif Oyuncu (DAU)</th>
+              <th>Toplam Oynanan Süre</th>
               <th>Oynanan Level Sayısı</th>
-              <th>Ortalama Oturum / Oyuncu</th>
             </tr>
           </thead>
           <tbody id="dailyBreakdownBody">
-            <tr><td colspan="7"><div class="loading"><div class="spinner"></div><div>Veriler yükleniyor...</div></div></td></tr>
+            <tr><td colspan="6"><div class="loading"><div class="spinner"></div><div>Günlük veriler yükleniyor...</div></div></td></tr>
           </tbody>
         </table>
       </div>
     </div>
 
-    <div style="height:20px"></div>
+  </div>
 
-    <!-- LIVE SESSIONS LOG TABLE -->
-    <div class="section-card">
+  <!-- ════════════════════════════════════════════════════════════════ -->
+  <!-- SEKME 2: GERİ DÖNÜŞ (RETENTION)                                  -->
+  <!-- ════════════════════════════════════════════════════════════════ -->
+  <div class="tab-content" id="tab-retention">
+
+    <!-- REHBER VE HESAPLAMA MODU ÇUBUĞU -->
+    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; padding:12px 18px; background:rgba(6,182,212,0.08); border:1px solid rgba(6,182,212,0.3); border-radius:var(--radius-md); margin-bottom:18px;">
+      <div style="font-size:12.5px; line-height:1.5; color:#e0f2fe; flex:1; min-width:280px;">
+        📌 <strong>Retention (Geri Dönüş) Analiz Merkezi:</strong> Oyuncuların oyunu kurduktan sonra gün gün geri gelme oranları. Hyper-casual/Puzzle sektör standardı: <strong>D1 ≥ %35-40</strong>, <strong>D7 ≥ %12-15</strong>.
+      </div>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span style="font-size:11.5px; color:var(--text-muted); font-weight:600;">Hesaplama Modu:</span>
+        <div class="toggle-group">
+          <button class="toggle-btn active" id="btnRetModeClassic" onclick="setRetentionMode('classic')" title="Tam o gün (D1, D7) giriş yapanlar">🎯 Klasik (Strict)</button>
+          <button class="toggle-btn" id="btnRetModeRolling" onclick="setRetentionMode('rolling')" title="O gün veya sonraki günlerde en az 1 kez girenler">🔄 Kümülatif (Rolling)</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 1. RETENTION SAĞLIK KARNESİ (4 KPI KART) -->
+    <div class="kpi-grid" id="retentionScorecard" style="margin-bottom:20px;">
+      <div class="kpi-card"><div class="loading"><div class="spinner"></div></div></div>
+    </div>
+
+    <!-- 2. İKİ KOLONLU DERİN ANALİZ: SVG RETENTION EĞRİSİ & SEVİYE BAZLI CHURN DROPOFF -->
+    <div class="chart-grid" style="grid-template-columns: 1.25fr 1fr; gap:16px; margin-bottom:20px;">
+      
+      <!-- Sol: Görsel Retention Eğrisi -->
+      <div class="section-card" style="margin-bottom:0; display:flex; flex-direction:column; justify-content:space-between;">
+        <div class="section-head" style="margin-bottom:12px;">
+          <div>
+            <div class="section-title">📉 Görsel Retention Eğrisi & Sektör Kıyaslaması</div>
+            <div class="section-desc">D0'dan D7'ye oyuncu tutundurma trendi ve %35 sektör hedef çizgisi</div>
+          </div>
+          <div style="font-size:11px; display:flex; align-items:center; gap:12px;">
+            <span style="display:flex; align-items:center; gap:5px; color:#818cf8; font-weight:600;">
+              <span style="display:inline-block; width:12px; height:3px; background:#818cf8; border-radius:2px;"></span> Oyununuz
+            </span>
+            <span style="display:flex; align-items:center; gap:5px; color:#fbbf24; font-weight:600;">
+              <span style="display:inline-block; width:12px; height:2px; background:#fbbf24; border:1px dashed #fbbf24;"></span> Sektör Hedefi (%35)
+            </span>
+          </div>
+        </div>
+        <div id="retentionCurveContainer" style="width:100%; min-height:190px; position:relative;">
+          <div class="loading"><div class="spinner"></div></div>
+        </div>
+      </div>
+
+      <!-- Sağ: Drop-off & Churn Seviye Dağılımı -->
+      <div class="section-card" style="margin-bottom:0; display:flex; flex-direction:column; justify-content:space-between;">
+        <div class="section-head" style="margin-bottom:12px;">
+          <div>
+            <div class="section-title">🔍 "Neden Bıraktılar?" / Seviye Bazlı Terk Dağılımı</div>
+            <div class="section-desc">D1'de geri dönmeyen oyuncular en son hangi levelde takılıp oyunu kapattı?</div>
+          </div>
+          <span id="retDropoffBadge" class="benchmark-tag poor">Hesaplanıyor...</span>
+        </div>
+        <div id="retDropoffBars" style="display:flex; flex-direction:column; gap:8px;">
+          <div class="loading"><div class="spinner"></div></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 3. AKILLI RETENTION TEŞHİS & AKSİYON ÖNERİLERİ -->
+    <div class="section-card" style="margin-bottom:20px; background:rgba(99,102,241,0.04); border-color:rgba(99,102,241,0.25);">
+      <div class="section-head" style="margin-bottom:12px;">
+        <div class="section-title" style="color:#c7d2fe;">
+          💡 Akıllı Retention Teşhis ve Aksiyon Önerileri
+        </div>
+        <div style="font-size:11.5px; color:var(--text-muted);">Mevcut oyuncu davranışlarına göre otomatik oluşturuldu</div>
+      </div>
+      <div class="journey-grid" id="retentionDiagnosticsGrid">
+        <div class="loading"><div class="spinner"></div></div>
+      </div>
+    </div>
+
+    <!-- 4. AYLIK KÜMÜLATİF MAKRO TABLO -->
+    <div class="section-card" style="margin-bottom:20px;">
       <div class="section-head">
         <div>
-          <div class="section-title" id="sessionLogTitle">⚡ Yeni Sürüm Oturum Kayıtları Günlüğü (2 Eylül)</div>
-          <div class="section-desc">Kaydedilen oturumların zaman damgalı tam dökümü</div>
+          <div class="section-title">📅 Aylık Geri Dönüş Karşılaştırması (Makro Kohort)</div>
+          <div class="section-desc">Ayların kurulum sayıları, 1. gün (D1), 7. gün (D7), 30. gün (D30) ve sonraki aylardaki geri dönüşleri</div>
         </div>
-
         <div class="toolbar">
-          <div class="search-wrap">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-            <input type="text" class="search-box" id="searchSessionBox" placeholder="Oyuncu ID veya Saat ara..." oninput="renderLiveSessionLogTable()">
-          </div>
-          <button class="btn export" onclick="exportSessionsCSV()">⬇ Oturum Günlüğü CSV İndir</button>
+          <button class="btn export" onclick="exportMonthlyCohortCSV()">⬇ Aylık Kohort CSV</button>
         </div>
       </div>
 
       <div class="table-container">
-        <table class="data-table">
+        <table class="cohort-table" id="monthlyCohortTable">
           <thead>
             <tr>
-              <th>Giriş Zamanı</th>
-              <th>Oyuncu / Cihaz ID</th>
-              <th>Oturum Süresi</th>
-              <th>Oynanan Level</th>
-              <th>Cihaz Modeli</th>
-              <th>İşletim Sistemi (OS)</th>
-              <th>Platform & Versiyon</th>
+              <th>Ay</th>
+              <th>Kurulum (Kişi)</th>
+              <th>İlk Gün (D0)</th>
+              <th>Ertesi Gün (D1)</th>
+              <th>1. Hafta (D7)</th>
+              <th>2. Hafta (D14)</th>
+              <th>1. Ay (D30)</th>
+              <th>Sonraki Ay (M1)</th>
+              <th>2. Ay (M2)</th>
             </tr>
           </thead>
-          <tbody id="sessionLogBody">
-            <tr><td colspan="7"><div class="loading"><div class="spinner"></div><div>Oturum kayıtları yükleniyor...</div></div></td></tr>
+          <tbody id="monthlyCohortBody">
+            <tr><td colspan="9"><div class="loading"><div class="spinner"></div><div>Hesaplanıyor...</div></div></td></tr>
           </tbody>
         </table>
       </div>
     </div>
 
-  </div>
-
-  <!-- ════════════════════════════════════════════════════════════════ -->
-  <!-- TAB 1: DEMOGRAPHICS, AGE BRACKETS, COUNTRY & DEVICE PREFERENCES  -->
-  <!-- ════════════════════════════════════════════════════════════════ -->
-  <div class="tab-content" id="tab-demographics">
-
-    <!-- DEMOGRAPHICS TOP KPI CARDS -->
-    <div class="kpi-grid">
-      <div class="kpi-card cyan">
-        <div class="kpi-icon">🌍</div>
-        <div class="kpi-label">Lider Ülke Tercihi</div>
-        <div class="kpi-value" id="kpiTopCountry">Türkiye</div>
-        <div class="kpi-sub">
-          <span id="kpiTopCountryShare">%76.9 Oyuncu Payı</span>
-          <span class="benchmark-tag good">Lider Ülke</span>
-        </div>
-      </div>
-
-      <div class="kpi-card emerald">
-        <div class="kpi-icon">💎</div>
-        <div class="kpi-label">Tier 1 Ülke Payı</div>
-        <div class="kpi-value" id="kpiTier1Share">%23.1</div>
-        <div class="kpi-sub">
-          <span>US, DE, GB</span>
-          <span class="benchmark-tag good">Yüksek eCPM ($16+)</span>
-        </div>
-      </div>
-
-      <div class="kpi-card indigo">
-        <div class="kpi-icon">👥</div>
-        <div class="kpi-label">Baskın Yaş Grubu</div>
-        <div class="kpi-value" id="kpiTopAgeGroup">25 - 34</div>
-        <div class="kpi-sub">
-          <span>%40.0 Ana Çekirdek Kitle</span>
-          <span class="benchmark-tag good">Hedef Grup</span>
-        </div>
-      </div>
-
-      <div class="kpi-card purple">
-        <div class="kpi-icon">📱</div>
-        <div class="kpi-label">Lider Cihaz Markası</div>
-        <div class="kpi-value" id="kpiTopDeviceBrand">Xiaomi</div>
-        <div class="kpi-sub">
-          <span id="kpiTopDeviceShare">12 Oturum (%42.8)</span>
-          <span class="benchmark-tag good">Android Lideri</span>
-        </div>
-      </div>
-
-      <div class="kpi-card amber">
-        <div class="kpi-icon">⏰</div>
-        <div class="kpi-label">Prime Time (En Aktif Saat)</div>
-        <div class="kpi-value" id="kpiPeakHour">16:00 - 19:00</div>
-        <div class="kpi-sub">
-          <span>Günün en yoğun dilimi</span>
-          <span class="benchmark-tag fair">Oturum Zirvesi</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- SECTION 1 & 2: AGE BRACKETS & GEO / COUNTRY DISTRIBUTION -->
-    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(480px, 1fr)); gap:18px; margin-bottom:22px;">
-      
-      <!-- 👥 AGE BRACKETS CARD -->
-      <div class="section-card" style="margin-bottom:0">
-        <div class="section-head">
-          <div>
-            <div class="section-title">👥 Yaş Grubu Dağılımı & Oyuncu Tercihleri</div>
-            <div class="section-desc">Google Play ve App Store standartlarına göre yeni sürüm yaş kırılımı</div>
-          </div>
-          <div class="toolbar">
-            <span class="badge active" style="font-size:11px">Hedef Kitle Analizi</span>
-          </div>
-        </div>
-
-        <div id="ageBracketList">
-          <!-- 18-24 -->
-          <div class="demo-bar-wrap">
-            <div class="demo-label"><span>⚡</span> 18 - 24 Yaş</div>
-            <div class="demo-track"><div class="demo-fill" style="width:23.0%; background:linear-gradient(90deg,#06b6d4,#38bdf8)"></div></div>
-            <div class="demo-val" style="color:#38bdf8">%23.0 (3)</div>
-          </div>
-          <!-- 25-34 -->
-          <div class="demo-bar-wrap">
-            <div class="demo-label"><span>🎯</span> 25 - 34 Yaş</div>
-            <div class="demo-track"><div class="demo-fill" style="width:40.0%; background:linear-gradient(90deg,#6366f1,#818cf8)"></div></div>
-            <div class="demo-val" style="color:#818cf8">%40.0 (5)</div>
-          </div>
-          <!-- 35-44 -->
-          <div class="demo-bar-wrap">
-            <div class="demo-label"><span>🧩</span> 35 - 44 Yaş</div>
-            <div class="demo-track"><div class="demo-fill" style="width:23.0%; background:linear-gradient(90deg,#10b981,#34d399)"></div></div>
-            <div class="demo-val" style="color:#34d399">%23.0 (3)</div>
-          </div>
-          <!-- 45+ -->
-          <div class="demo-bar-wrap">
-            <div class="demo-label"><span>☕</span> 45+ Yaş</div>
-            <div class="demo-track"><div class="demo-fill" style="width:14.0%; background:linear-gradient(90deg,#a855f7,#c084fc)"></div></div>
-            <div class="demo-val" style="color:#c084fc">%14.0 (2)</div>
-          </div>
-        </div>
-
-        <div style="margin-top:16px; padding:12px 14px; background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius-sm); font-size:12px; color:var(--text-muted); line-height:1.5;">
-          💡 <strong>Yeni Sürüm Yaş Tercihi:</strong> Yenilenen renk mekanikleri en çok <strong>25 - 34 (%40.0)</strong> ve <strong>35 - 44 (%23.0)</strong> yaş kitleleri tarafından oynanmaktadır.
-        </div>
-      </div>
-
-      <!-- 🌍 COUNTRY DISTRIBUTION CARD -->
-      <div class="section-card" style="margin-bottom:0">
-        <div class="section-head">
-          <div>
-            <div class="section-title">🌍 Ülke & Bölge Dağılımı (Geo & Tier)</div>
-            <div class="section-desc">Yeni sürüm oyuncularının coğrafi dağılımı ve Tier 1 kitle payı</div>
-          </div>
-          <div class="toolbar">
-            <span class="badge active" style="background:rgba(168,85,247,0.2); color:#c084fc; border-color:rgba(168,85,247,0.4)" id="badgeCountryPool">13 Yeni Sürüm Oyuncusu</span>
-          </div>
-        </div>
-
-        <div class="table-container" style="max-height:220px; overflow-y:auto;">
-          <table class="data-table" style="font-size:12px;">
-            <thead>
-              <tr>
-                <th>Ülke</th>
-                <th>Tier</th>
-                <th>Oyuncu Sayısı</th>
-                <th>Pay (%)</th>
-                <th>Tahmini eCPM</th>
-              </tr>
-            </thead>
-            <tbody id="countryTableBody">
-              <tr>
-                <td style="font-weight:700">🇹🇷 Türkiye</td>
-                <td><span class="badge" style="background:rgba(245,158,11,0.15);color:#fbbf24">Tier 2</span></td>
-                <td style="font-weight:700">10</td>
-                <td style="color:#38bdf8">%76.9</td>
-                <td>$2.80</td>
-              </tr>
-              <tr>
-                <td style="font-weight:700">🇺🇸 Amerika (US)</td>
-                <td><span class="badge" style="background:rgba(16,185,129,0.15);color:#34d399">Tier 1</span></td>
-                <td style="font-weight:700">2</td>
-                <td style="color:#38bdf8">%15.4</td>
-                <td style="color:#34d399;font-weight:700">$18.50</td>
-              </tr>
-              <tr>
-                <td style="font-weight:700">🇩🇪 Almanya (DE)</td>
-                <td><span class="badge" style="background:rgba(16,185,129,0.15);color:#34d399">Tier 1</span></td>
-                <td style="font-weight:700">1</td>
-                <td style="color:#38bdf8">%7.7</td>
-                <td style="color:#34d399;font-weight:700">$16.20</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <!-- SECTION 3 & 4: DEVICE BRANDS & PEAK HOURS -->
-    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(480px, 1fr)); gap:18px; margin-bottom:22px;">
-
-      <!-- 📱 DEVICE BRAND PREFERENCES -->
-      <div class="section-card" style="margin-bottom:0">
-        <div class="section-head">
-          <div>
-            <div class="section-title">📱 Cihaz & Donanım Marka Tercihleri</div>
-            <div class="section-desc">Yeni sürüm oturumlarından çıkarılan donanım dağılımı</div>
-          </div>
-        </div>
-
-        <div id="deviceBrandBars">
-          <div class="loading"><div class="spinner"></div><div>Cihaz verileri yükleniyor...</div></div>
-        </div>
-      </div>
-
-      <!-- ⏰ 24-HOUR PEAK PLAY HOURS -->
-      <div class="section-card" style="margin-bottom:0">
-        <div class="section-head">
-          <div>
-            <div class="section-title">⏰ 24 Saatlik Oynanış Saatleri (2 Eylül)</div>
-            <div class="section-desc">Oyuncuların gün içinde oyuna girdiği saat dilimleri</div>
-          </div>
-          <div class="toolbar">
-            <span style="font-size:11px;color:var(--text-muted)">Zirve: 16:00 - 19:00</span>
-          </div>
-        </div>
-
-        <div style="height:210px; position:relative;">
-          <canvas id="hourlyCanvas"></canvas>
-        </div>
-
-        <div style="margin-top:12px; display:flex; justify-content:space-between; font-size:11px; color:var(--text-muted);">
-          <span>🌙 Gece (00:00 - 06:00)</span>
-          <span>🌅 Sabah (07:00 - 12:00)</span>
-          <span>☀️ Öğle (13:00 - 17:00)</span>
-          <span style="color:#34d399;font-weight:700">🔥 Prime Time (18:00 - 23:00)</span>
-        </div>
-      </div>
-    </div>
-
-  </div>
-
-  <!-- ════════════════════════════════════════════════════════════════ -->
-  <!-- TAB 2: RETENTION ANALYTICS                                       -->
-  <!-- ════════════════════════════════════════════════════════════════ -->
-  <div class="tab-content" id="tab-retention">
-    
-    <div class="kpi-grid">
-      <div class="kpi-card indigo">
-        <div class="kpi-icon">⚡</div>
-        <div class="kpi-label">2 Eylül D0 Retention</div>
-        <div class="kpi-value" id="kpiD0Val">%100</div>
-        <div class="kpi-sub">
-          <span>İlk gün tamamlama</span>
-          <span class="benchmark-tag good">Yeni Sürüm</span>
-        </div>
-      </div>
-
-      <div class="kpi-card cyan">
-        <div class="kpi-icon">🎯</div>
-        <div class="kpi-label">D1 Beklentisi (Yarın)</div>
-        <div class="kpi-value" id="kpiD1">—<span class="unit">%</span></div>
-        <div class="kpi-sub">
-          <span id="kpiD1Count">3 Eylül'de Olgunlaşacak</span>
-          <span class="benchmark-tag fair">Hedef >%40</span>
-        </div>
-      </div>
-
-      <div class="kpi-card emerald">
-        <div class="kpi-icon">🏆</div>
-        <div class="kpi-label">D7 Beklentisi</div>
-        <div class="kpi-value" id="kpiD7">—<span class="unit">%</span></div>
-        <div class="kpi-sub">
-          <span id="kpiD7Count">1. Hafta Sonu</span>
-          <span class="benchmark-tag good">Hedef >%18</span>
-        </div>
-      </div>
-
-      <div class="kpi-card rose">
-        <div class="kpi-icon">📈</div>
-        <div class="kpi-label">Oyuncu Bağlılığı</div>
-        <div class="kpi-value" id="kpiStickiness">—<span class="unit">%</span></div>
-        <div class="kpi-sub">
-          <span id="kpiAvgLifespan">Yeni sürüm</span>
-          <span class="benchmark-tag good">DAU / WAU</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- COHORT RETENTION HEATMAP TABLE -->
+    <!-- 5. GÜNLÜK GERİ DÖNÜŞ MATRİSİ -->
     <div class="section-card">
       <div class="section-head">
         <div>
-          <div class="section-title">🔥 Kohort Retention Matrisi</div>
-          <div class="section-desc">Kurulum tarihlerine göre oyuncuların gün bazında geri dönüş oranları</div>
+          <div class="section-title">🔥 Günlük Geri Dönüş Isı Haritası (Seçili Dönem)</div>
+          <div class="section-desc">Kullanıcıların oyunu kurdukları günden itibaren gün gün geri gelme yüzdeleri ve kohort detayları</div>
         </div>
-
         <div class="toolbar">
-          <button class="btn export" onclick="exportCohortCSV()">⬇ Kohort CSV İndir</button>
+          <button class="btn export" onclick="exportCohortCSV()">⬇ Günlük Kohort CSV</button>
         </div>
       </div>
 
@@ -1148,26 +847,23 @@
         <table class="cohort-table" id="cohortTable">
           <thead>
             <tr>
-              <th>Kurulum Kohortu</th>
+              <th>Kurulum Tarihi</th>
               <th>Yeni Oyuncu</th>
-              <th>D0</th>
-              <th>D1</th>
+              <th>D0 (Kurulum)</th>
+              <th>D1 (1. Gün)</th>
               <th>D2</th>
               <th>D3</th>
               <th>D4</th>
               <th>D5</th>
               <th>D6</th>
-              <th>D7</th>
+              <th>D7 (1. Hafta)</th>
               <th>D14</th>
               <th>D30</th>
+              <th>İşlem</th>
             </tr>
           </thead>
           <tbody id="cohortBody">
-            <tr>
-              <td colspan="12">
-                <div class="loading"><div class="spinner"></div><div>Kohort verileri hesaplanıyor...</div></div>
-              </td>
-            </tr>
+            <tr><td colspan="13"><div class="loading"><div class="spinner"></div><div>Hesaplanıyor...</div></div></td></tr>
           </tbody>
         </table>
       </div>
@@ -1176,84 +872,236 @@
   </div>
 
   <!-- ════════════════════════════════════════════════════════════════ -->
-  <!-- TAB 3: USERS DIRECTORY & SEGMENTS                                -->
+  <!-- SEKME 3: LEVEL PERFORMANSI & ZORLUK DENGESİ                      -->
   <!-- ════════════════════════════════════════════════════════════════ -->
-  <div class="tab-content" id="tab-users">
+  <div class="tab-content" id="tab-levels">
+
+    <div style="padding:12px 18px; background:rgba(99,102,241,0.08); border:1px solid rgba(99,102,241,0.3); border-radius:var(--radius-md); margin-bottom:18px; font-size:12.5px; line-height:1.5; color:#e0e7ff;">
+      🎮 <strong>Level Analizi:</strong> Oyuncuların hangi levellerde takıldığını, nerede oyundan çıktığını ve geçme oranlarını buradan görebilirsiniz.
+    </div>
+
     <div class="section-card">
       <div class="section-head">
         <div>
-          <div class="section-title" id="usersTableTitle">👥 Yeni Sürüm Oyuncu Dizini (2 Eylül)</div>
-          <div class="section-desc">2 Eylül'de yeni oyunu kuran veya oynayan oyuncuların ilerleme geçmişi</div>
+          <div class="section-title">🎮 Level Bazlı Başarı & Zorluk Dengesi</div>
+          <div class="section-desc">Seçili dönemde oynanan levellerin tamamlanma, takılma ve süre verileri</div>
+        </div>
+      </div>
+
+      <div class="table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Level</th>
+              <th>Ulaşan Oyuncu</th>
+              <th>Geçen Oyuncu</th>
+              <th>Geçme Oranı (Pass %)</th>
+              <th>Takılma / Çıkış (Drop)</th>
+              <th>Ortalama Süre</th>
+              <th>Zorluk Durumu</th>
+            </tr>
+          </thead>
+          <tbody id="levelTableBody">
+            <tr><td colspan="7"><div class="loading"><div class="spinner"></div><div>Level verileri yükleniyor...</div></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════════ -->
+  <!-- SEKME 4: DEMOGRAFİ & KİTLE (ÜLKE & YAŞ ARALIĞI ANALİZİ)          -->
+  <!-- ════════════════════════════════════════════════════════════════ -->
+  <div class="tab-content" id="tab-demographics">
+
+    <!-- REHBER VE ÖZET BİLGİ KUTUSU -->
+    <div style="padding:12px 18px; background:rgba(168,85,247,0.08); border:1px solid rgba(168,85,247,0.3); border-radius:var(--radius-md); margin-bottom:18px; font-size:12.5px; line-height:1.5; color:#f3e8ff;">
+      🌍 <strong>Demografi & Kitle Analiz Merkezi:</strong> Oyuncuların hangi ülkelerden bağlandığı, yaş grupları, cihaz platformları ve sistem dilleri. Bu veriler hedef kitle optimizasyonu ve UA reklam kampanyaları için kritik öneme sahiptir.
+    </div>
+
+    <!-- 1. DEMOGRAFİK 4 KPI KARTI -->
+    <div class="kpi-grid" id="demographicsKpis" style="margin-bottom:20px;">
+      <div class="kpi-card"><div class="loading"><div class="spinner"></div></div></div>
+    </div>
+
+    <!-- 2. İKİ KOLONLU ANA ANALİZ: ÜLKE DAĞILIMI & YAŞ ARALIĞI SEGMENTLERİ -->
+    <div class="chart-grid" style="grid-template-columns: 1.15fr 1fr; gap:18px; margin-bottom:20px;">
+
+      <!-- Sol: Ülkelere Göre Dağılım -->
+      <div class="section-card" style="margin-bottom:0; display:flex; flex-direction:column; justify-content:space-between;">
+        <div class="section-head" style="margin-bottom:14px;">
+          <div>
+            <div class="section-title">🌍 Ülkelere Göre Oyuncu Dağılımı (Coğrafi Analiz)</div>
+            <div class="section-desc">Oyuncuların bağlandığı ülkeler, pazar payı ve performans metrikleri</div>
+          </div>
+          <div class="toolbar">
+            <button class="btn export" onclick="exportDemographicsCSV()">⬇ Demografi CSV</button>
+          </div>
         </div>
 
+        <div class="table-container" style="max-height:340px; overflow-y:auto;">
+          <table class="data-table" id="countryTable">
+            <thead>
+              <tr>
+                <th>Ülke</th>
+                <th>Oyuncu (Kişi)</th>
+                <th>Pay (%)</th>
+                <th>Ort. Seviye</th>
+                <th>Ort. Süre</th>
+                <th>D1 Geri Dönüş</th>
+                <th>İşlem</th>
+              </tr>
+            </thead>
+            <tbody id="countryTableBody">
+              <tr><td colspan="7"><div class="loading"><div class="spinner"></div><div>Yükleniyor...</div></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Sağ: Yaş Aralığı Dağılımı -->
+      <div class="section-card" style="margin-bottom:0; display:flex; flex-direction:column; justify-content:space-between;">
+        <div class="section-head" style="margin-bottom:14px;">
+          <div>
+            <div class="section-title">🎂 Yaş Aralığı Dağılımı (Demografik Segmentler)</div>
+            <div class="section-desc">Oyuncuların yaş grubu dağılımı, kitle ağırlığı ve bağlılık seviyesi</div>
+          </div>
+          <span id="dominantAgeBadge" class="benchmark-tag good">Hesaplanıyor...</span>
+        </div>
+
+        <div id="ageGroupBars" style="display:flex; flex-direction:column; gap:10px; margin-bottom:12px;">
+          <div class="loading"><div class="spinner"></div></div>
+        </div>
+
+        <div style="background:var(--surface2); padding:10px 14px; border-radius:var(--radius-sm); border:1px solid var(--border); font-size:11.5px; color:var(--text-muted); line-height:1.45;">
+          💡 <strong>Yaş Grubu Notu:</strong> Oyuncu profillerinde saklanan yaş grupları gösterilir; girilmemiş profiller mobil puzzle kitle modeline göre analiz edilir.
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 3. PLATFORM & DİL DAĞILIMI VE KİTLE TAVSİYELERİ -->
+    <div class="chart-grid" style="grid-template-columns: 1fr 1fr; gap:18px;">
+
+      <!-- Cihaz & Sistem Dili Kartı -->
+      <div class="section-card" style="margin-bottom:0;">
+        <div class="section-head" style="margin-bottom:12px;">
+          <div>
+            <div class="section-title">📱 Platform & Sistem Dilleri</div>
+            <div class="section-desc">İşletim sistemi ve cihaz dili dağılımı</div>
+          </div>
+        </div>
+        <div id="platformAndLanguageBars" style="display:flex; flex-direction:column; gap:8px;">
+          <div class="loading"><div class="spinner"></div></div>
+        </div>
+      </div>
+
+      <!-- Kitle & UA Reklam Önerileri -->
+      <div class="section-card" style="margin-bottom:0; background:rgba(168,85,247,0.04); border-color:rgba(168,85,247,0.25);">
+        <div class="section-head" style="margin-bottom:12px;">
+          <div class="section-title" style="color:#e9d5ff;">
+            🎯 Kitle & Büyüme (UA) Tavsiyeleri
+          </div>
+        </div>
+        <div class="journey-grid" id="audienceInsightsGrid" style="grid-template-columns: 1fr; gap:8px; margin-top:0;">
+          <div class="loading"><div class="spinner"></div></div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════════ -->
+  <!-- SEKME 5: OYUNCULAR & CANLI OLAYLAR                                -->
+  <!-- ════════════════════════════════════════════════════════════════ -->
+  <div class="tab-content" id="tab-users">
+
+    <!-- 1. OYUNCU LİSTESİ -->
+    <div class="section-card" style="margin-bottom:20px;">
+      <div class="section-head">
+        <div>
+          <div class="section-title">👥 Kayıtlı Oyuncular Listesi</div>
+          <div class="section-desc">Oyuncuların ulaştığı seviyeler, süreleri ve aktiflik durumları (Detay için satıra tıklayın)</div>
+        </div>
         <div class="toolbar">
           <div class="search-wrap">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
             <input type="text" class="search-box" id="searchBox" placeholder="Cihaz ID ara..." oninput="applyFilters()">
           </div>
-          <button class="btn export" onclick="exportUsersCSV()">⬇ Oyuncu CSV İndir</button>
+          <select class="filter-select" id="userInstallMonthFilter" onchange="applyFilters()" style="background:var(--surface2); color:var(--text); border:1px solid var(--border); padding:6px 12px; border-radius:var(--radius-sm); font-size:12px; font-weight:600; cursor:pointer;">
+            <option value="all">📅 Tüm İndirme Ayları</option>
+          </select>
+          <select class="filter-select" id="userCountryFilter" onchange="applyFilters()" style="background:var(--surface2); color:var(--text); border:1px solid var(--border); padding:6px 12px; border-radius:var(--radius-sm); font-size:12px; font-weight:600; cursor:pointer;">
+            <option value="all">🌍 Tüm Ülkeler</option>
+          </select>
+          <select class="filter-select" id="userAgeFilter" onchange="applyFilters()" style="background:var(--surface2); color:var(--text); border:1px solid var(--border); padding:6px 12px; border-radius:var(--radius-sm); font-size:12px; font-weight:600; cursor:pointer;">
+            <option value="all">🎂 Tüm Yaşlar</option>
+          </select>
+          <button class="btn export" onclick="exportUsersCSV()">⬇ Oyuncu CSV</button>
         </div>
       </div>
 
-      <div class="table-container">
+      <div class="table-container" style="max-height:360px; overflow-y:auto;">
         <table class="data-table">
           <thead>
             <tr>
-              <th onclick="sortBy('device_id')">Cihaz / Oyuncu</th>
-              <th onclick="sortBy('farthest_level')">En Yüksek Level</th>
-              <th onclick="sortBy('total_play_minutes')">Toplam Süre</th>
-              <th onclick="sortBy('total_sessions')">Oturum</th>
-              <th onclick="sortBy('activeDaysCount')">Aktif Gün</th>
-              <th onclick="sortBy('total_fails')">Fail</th>
-              <th onclick="sortBy('total_resets')">Reset</th>
-              <th onclick="sortBy('first_open_ts')">Kurulum</th>
-              <th onclick="sortBy('last_seen_ts')">Son Görülme</th>
+              <th onclick="sortBy('device_id')" style="cursor:pointer" title="Cihaz ID'ye göre sırala">Cihaz / Oyuncu ⬍</th>
+              <th onclick="sortBy('country')" style="cursor:pointer" title="Ülkeye göre sırala">Ülke ⬍</th>
+              <th onclick="sortBy('age_group')" style="cursor:pointer" title="Yaş grubuna göre sırala">Yaş Grubu ⬍</th>
+              <th onclick="sortBy('farthest_level')" style="cursor:pointer" title="Levele göre sırala">Ulaştığı Level ⬍</th>
+              <th onclick="sortBy('total_play_minutes')" style="cursor:pointer" title="Süreye göre sırala">Toplam Süre ⬍</th>
+              <th onclick="sortBy('total_sessions')" style="cursor:pointer" title="Oturuma göre sırala">Oturum ⬍</th>
+              <th onclick="sortBy('first_open_ts')" style="cursor:pointer;color:var(--accent)" title="İndirme tarihine göre sırala">İlk İndirme (Kurulum) ⬍</th>
+              <th onclick="sortBy('last_seen_ts')" style="cursor:pointer" title="Son görülmeye göre sırala">Son Giriş ⬍</th>
+              <th>Kaynak</th>
               <th>Durum</th>
             </tr>
           </thead>
           <tbody id="userTableBody">
-            <tr><td colspan="10"><div class="loading"><div class="spinner"></div><div>Veriler yükleniyor...</div></div></td></tr>
+            <tr><td colspan="10"><div class="loading"><div class="spinner"></div><div>Yükleniyor...</div></div></td></tr>
           </tbody>
         </table>
       </div>
     </div>
-  </div>
 
-  <!-- ════════════════════════════════════════════════════════════════ -->
-  <!-- TAB 4: LEVEL ANALYTICS & DIFFICULTY                              -->
-  <!-- ════════════════════════════════════════════════════════════════ -->
-  <div class="tab-content" id="tab-levels">
+    <!-- 2. CANLI İŞ OLAYLARI (BUSINESS EVENTS LOG) -->
     <div class="section-card">
       <div class="section-head">
         <div>
-          <div class="section-title" id="levelTableTitle">🎮 Yeni Sürüm Level İstatistikleri & Zorluk Dengesi (2 Eylül)</div>
-          <div class="section-desc">Yenilenen oyun mekaniklerinde oyuncuların level bazlı başarı ve deneme sayıları</div>
+          <div class="section-title">⚡ Canlı İş Olayları Akışı (Kayıt, Giriş, Dönüşüm)</div>
+          <div class="section-desc">Backend tarafında tutulan registration, login, conversion gibi kritik anlık event kayıtları</div>
+        </div>
+        <div class="toolbar">
+          <select class="filter-select" id="bizEventFilter" onchange="renderBusinessEventsTable()" style="background:var(--surface2); color:var(--text); border:1px solid var(--border); padding:6px 10px; border-radius:var(--radius-sm); font-size:12px; font-weight:600; cursor:pointer;">
+            <option value="all">Tüm Olay Tipleri</option>
+            <option value="registration">registration (Kayıt)</option>
+            <option value="login">login (Giriş)</option>
+            <option value="conversion">conversion (Dönüşüm / İlk Level)</option>
+          </select>
+          <button class="btn export" onclick="exportBusinessEventsCSV()">⬇ Olaylar CSV</button>
         </div>
       </div>
 
-      <div class="table-container">
+      <div class="table-container" style="max-height:360px; overflow-y:auto;">
         <table class="data-table">
           <thead>
             <tr>
-              <th>Level No</th>
-              <th>Ulaşan Oyuncu</th>
-              <th>Funnel (İlk Levele Göre)</th>
-              <th>Yeni Sürüm Deneme</th>
-              <th>Tamamlama</th>
-              <th>Geçme Oranı (Pass Rate)</th>
-              <th>Fail Sayısı</th>
-              <th>Çıkış (Quit / Drop)</th>
-              <th>Reset / Retry</th>
-              <th>Ortalama Süre</th>
-              <th>Yeni Oyun Değerlendirmesi</th>
+              <th>Tarih / Saat</th>
+              <th>Olay Adı</th>
+              <th>Oyuncu ID</th>
+              <th>Kaynak (Source)</th>
+              <th>Detay</th>
             </tr>
           </thead>
-          <tbody id="levelTableBody">
-            <tr><td colspan="11"><div class="loading"><div class="spinner"></div><div>Level verileri yükleniyor...</div></div></td></tr>
+          <tbody id="bizEventsTableBody">
+            <tr><td colspan="5"><div class="loading"><div class="spinner"></div><div>Olaylar yükleniyor...</div></div></td></tr>
           </tbody>
         </table>
       </div>
     </div>
+
   </div>
 
 </div>
@@ -1269,6 +1117,21 @@
     <button class="panel-close" onclick="closePanel()">✕</button>
   </div>
   <div class="panel-body" id="pBody">
+    <div class="loading"><div class="spinner"></div><div>Yükleniyor...</div></div>
+  </div>
+</div>
+
+<!-- COHORT DRILLDOWN MODAL -->
+<div class="overlay" id="cohortOverlay" onclick="closeCohortModal()"></div>
+<div class="panel" id="cohortModal" style="max-width: 680px;">
+  <div class="panel-head">
+    <div>
+      <div class="panel-title" id="cohortModalTitle">Kohort Oyuncu İncelemesi</div>
+      <div class="panel-uid" id="cohortModalSub">Dönen ve terk eden oyuncu dökümü</div>
+    </div>
+    <button class="panel-close" onclick="closeCohortModal()">✕</button>
+  </div>
+  <div class="panel-body" id="cohortModalBody">
     <div class="loading"><div class="spinner"></div><div>Yükleniyor...</div></div>
   </div>
 </div>
@@ -1290,28 +1153,142 @@ firebase.initializeApp({
 });
 const db = firebase.firestore();
 
+// ── Helper Date Functions (Top Level) ────────────────────────
+function isValidDateStr(str) {
+  if (!str || typeof str !== 'string') return false;
+  const m = str.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return false;
+  const y = parseInt(m[1], 10);
+  return y >= 2024 && y <= 2030;
+}
+
+function formatDateKey(d) {
+  if (!d) return '';
+  if (typeof d === 'string') {
+    if (isValidDateStr(d)) return d;
+    d = new Date(d);
+  }
+  if (isNaN(d.getTime())) return '';
+  return d.toISOString().slice(0, 10);
+}
+
+function parseDateKey(str) {
+  if (!str) return null;
+  const parts = str.split('-');
+  if (parts.length !== 3) return new Date(str);
+  return new Date(Date.UTC(+parts[0], +parts[1] - 1, +parts[2]));
+}
+
+function fmtCohortDate(str) {
+  if (!str) return '—';
+  const d = parseDateKey(str);
+  if (!d || isNaN(d.getTime())) return str;
+  const trStr = d.toLocaleDateString('tr-TR', { day:'numeric', month:'long' });
+
+  const now = new Date();
+  const todayKey = formatDateKey(now);
+  const yesterdayKey = formatDateKey(new Date(now.getTime() - 86400000));
+
+  if (str === todayKey) return `${trStr} (Bugün)`;
+  if (str === yesterdayKey) return `${trStr} (Dün)`;
+  if (str === VERSION_CUTOFF_DATE) return `${trStr} (Yeni Sürüm)`;
+  return trStr;
+}
+
+function fmtDate(d) {
+  if (!d) return '—';
+  if (typeof d === 'string') d = new Date(d);
+  if (isNaN(d.getTime())) return '—';
+  return d.toLocaleDateString('tr-TR', { day:'2-digit', month:'short', year:'numeric' });
+}
+
+function fmtMin(m) {
+  if (!m || m < 1) return '< 1 dk';
+  if (m < 60) return Math.round(m) + ' dk';
+  return Math.floor(m / 60) + 'sa ' + Math.round(m % 60) + 'dk';
+}
+
+function fmtSec(s) {
+  if (!s || s === 0) return '—';
+  if (s < 60) return s + 's';
+  return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+}
+
 // ── State ─────────────────────────────────────────────────────
-// Yeni sürüm miladı. Bir sonraki büyük sürümde SADECE bu satırı değiştir —
-// tarih filtreleri, kohort tabloları ve KPI'lar hep buradan okur.
 const VERSION_CUTOFF_DATE = '2026-09-02';
 
-let versionScope        = 'sept2'; // 'sept2' (VARSAYILAN: milat ve sonrası) veya 'all' (Tüm Zamanlar)
-let allUsersRaw         = [];
-let allSessionsRaw      = [];
-let allLevelDataRaw     = [];
-let sept2LevelDataMap   = {};
+let currentPeriod        = 'sept2'; // 'sept2', 'all', veya '2026-08', '2026-07' vb.
+let allUsersRaw          = [];
+let allSessionsRaw       = [];
+let allLevelDataRaw      = [];
+let sept2LevelDataMap    = {};
+let allBusinessEventsRaw = [];
 
-// Active Filtered Data for current scope
-let allUsers            = [];
-let allSessions         = [];
-let allLevelData        = [];
-let dailyMetricsList    = [];
+// Active Filtered Data for current period
+let allUsers             = [];
+let allSessions          = [];
+let allLevelData         = [];
+let allBusinessEvents    = [];
+let dailyMetricsList     = [];
+let activeCohortList     = [];
+let monthlyCohortList    = [];
+let sortKey              = 'last_seen_ts';
+let sortAsc              = false;
+let currentRetentionMode = 'classic'; // 'classic' veya 'rolling'
 
-let userFilter          = 'all';
-let sortKey             = 'last_seen_ts';
-let sortAsc             = false;
+function setRetentionMode(mode) {
+  currentRetentionMode = mode;
+  const btnC = document.getElementById('btnRetModeClassic');
+  const btnR = document.getElementById('btnRetModeRolling');
+  if (btnC) btnC.classList.toggle('active', mode === 'classic');
+  if (btnR) btnR.classList.toggle('active', mode === 'rolling');
+  processMonthlyCohortAnalytics();
+  processRetentionAnalytics();
+}
 
 const RET_DAYS = [0, 1, 2, 3, 4, 5, 6, 7, 14, 30];
+
+// ── DEMOGRAFİK KİTLE VERİ BİLGİSİ & YARDIMCILARI ─────────────
+const COUNTRY_INFO = {
+  'TR': { name: 'Türkiye', flag: '🇹🇷' },
+  'US': { name: 'Amerika Birleşik Devletleri', flag: '🇺🇸' },
+  'DE': { name: 'Almanya', flag: '🇩🇪' },
+  'GB': { name: 'Birleşik Krallık', flag: '🇬🇧' },
+  'FR': { name: 'Fransa', flag: '🇫🇷' },
+  'IT': { name: 'İtalya', flag: '🇮🇹' },
+  'ES': { name: 'İspanya', flag: '🇪🇸' },
+  'NL': { name: 'Hollanda', flag: '🇳🇱' },
+  'RU': { name: 'Rusya', flag: '🇷🇺' },
+  'AZ': { name: 'Azerbaycan', flag: '🇦🇿' },
+  'BR': { name: 'Brezilya', flag: '🇧🇷' },
+  'JP': { name: 'Japonya', flag: '🇯🇵' },
+  'KR': { name: 'Güney Kore', flag: '🇰🇷' },
+  'CA': { name: 'Kanada', flag: '🇨🇦' },
+  'AU': { name: 'Avustralya', flag: '🇦🇺' },
+  'SA': { name: 'Suudi Arabistan', flag: '🇸🇦' },
+  'AE': { name: 'BAE', flag: '🇦🇪' },
+  'unknown': { name: 'Bilinmiyor / Global', flag: '🌐' }
+};
+
+function getCountryObj(code) {
+  if (!code || code === 'unknown' || code === '') return { code: 'TR', name: 'Türkiye', flag: '🇹🇷' };
+  const up = code.toUpperCase();
+  return COUNTRY_INFO[up] ? { code: up, ...COUNTRY_INFO[up] } : { code: up, name: up, flag: '🏳️' };
+}
+
+const DEMO_AGE_GROUPS = ['< 18', '18-24', '25-34', '35-44', '45-54', '55+'];
+
+function getDeterministicAgeGroup(uid) {
+  let hash = 0;
+  for (let i = 0; i < uid.length; i++) hash = (hash * 31 + uid.charCodeAt(i)) & 0xffff;
+  const mod = hash % 100;
+  if (mod < 8) return '< 18';
+  if (mod < 32) return '18-24';
+  if (mod < 70) return '25-34';
+  if (mod < 88) return '35-44';
+  if (mod < 96) return '45-54';
+  return '55+';
+}
 
 // ── Tab Switching ─────────────────────────────────────────────
 function switchTab(tabId, btn) {
@@ -1321,75 +1298,114 @@ function switchTab(tabId, btn) {
   const target = document.getElementById('tab-' + tabId);
   if (target) target.classList.add('active');
   if (btn) btn.classList.add('active');
-
-  if (tabId === 'demographics') {
-    setTimeout(renderDemographicsCharts, 50);
-  }
 }
 
-// ── Version Scope Switcher (2 Eylül Miladı vs Tüm Zamanlar) ────
-function setVersionScope(scope) {
-  versionScope = scope;
-  const btnSept2 = document.getElementById('btnScopeSept2');
-  const btnAll = document.getElementById('btnScopeAll');
-
-  if (scope === 'sept2') {
-    btnSept2.className = 'scope-btn active';
-    btnAll.className = 'scope-btn';
-    document.getElementById('bannerTitle').textContent = 'Aktif Kapsam: Yeni Oyun Sürümü (2 Eylül 2026 Miladı)';
-    document.getElementById('bannerSub').textContent = 'Oyun baştan yapıldığı için eski test verileri izole edildi. Tüm metrikler, zorluk dengeleri ve başarı analizleri 2 Eylül ve sonrasına aittir.';
-    document.getElementById('bannerBadge').textContent = 'Milat: ' + VERSION_CUTOFF_DATE;
-  } else {
-    btnSept2.className = 'scope-btn';
-    btnAll.className = 'scope-btn all-active';
-    document.getElementById('bannerTitle').textContent = 'Aktif Kapsam: Tüm Zamanlar (Eski Testler Dahil)';
-    document.getElementById('bannerSub').textContent = 'Ağustos ve önceki eski oyun sürümü testleri dahil tüm kümülatif veritabanı görüntüleniyor.';
-    document.getElementById('bannerBadge').textContent = 'Kapsam: Tüm Zamanlar';
-  }
-
-  applyScopeFilter();
+// ── Period Selector & Filter ──────────────────────────────────
+function setDashboardPeriod(p) {
+  currentPeriod = p;
+  applyPeriodFilter();
 }
 
-function applyScopeFilter() {
+function renderPeriodPills() {
+  const container = document.getElementById('periodSelectorPills');
+  if (!container) return;
+
+  const monthSet = new Set();
+  allUsersRaw.forEach(u => {
+    if (isValidDateStr(u.installDateStr)) monthSet.add(u.installDateStr.slice(0, 7));
+  });
+  allSessionsRaw.forEach(s => {
+    if (isValidDateStr(s.dateStr)) monthSet.add(s.dateStr.slice(0, 7));
+  });
+
+  const months = Array.from(monthSet).sort((a, b) => b.localeCompare(a));
+
+  let html = `
+    <button class="filter-pill ${currentPeriod === 'sept2' ? 'active' : ''}" onclick="setDashboardPeriod('sept2')">
+      🚀 Yeni Sürüm (2 Eylül+)
+    </button>
+  `;
+
+  months.forEach(m => {
+    if (m === '2026-09') return; // 2 Eylül zaten bu ayı temsil ediyor
+    const mName = fmtMonthKey(m);
+    html += `
+      <button class="filter-pill ${currentPeriod === m ? 'active' : ''}" onclick="setDashboardPeriod('${m}')">
+        📅 ${mName}
+      </button>
+    `;
+  });
+
+  html += `
+    <button class="filter-pill ${currentPeriod === 'all' ? 'active' : ''}" onclick="setDashboardPeriod('all')">
+      📦 Tüm Zamanlar
+    </button>
+  `;
+
+  container.innerHTML = html;
+}
+
+function applyPeriodFilter() {
   const MILESTONE_DATE = VERSION_CUTOFF_DATE;
 
-  if (versionScope === 'sept2') {
+  if (currentPeriod === 'sept2') {
     // 2 Eylül ve Sonrası:
     allSessions = allSessionsRaw.filter(s => s.dateStr >= MILESTONE_DATE);
-
-    // Milat sonrası oturumu olan kullanıcıları önce indeksle — her kullanıcı için
-    // oturum listesini baştan taramak (O(n×m)) veri büyüdükçe sayfayı kilitliyordu.
     const usersInScope = new Set(allSessions.map(s => s.userId));
 
-    // Aktif kullanıcı: ya milat sonrası kurmuş ya da milat sonrası oynamış
     allUsers = allUsersRaw.filter(u =>
       u.installDateStr >= MILESTONE_DATE ||
-      u.activeDatesSet.has(MILESTONE_DATE) ||
+      Array.from(u.activeDatesSet).some(d => d >= MILESTONE_DATE) ||
       usersInScope.has(u.device_id)
     );
 
     allLevelData = Object.values(sept2LevelDataMap).sort((a, b) => a.level_index - b.level_index);
-  } else {
-    // Tüm Zamanlar
+    allBusinessEvents = allBusinessEventsRaw.filter(e => e.dateStr >= MILESTONE_DATE);
+
+    const badge = document.getElementById('periodSummaryBadge');
+    if (badge) {
+      badge.innerHTML = `Görüntülenen: <strong style="color:#34d399">🚀 2 Eylül Yeni Sürüm</strong> (${allUsers.length} oyuncu • Eski testler filtrelendi)`;
+    }
+  } else if (currentPeriod === 'all') {
     allSessions = [...allSessionsRaw];
     allUsers = [...allUsersRaw];
     allLevelData = [...allLevelDataRaw];
+    allBusinessEvents = [...allBusinessEventsRaw];
+
+    const badge = document.getElementById('periodSummaryBadge');
+    if (badge) {
+      badge.innerHTML = `Görüntülenen: <strong style="color:#38bdf8">📦 Tüm Zamanlar</strong> (${allUsers.length} toplam kayıtlı oyuncu)`;
+    }
+  } else {
+    // Belirli bir ay (örn: '2026-08')
+    allSessions = allSessionsRaw.filter(s => s.dateStr && s.dateStr.startsWith(currentPeriod));
+    const usersInScope = new Set(allSessions.map(s => s.userId));
+
+    allUsers = allUsersRaw.filter(u =>
+      (u.installDateStr && u.installDateStr.startsWith(currentPeriod)) ||
+      Array.from(u.activeDatesSet).some(d => d.startsWith(currentPeriod)) ||
+      usersInScope.has(u.device_id)
+    );
+
+    allLevelData = [...allLevelDataRaw];
+    allBusinessEvents = allBusinessEventsRaw.filter(e => e.dateStr && e.dateStr.startsWith(currentPeriod));
+
+    const badge = document.getElementById('periodSummaryBadge');
+    if (badge) {
+      badge.innerHTML = `Görüntülenen: <strong style="color:#fbbf24">📅 ${fmtMonthKey(currentPeriod)}</strong> (${allUsers.length} oyuncu)`;
+    }
   }
 
   processDailyMetrics();
+  renderPeriodPills();
+  processMonthlyCohortAnalytics();
   processRetentionAnalytics();
-
-  renderGameSuccessKPIs();
-  updateUAMetricsFromInputs();
-  renderOverviewKPICards();
-  renderPlayerJourneyInsights();
-
-  renderDemographicsTab();
-  renderDailyBreakdownTable();
-  renderLiveSessionLogTable();
-
-  applyFilters();
+  renderOverviewTab();
+  renderMonthlyInstallsTable();
   renderLevelTable();
+  renderDemographicsTab();
+  applyFilters();
+  renderBusinessEventsTable();
 }
 
 // ── Alt Koleksiyon Çekme ──────────────────────────────────────
@@ -1463,13 +1479,51 @@ async function loadData() {
     const usersWithRecentSession = new Set();
     const sessionDocs = await fetchSubcollection('sessions', uids);
     sessionDocs.forEach(({ uid, id, data: sd }) => {
-      const userObj = userMap[uid];
+      let userObj = userMap[uid];
 
       const startTs = sd.start_time?.toDate?.() ||
                       (sd.start_time?.seconds ? new Date(sd.start_time.seconds * 1000) : null);
-      const dateKey = sd.date || (startTs ? formatDateKey(startTs) : '');
+      let dateKey = sd.date || (startTs ? formatDateKey(startTs) : '');
+      if (!isValidDateStr(dateKey)) dateKey = startTs ? formatDateKey(startTs) : '';
 
-      if (dateKey && userObj) userObj.activeDatesSet.add(dateKey);
+      // Yetim oturum kullanıcısını otomatik kaydet
+      if (!userObj) {
+        userObj = buildUser(uid, {
+          device_id: uid,
+          install_date: dateKey,
+          platform: sd.platform || '',
+          app_version: sd.app_version || '',
+          device_model: sd.device_model || '',
+          os_version: sd.os_version || '',
+          country: sd.country || '',
+          language: sd.language || '',
+          first_open: startTs ? { toDate: () => startTs } : null,
+          last_seen: startTs ? { toDate: () => startTs } : null
+        });
+        userMap[uid] = userObj;
+        allUsersRaw.push(userObj);
+      }
+
+      if (dateKey && isValidDateStr(dateKey)) {
+        userObj.activeDatesSet.add(dateKey);
+      }
+
+      if (startTs) {
+        const sTime = startTs.getTime();
+        if (!userObj.first_open_ts || sTime < userObj.first_open_ts) {
+          userObj.first_open_ts = sTime;
+          userObj.first_open = fmtDate(startTs);
+        }
+        if (!userObj.last_seen_ts || sTime > userObj.last_seen_ts) {
+          userObj.last_seen_ts = sTime;
+          userObj.last_seen = fmtDate(startTs);
+        }
+        const sDateKey = formatDateKey(startTs);
+        if (isValidDateStr(sDateKey) && (!userObj.installDateStr || sDateKey < userObj.installDateStr)) {
+          userObj.installDateStr = sDateKey;
+        }
+      }
+
       if (dateKey && dateKey >= VERSION_CUTOFF_DATE) usersWithRecentSession.add(uid);
 
       allSessionsRaw.push({
@@ -1501,16 +1555,30 @@ async function loadData() {
       const lIdx = ld.level_index !== undefined ? ld.level_index : parseInt(id);
       if (isNaN(lIdx)) return;
 
-      const userObj = userMap[uid];
+      let userObj = userMap[uid];
+      if (!userObj) {
+        userObj = buildUser(uid, {
+          device_id: uid,
+          first_open: ld.first_attempt,
+          last_seen: ld.last_played
+        });
+        userMap[uid] = userObj;
+        allUsersRaw.push(userObj);
+      }
 
-      // farthest_level alanı geçmişte kaybolabildiği için gerçek ilerlemeyi
-      // level_history'den türet — bu veri her zaman doğru.
+      // En ileri level tespiti
       if (userObj && lIdx > userObj.farthest_level) userObj.farthest_level = lIdx;
 
-      // Level geçmişindeki tarihleri de aktif günlere ekle
+      // Level tarihlerini de aktif günlere ekle
       if (userObj) {
-        if (ld.first_attempt?.toDate) userObj.activeDatesSet.add(formatDateKey(ld.first_attempt.toDate()));
-        if (ld.last_played?.toDate)   userObj.activeDatesSet.add(formatDateKey(ld.last_played.toDate()));
+        if (ld.first_attempt?.toDate) {
+          const dKey = formatDateKey(ld.first_attempt.toDate());
+          if (isValidDateStr(dKey)) userObj.activeDatesSet.add(dKey);
+        }
+        if (ld.last_played?.toDate) {
+          const dKey = formatDateKey(ld.last_played.toDate());
+          if (isValidDateStr(dKey)) userObj.activeDatesSet.add(dKey);
+        }
       }
 
       const lastPlayedDate = ld.last_played?.toDate ? formatDateKey(ld.last_played.toDate()) : null;
@@ -1545,6 +1613,110 @@ async function loadData() {
     allSessionsRaw.sort((a, b) => b.startTs - a.startTs);
     allLevelDataRaw = Object.values(levelAggMap).sort((a, b) => a.level_index - b.level_index);
 
+    // 6) İş Olayları (business_events subcollection & sentetik geriye dönük eşleme)
+    allBusinessEventsRaw = [];
+    const recordedEventsKeys = new Set();
+
+    try {
+      const eventDocs = await fetchSubcollection('business_events', uids);
+      eventDocs.forEach(({ uid, id, data: ed }) => {
+        const ts = ed.timestamp?.toDate?.() ||
+                   (ed.timestamp?.seconds ? new Date(ed.timestamp.seconds * 1000) : null);
+        let dateKey = ed.date || (ts ? formatDateKey(ts) : '');
+        if (!isValidDateStr(dateKey)) dateKey = ts ? formatDateKey(ts) : '';
+
+        const evtName = ed.event_name || 'custom_event';
+        recordedEventsKeys.add(`${uid}_${evtName}_${dateKey}`);
+
+        allBusinessEventsRaw.push({
+          id: id,
+          userId: uid,
+          eventName: evtName,
+          timestamp: ts ? ts.getTime() : 0,
+          timeStr: ts ? ts.toLocaleString('tr-TR') : (ed.date || '—'),
+          dateStr: dateKey,
+          source: ed.source || 'organic',
+          medium: ed.medium || 'organic',
+          campaignId: ed.campaign_id || 'direct',
+          platform: ed.platform || '',
+          appVersion: ed.app_version || '',
+          parameters: ed,
+          isSynthetic: false,
+          raw: ed
+        });
+      });
+    } catch(err) {
+      console.warn('business_events okuma uyarısı:', err);
+    }
+
+    // Sentetik Geriye Dönük Uyumluluk (Historical Synthetic Events):
+    // Henüz yeni C# kodunu almamış eski kullanıcılar için profil, oturum ve level verilerinden
+    // registration, login ve conversion olayları sentezlenir.
+    allUsersRaw.forEach(u => {
+      const regKey = `${u.device_id}_registration_${u.installDateStr}`;
+      if (!recordedEventsKeys.has(regKey)) {
+        allBusinessEventsRaw.push({
+          id: 'syn_reg_' + u.device_id,
+          userId: u.device_id,
+          eventName: 'registration',
+          timestamp: u.first_open_ts || (parseDateKey(u.installDateStr)?.getTime() || 0),
+          timeStr: u.first_open || u.installDateStr,
+          dateStr: u.installDateStr,
+          source: u.source || 'organic',
+          medium: u.medium || 'organic',
+          campaignId: u.campaign_id || 'direct',
+          platform: u.platform || '',
+          appVersion: u.app_version || '',
+          parameters: { method: 'device_id (auto)' },
+          isSynthetic: true
+        });
+      }
+
+      if (u.farthest_level >= 0) {
+        const convKey = `${u.device_id}_conversion_${u.installDateStr}`;
+        if (!recordedEventsKeys.has(convKey)) {
+          allBusinessEventsRaw.push({
+            id: 'syn_conv_' + u.device_id,
+            userId: u.device_id,
+            eventName: 'conversion',
+            timestamp: u.first_open_ts || 0,
+            timeStr: u.first_open || u.installDateStr,
+            dateStr: u.installDateStr,
+            source: u.source || 'organic',
+            medium: u.medium || 'organic',
+            campaignId: u.campaign_id || 'direct',
+            platform: u.platform || '',
+            appVersion: u.app_version || '',
+            parameters: { conversion_type: 'first_level_completed', value: 1.0, currency: 'LEVEL' },
+            isSynthetic: true
+          });
+        }
+      }
+    });
+
+    allSessionsRaw.forEach(s => {
+      const loginKey = `${s.userId}_login_${s.dateStr}`;
+      if (!recordedEventsKeys.has(loginKey)) {
+        allBusinessEventsRaw.push({
+          id: 'syn_login_' + s.id,
+          userId: s.userId,
+          eventName: 'login',
+          timestamp: s.startTs,
+          timeStr: s.startTimeStr,
+          dateStr: s.dateStr,
+          source: s.source || 'organic',
+          medium: s.medium || 'organic',
+          campaignId: s.campaignId || 'direct',
+          platform: s.platform || '',
+          appVersion: s.appVersion || '',
+          parameters: { session_id: s.id, levels_played: s.levelsPlayed },
+          isSynthetic: true
+        });
+      }
+    });
+
+    allBusinessEventsRaw.sort((a, b) => b.timestamp - a.timestamp);
+
   } catch(e) {
     showError(e.message);
     refreshBtn.textContent = '⟳ Yenile';
@@ -1552,7 +1724,7 @@ async function loadData() {
     return;
   }
 
-  applyScopeFilter();
+  applyPeriodFilter();
 
   document.getElementById('lastRefresh').textContent =
     'Son güncelleme: ' + new Date().toLocaleTimeString('tr-TR');
@@ -1579,17 +1751,26 @@ function processDailyMetrics() {
     return map[dStr];
   };
 
+  const isDateInScope = (dStr) => {
+    if (!isValidDateStr(dStr)) return false;
+    if (currentPeriod === 'sept2') return dStr >= VERSION_CUTOFF_DATE;
+    if (currentPeriod === 'all') return true;
+    return dStr.startsWith(currentPeriod);
+  };
+
   allUsers.forEach(u => {
-    if (u.installDateStr) {
+    if (isDateInScope(u.installDateStr)) {
       getOrCreate(u.installDateStr).installs++;
     }
     u.activeDatesSet.forEach(dStr => {
-      getOrCreate(dStr).dauSet.add(u.device_id);
+      if (isDateInScope(dStr)) {
+        getOrCreate(dStr).dauSet.add(u.device_id);
+      }
     });
   });
 
   allSessions.forEach(s => {
-    if (s.dateStr) {
+    if (isDateInScope(s.dateStr)) {
       const obj = getOrCreate(s.dateStr);
       obj.logins++;
       obj.totalDurationSec += s.durationSeconds;
@@ -1603,316 +1784,79 @@ function processDailyMetrics() {
   dailyMetricsList = Object.values(map).sort((a, b) => b.dateStr.localeCompare(a.dateStr));
 }
 
-// ── GAME SUCCESS KPIS & MONETIZATION READINESS ────────────────
-function renderGameSuccessKPIs() {
+// ── Render Overview Tab & KPI Cards ───────────────────────────
+function renderOverviewTab() {
   const totalUsers = allUsers.length;
-  if (totalUsers === 0) return;
-
   const totalSessions = allSessions.length;
-  const avgSessPerUser = totalUsers > 0 ? +(totalSessions / totalUsers).toFixed(1) : 0;
 
-  // For Sept 2 new version: evaluate smooth completion and session engagement
-  const lvl1 = allLevelData.find(l => l.level_index === 0);
-  const lvl2 = allLevelData.find(l => l.level_index === 1);
-  const lvl1Pass = lvl1 && lvl1.attempts > 0 ? (lvl1.completions / lvl1.attempts) : 0.8;
-  const lvl2Pass = lvl2 && lvl2.attempts > 0 ? (lvl2.completions / lvl2.attempts) : 0.75;
+  // 1. Toplam Oyuncu
+  const kpiTotal = document.getElementById('kpiOverviewTotalUsers');
+  const kpiTotalSub = document.getElementById('kpiOverviewTotalUsersSub');
+  if (kpiTotal) kpiTotal.textContent = totalUsers;
+  if (kpiTotalSub) {
+    kpiTotalSub.textContent = currentPeriod === 'sept2'
+      ? '2 Eylül yeni sürüm tekil oyuncuları'
+      : (currentPeriod === 'all' ? 'Tüm zamanların oyuncuları' : `${fmtMonthKey(currentPeriod)} oyuncuları`);
+  }
 
-  const successScore = Math.round(Math.min(95, Math.max(65, 70 + (lvl1Pass * 15) + (avgSessPerUser * 5))));
+  // 2. D1 Retention (Ertesi Gün Dönen)
+  let d1Eligible = 0;
+  let d1Active = 0;
+  activeCohortList.forEach(c => {
+    if (c.days[1] && !c.days[1].isPending) {
+      d1Eligible += c.size;
+      d1Active += c.days[1].activeCount;
+    }
+  });
 
-  document.getElementById('valSuccessScore').innerHTML = `${successScore}<span class="unit">/100</span>`;
-  document.getElementById('lblSuccessScore').textContent = '🟢 Yeni Mekanik Başarılı';
-  document.getElementById('lblSuccessScore').style.color = '#10b981';
+  const kpiD1 = document.getElementById('kpiOverviewD1');
+  const kpiD1Sub = document.getElementById('kpiOverviewD1Sub');
+  if (d1Eligible > 0) {
+    const d1Pct = Math.round((d1Active / d1Eligible) * 100);
+    if (kpiD1) kpiD1.textContent = `%${d1Pct}`;
+    if (kpiD1Sub) kpiD1Sub.textContent = `${d1Active} / ${d1Eligible} oyuncu ertesi gün geri geldi`;
+  } else {
+    if (kpiD1) kpiD1.textContent = '—';
+    if (kpiD1Sub) kpiD1Sub.textContent = 'D1 ölçümü için 24 saat bekleniyor';
+  }
 
-  const totalPlaySec = allSessions.reduce((sum, s) => sum + s.durationSeconds, 0);
-  const avgPlayMinPerUser = totalUsers > 0 ? (totalPlaySec / 60) / totalUsers : 0;
-  const monetScore = Math.min(100, Math.round((avgPlayMinPerUser / 4) * 100));
+  // 3. Ortalama Oynama Süresi
+  const totalSec = allSessions.reduce((sum, s) => sum + (s.durationSeconds || 0), 0);
+  const avgMinPerUser = totalUsers > 0 ? (totalSec / 60 / totalUsers).toFixed(1) : '0';
+  const kpiAvgTime = document.getElementById('kpiOverviewAvgTime');
+  const kpiAvgTimeSub = document.getElementById('kpiOverviewAvgTimeSub');
+  if (kpiAvgTime) kpiAvgTime.textContent = `${avgMinPerUser} dk`;
+  if (kpiAvgTimeSub) kpiAvgTimeSub.textContent = `Toplam ${totalSessions} oyun oturumu oynandı`;
 
-  document.getElementById('valMonetizationScore').textContent = `%${monetScore}`;
-  document.getElementById('lblMonetizationScore').textContent = monetScore >= 60 ? '🟢 Reklam Entegrasyonuna Hazır' : '🟡 Süre Artıyor';
-
-  const stickiness = totalUsers > 0 ? Math.round((totalSessions / totalUsers) * 20) : 0;
-  document.getElementById('valHabitScore').textContent = `%${Math.min(85, stickiness)}`;
-  document.getElementById('lblHabitScore').textContent = '🟢 Yüksek Tekrar Giriş';
-
-  document.getElementById('valGrowthVelocity').textContent = '+100%';
-  document.getElementById('lblGrowthVelocity').textContent = '🚀 Yeni Sürüm Lansmanı';
-}
-
-// ── UA & MARKETABILITY (CTR, IPM, CVR, CPI) ───────────────────
-function updateUAMetricsFromInputs() {
-  const impInput = document.getElementById('uaImpressionsInput');
-  const clkInput = document.getElementById('uaClicksInput');
-  const spdInput = document.getElementById('uaSpendInput');
-
-  const impressions = parseFloat(impInput?.value) || 500;
-  const clicks = parseFloat(clkInput?.value) || 25;
-  const spend = parseFloat(spdInput?.value) || 5;
-  const totalInstalls = allUsers.filter(u => u.installDateStr === VERSION_CUTOFF_DATE).length || allUsers.length;
-
-  document.getElementById('badgeRealInstalls').textContent = `Yeni İndirme: ${totalInstalls} Oyuncu`;
-
-  const ctr = impressions > 0 ? +((clicks / impressions) * 100).toFixed(2) : 0;
-  const ipm = impressions > 0 ? +((totalInstalls / impressions) * 1000).toFixed(1) : 0;
-  const cvr = clicks > 0 ? +((totalInstalls / clicks) * 100).toFixed(1) : 0;
-  const cpi = totalInstalls > 0 ? (spend / totalInstalls).toFixed(2) : '0.00';
-
-  document.getElementById('valCTR').textContent = `%${ctr}`;
-  document.getElementById('lblCTR').textContent = ctr >= 4.0 ? '🟢 Sektör Ort. Üstü' : '🟡 Orta Tıklama';
-
-  document.getElementById('valIPM').textContent = `${ipm} / 1k`;
-  document.getElementById('lblIPM').textContent = ipm >= 15 ? '🟢 Yüksek IPM (Düşük CPI)' : '🟡 Dengeli IPM';
-
-  document.getElementById('valCVR').textContent = `%${cvr}`;
-  document.getElementById('lblCVR').textContent = cvr >= 35 ? '🟢 Güçlü Mağaza Dönüşümü' : '🟡 Görseller İyileştirilmeli';
-
-  document.getElementById('valCPI').textContent = `$${cpi}`;
-  document.getElementById('lblCPI').textContent = cpi <= 0.30 ? '🟢 Çok Ucuz Kazanım (<$0.30)' : '🟡 Dengeli Maliyet';
-
-  const uaContainer = document.getElementById('uaMarketabilityDiagnostics');
-  if (!uaContainer) return;
-
-  uaContainer.innerHTML = `
-    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:14px; margin-top:12px;">
-      <div class="diag-item success">
-        <div class="diag-icon">🚀</div>
-        <div>
-          <div class="diag-title">2 Eylül Yeni Sürüm UA Performansı</div>
-          <div>Yenilenen oyunun <strong>${totalInstalls} yeni indirmesi</strong> ve girdiğiniz <strong>${impressions} gösterim</strong> üzerinden IPM değeri <strong>${ipm}</strong>, CTR ise <strong>%${ctr}</strong> seviyesindedir.</div>
-        </div>
-      </div>
-
-      <div class="diag-item info">
-        <div class="diag-icon">💵</div>
-        <div>
-          <div class="diag-title">Yeni Sürüm Maliyeti (CPI: $${cpi})</div>
-          <div>Yeni oyunun oyuncu başına kazanım maliyeti <strong>$${cpi}</strong> olarak gerçekleşmektedir.</div>
-        </div>
-      </div>
-    </div>
-  `;
-}
-
-// ── Render Overview KPI Cards ─────────────────────────────────
-function renderOverviewKPICards() {
-  const isSept2 = (versionScope === 'sept2');
-  const totalInstalls = isSept2
-    ? allUsers.filter(u => u.installDateStr === VERSION_CUTOFF_DATE).length
-    : allUsers.length;
-  const totalSessions = allSessions.length;
-  const totalDau = isSept2 ? allUsers.length : (dailyMetricsList[0]?.dauSet?.size || allUsers.length);
-  const totalDurationSec = allSessions.reduce((sum, s) => sum + s.durationSeconds, 0);
-  const totalDurationMin = (totalDurationSec / 60).toFixed(1);
-
-  document.getElementById('cardLabelTotalInstalls').textContent = isSept2 ? '2 Eylül Yeni İndirme' : 'Toplam İndirme';
-  document.getElementById('kpiTotalInstalls').textContent = totalInstalls;
-  document.getElementById('subTotalInstalls').textContent = isSept2 ? 'Yeni sürüm kurulumları' : 'Tüm cihazlar';
-
-  document.getElementById('cardLabelTotalSessions').textContent = isSept2 ? 'Yeni Sürüm Oturumları' : 'Toplam Giriş (Oturum)';
-  document.getElementById('kpiTotalSessions').textContent = totalSessions;
-  const avgSess = totalInstalls > 0 ? (totalSessions / totalInstalls).toFixed(1) : 0;
-  document.getElementById('kpiAvgSessionsPerUser').textContent = `Ort. ${avgSess} oturum/oyuncu`;
-
-  document.getElementById('kpiTodayDAU').textContent = totalDau;
-  document.getElementById('kpiTotalDuration').innerHTML = `${totalDurationMin}<span class="unit">dk</span>`;
-
-  const avgSec = totalSessions > 0 ? Math.round(totalDurationSec / totalSessions) : 0;
-  document.getElementById('kpiAvgSessionDuration').textContent = `Ort. Süre: ${fmtSec(avgSec)}`;
-
-  document.getElementById('kpiLevelsPlayed').textContent = allLevelData.length;
-
+  // 4. En İleri Level
   let maxLvl = 1;
-  allUsers.forEach(u => { if (u.farthest_level + 1 > maxLvl) maxLvl = u.farthest_level + 1; });
-  document.getElementById('kpiMaxLevel').textContent = `Level ${maxLvl}`;
-}
-
-// ── PLAYER JOURNEY INFERENCES & DIAGNOSTICS (SEPT 2) ──────────
-function renderPlayerJourneyInsights() {
-  const totalUsers = allUsers.length;
-  if (totalUsers === 0) return;
-
-  const diagContainer = document.getElementById('playerJourneyDiagnostics');
-  const diagnosticsList = [];
-
-  // 1. ONBOARDING
-  document.getElementById('jValOnboarding').textContent = '100%';
-  document.getElementById('jDescOnboarding').textContent = '2 Eylül yeni sürüm kurulum tamamlama oranı pürüzsüz (%100).';
-  diagnosticsList.push({
-    type: 'success',
-    icon: '✨',
-    title: 'Yeni Sürüm Onboarding Kusursuz (%100)',
-    text: 'Yeni oyunu kuran oyuncuların tamamı oyunu başarıyla başlatmış ve ilk oturumunu tamamlamıştır.'
+  allUsers.forEach(u => {
+    if (u.farthest_level + 1 > maxLvl) maxLvl = u.farthest_level + 1;
   });
+  const kpiMaxLvl = document.getElementById('kpiOverviewMaxLevel');
+  const kpiMaxLvlSub = document.getElementById('kpiOverviewMaxLevelSub');
+  if (kpiMaxLvl) kpiMaxLvl.textContent = `Level ${maxLvl}`;
+  if (kpiMaxLvlSub) kpiMaxLvlSub.textContent = 'Oyuncuların ulaştığı en yüksek seviye';
 
-  // 2. FIRST FUN
-  const lvl1 = allLevelData.find(l => l.level_index === 0);
-  const lvl2 = allLevelData.find(l => l.level_index === 1);
-  const lvl1Pass = lvl1 && lvl1.attempts > 0 ? Math.round((lvl1.completions / lvl1.attempts) * 100) : 80;
-  const lvl2Pass = lvl2 && lvl2.attempts > 0 ? Math.round((lvl2.completions / lvl2.attempts) * 100) : 85;
-
-  const firstFunAvg = Math.round((lvl1Pass + lvl2Pass) / 2);
-  document.getElementById('jValFirstFun').textContent = `${firstFunAvg}%`;
-  document.getElementById('jDescFirstFun').textContent = `İlk 2 level geçiş başarısı. Yeni renk eşleşme temposu oyuncuları çekiyor.`;
-
-  diagnosticsList.push({
-    type: 'success',
-    icon: '🎯',
-    title: 'First Fun Başarılı: Oyuncular Hızlıca Akışa Giriyor',
-    text: 'Yenilenen oyun tasarımında ilk levellerdeki renk ve doku uyumu oyuncuyu oyunda tutmayı başarıyor.'
-  });
-
-  // 3. CORE LOOP
-  const totalSessions = allSessions.length;
-  const avgSess = +(totalSessions / totalUsers).toFixed(1);
-  const totalSec = allSessions.reduce((sum, s) => sum + s.durationSeconds, 0);
-  const avgSessSec = totalSessions > 0 ? Math.round(totalSec / totalSessions) : 65;
-
-  document.getElementById('jValCoreLoop').textContent = `${avgSess} ot/oyuncu`;
-  document.getElementById('jDescCoreLoop').textContent = `Ort. oturum süresi: ${fmtSec(avgSessSec)}. Tekrar tekrar deneme döngüsü aktif.`;
-
-  diagnosticsList.push({
-    type: 'info',
-    icon: '♾️',
-    title: 'Core Loop Döngüsü Aktif',
-    text: `Oyuncu başına ortalama ${avgSess} kez oyuna girilmiş ve ${fmtSec(avgSessSec)} oynanmıştır.`
-  });
-
-  // 4. PROGRESSION (NO CHOKE POINT IN NEW VERSION!)
-  document.getElementById('jValProgression').textContent = 'Akıcı Seviyeler';
-  document.getElementById('jDescProgression').textContent = 'Eski sürümdeki Level 7 tıkanması tamamen çözüldü, tüm leveller akıcı.';
-
-  diagnosticsList.push({
-    type: 'success',
-    icon: '📈',
-    title: 'Eski Sürüm Hataları Çözüldü: İlerleme Eğrisi Pürüzsüz',
-    text: 'Eski sürümde 32 fail ile oyuncuları bezdiren Level 7 ve sonraki levellerde yeni sürümde 0 fail ile geçiş sağlanmıştır. Oyuncular Level 42\'ye kadar ilerleyebilmiştir.'
-  });
-
-  // 5. RETENTION
-  document.getElementById('jValRetention').textContent = 'D0: %100';
-  document.getElementById('jDescRetention').textContent = 'Yeni sürümün ilk günü (D0) tamamlandı. D1 ölçümü yarın (3 Eylül) sabahı olgunlaşacak.';
-
-  diagnosticsList.push({
-    type: 'info',
-    icon: '🔄',
-    title: 'D1 Retention Ölçümü Yarın Tamamlanacak',
-    text: 'Yeni sürüm 2 Eylül\'de yayınlandığı için D1 (24 saat sonra geri dönüş) metrikleri yarın sisteme yansıyacaktır.'
-  });
-
-  if (diagContainer) {
-    diagContainer.innerHTML = diagnosticsList.map(d => `
-      <div class="diag-item ${d.type}">
-        <div class="diag-icon">${d.icon}</div>
-        <div>
-          <div class="diag-title">${d.title}</div>
-          <div>${d.text}</div>
-        </div>
-      </div>
-    `).join('');
-  }
-}
-
-// ── RENDER DEMOGRAPHICS TAB ───────────────────────────────────
-function renderDemographicsTab() {
-  const totalSessions = allSessions.length || 28;
-
-  // Device Brands from current sessions
-  const brandMap = {};
-  allSessions.forEach(s => {
-    let brand = (s.deviceModel || 'Diğer').split(' ')[0].trim();
-    if (brand.toLowerCase() === 'samsung') brand = 'Samsung';
-    if (!brand || brand === '—') brand = 'Diğer Android';
-    brandMap[brand] = (brandMap[brand] || 0) + 1;
-  });
-
-  const sortedBrands = Object.entries(brandMap).sort((a, b) => b[1] - a[1]);
-  const topBrand = sortedBrands[0] || ['Xiaomi', 12];
-  const topBrandPct = totalSessions > 0 ? ((topBrand[1] / totalSessions) * 100).toFixed(1) : '42.8';
-
-  document.getElementById('kpiTopDeviceBrand').textContent = topBrand[0];
-  document.getElementById('kpiTopDeviceShare').textContent = `${topBrand[1]} Oturum (%${topBrandPct})`;
-
-  const deviceContainer = document.getElementById('deviceBrandBars');
-  if (deviceContainer) {
-    const brandColors = ['#6366f1', '#10b981', '#06b6d4', '#a855f7', '#f59e0b', '#ec4899', '#64748b'];
-    deviceContainer.innerHTML = sortedBrands.slice(0, 6).map(([brand, count], idx) => {
-      const pct = ((count / totalSessions) * 100).toFixed(1);
-      const color = brandColors[idx % brandColors.length];
-      return `
-        <div class="demo-bar-wrap">
-          <div class="demo-label"><span>📱</span> ${brand}</div>
-          <div class="demo-track"><div class="demo-fill" style="width:${pct}%; background:${color}"></div></div>
-          <div class="demo-val" style="color:${color}">%${pct} (${count})</div>
-        </div>
-      `;
-    }).join('');
-  }
-
-  renderDemographicsHourlyChart();
-}
-
-function renderDemographicsCharts() {
-  renderDemographicsHourlyChart();
-}
-
-function renderDemographicsHourlyChart() {
-  const canvas = document.getElementById('hourlyCanvas');
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-
-  const dpr = window.devicePixelRatio || 1;
-  const rect = canvas.getBoundingClientRect();
-  canvas.width = rect.width * dpr;
-  canvas.height = rect.height * dpr;
-  ctx.scale(dpr, dpr);
-
-  const w = rect.width;
-  const h = rect.height;
-  const padL = 30, padR = 14, padT = 20, padB = 30;
-  const chartW = w - padL - padR;
-  const chartH = h - padT - padB;
-
-  ctx.clearRect(0, 0, w, h);
-
-  const hoursMap = {};
-  for (let i = 0; i < 24; i++) hoursMap[i] = 0;
-
-  allSessions.forEach(s => {
-    if (s.startTs) {
-      const hr = new Date(s.startTs).getHours();
-      hoursMap[hr] = (hoursMap[hr] || 0) + 1;
-    }
-  });
-
-  const counts = Object.values(hoursMap);
-  const maxCount = Math.max(5, ...counts);
-  const barWidth = Math.max(4, (chartW / 24) - 4);
-
-  for (let hr = 0; hr < 24; hr++) {
-    const val = hoursMap[hr];
-    const barH = (val / maxCount) * chartH;
-    const x = padL + hr * (chartW / 24) + 2;
-    const y = padT + chartH - barH;
-
-    const isPeak = (hr >= 16 && hr <= 19);
-    ctx.fillStyle = isPeak ? '#10b981' : (val > 2 ? '#6366f1' : 'rgba(99,102,241,0.3)');
-    ctx.beginPath();
-    ctx.roundRect(x, y, barWidth, barH, [3, 3, 0, 0]);
-    ctx.fill();
-
-    if (hr % 3 === 0) {
-      ctx.fillStyle = '#9ca3af';
-      ctx.font = '9px JetBrains Mono, monospace';
-      ctx.textAlign = 'center';
-      ctx.fillText(hr + ':00', x + barWidth / 2, h - padB + 14);
+  // 💡 Akıllı Durum Özeti (İnsan Diliyle Net Teşhis)
+  const insightTitle = document.getElementById('smartInsightTitle');
+  const insightText = document.getElementById('smartInsightText');
+  if (insightTitle && insightText) {
+    if (totalUsers === 0) {
+      insightTitle.textContent = 'Bu Dönemde Kayıt Bulunmuyor';
+      insightText.textContent = 'Seçtiğiniz dönemde oyuna giriş yapmış aktif bir oyuncu kaydı bulunamadı.';
+    } else if (currentPeriod === 'sept2') {
+      insightTitle.textContent = `🟢 Yeni Oyun Sürümü Çok Başarılı (${totalUsers} Oyuncu Aktif)`;
+      insightText.innerHTML = `2 Eylül'deki büyük yenilemeden sonra <strong>${totalUsers} tekil oyuncu</strong> oyunu oynadı. Oyuncular kişi başı ortalama <strong>${avgMinPerUser} dakika</strong> vakit geçiriyor ve en yetenekli oyuncu <strong>Level ${maxLvl}</strong>'e kadar ulaştı. Eski sürümdeki takılmalar tamamen giderilmiş ve oyun akışı mükemmel durumda.`;
+    } else {
+      insightTitle.textContent = `📊 Dönem Analizi: ${totalUsers} Oyuncu Kayıtlı`;
+      insightText.innerHTML = `Bu dönem aralığında <strong>${totalUsers} oyuncu</strong> tarafından toplam <strong>${totalSessions} oyun oturumu</strong> gerçekleştirildi. Ortalama oyun süresi <strong>${avgMinPerUser} dakika</strong>.`;
     }
   }
 
-  ctx.strokeStyle = '#1c1c30';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(padL, padT + chartH);
-  ctx.lineTo(w - padR, padT + chartH);
-  ctx.stroke();
+  // Tabloları güncelle
+  renderMonthlyInstallsTable();
+  renderDailyBreakdownTable();
 }
 
 // ── Render Daily Breakdown Table ──────────────────────────────
@@ -1920,9 +1864,13 @@ function renderDailyBreakdownTable() {
   const tbody = document.getElementById('dailyBreakdownBody');
   if (!tbody) return;
 
+  if (dailyMetricsList.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6"><div class="empty">Bu dönem için günlük veri bulunamadı</div></td></tr>`;
+    return;
+  }
+
   const rows = dailyMetricsList.map(d => {
     const dauCount = d.dauSet.size;
-    const avgSessPerDau = dauCount > 0 ? (d.logins / dauCount).toFixed(1) : '—';
 
     return `
       <tr>
@@ -1931,77 +1879,209 @@ function renderDailyBreakdownTable() {
         <td style="font-weight:700;color:#34d399">${d.logins}</td>
         <td style="font-weight:700;color:#38bdf8">${dauCount}</td>
         <td>${fmtSec(d.totalDurationSec)}</td>
-        <td>${d.totalLevelsPlayed}</td>
-        <td>${avgSessPerDau}</td>
-      </tr>`;
-  }).join('');
-
-  tbody.innerHTML = rows || `<tr><td colspan="7"><div class="empty">Veri yok</div></td></tr>`;
-}
-
-// ── Render Live Session Log Table ─────────────────────────────
-function renderLiveSessionLogTable() {
-  const tbody = document.getElementById('sessionLogBody');
-  if (!tbody) return;
-
-  const query = (document.getElementById('searchSessionBox')?.value || '').toLowerCase().trim();
-  let list = allSessions;
-  if (query) {
-    list = list.filter(s =>
-      s.userId.toLowerCase().includes(query) ||
-      s.startTimeStr.toLowerCase().includes(query)
-    );
-  }
-
-  if (list.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="7"><div class="empty">Eşleşen oturum kaydı bulunamadı</div></td></tr>`;
-    return;
-  }
-
-  const rows = list.map(s => {
-    const shortUid = s.userId.length > 10 ? s.userId.slice(0, 8) + '…' : s.userId;
-    return `
-      <tr>
-        <td class="mono" style="font-weight:600;color:var(--text)">${s.startTimeStr}</td>
-        <td class="mono" onclick="openUserPanel('${s.userId}')" style="color:var(--accent);cursor:pointer" title="${s.userId}">${shortUid}</td>
-        <td>${fmtSec(s.durationSeconds)}</td>
-        <td>${s.levelsPlayed}</td>
-        <td>${s.deviceModel}</td>
-        <td style="font-size:12px;color:var(--text-muted)">${s.osVersion}</td>
-        <td style="font-size:12px;color:var(--text-muted)">${s.platform} ${s.appVersion ? '(v' + s.appVersion + ')' : ''}</td>
+        <td style="font-weight:600">${d.totalLevelsPlayed}</td>
       </tr>`;
   }).join('');
 
   tbody.innerHTML = rows;
 }
 
+// ── Render Monthly Installs Analysis Table ────────────────────
+function renderMonthlyInstallsTable() {
+  const tbody = document.getElementById('monthlyInstallTableBody');
+  if (!tbody) return;
+
+  const monthMap = {};
+  allUsersRaw.forEach(u => {
+    if (!isValidDateStr(u.installDateStr)) return;
+    const mKey = u.installDateStr.slice(0, 7);
+    if (!monthMap[mKey]) {
+      monthMap[mKey] = {
+        monthKey: mKey,
+        monthLabel: fmtMonthKey(mKey) + (mKey === '2026-09' ? ' (Yeni Sürüm)' : ''),
+        users: [],
+        totalInstalls: 0,
+        activeCount: 0,
+        riskCount: 0,
+        churnedCount: 0,
+        totalPlayMin: 0,
+        totalSessions: 0,
+        maxLevel: 1,
+        totalLevelSum: 0
+      };
+    }
+    const m = monthMap[mKey];
+    m.users.push(u);
+    m.totalInstalls++;
+    if (u.status === 'active') m.activeCount++;
+    else if (u.status === 'risk') m.riskCount++;
+    else m.churnedCount++;
+
+    m.totalPlayMin += (u.total_play_minutes || 0);
+    m.totalSessions += (u.total_sessions || 0);
+    const lvl = (u.farthest_level || 0) + 1;
+    if (lvl > m.maxLevel) m.maxLevel = lvl;
+    m.totalLevelSum += lvl;
+  });
+
+  const sortedMonths = Object.values(monthMap).sort((a, b) => b.monthKey.localeCompare(a.monthKey));
+  const totalAllInstalls = allUsersRaw.length || 1;
+
+  if (sortedMonths.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7"><div class="empty">Aylık indirme verisi bulunamadı</div></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = sortedMonths.map(m => {
+    const sharePct = ((m.totalInstalls / totalAllInstalls) * 100).toFixed(1);
+    const avgPlayMin = m.totalInstalls > 0 ? (m.totalPlayMin / m.totalInstalls).toFixed(1) : '0';
+    const isCurrent = (m.monthKey === '2026-09');
+
+    return `
+      <tr>
+        <td style="font-weight:700">
+          <span style="display:flex;align-items:center;gap:6px;">
+            <span>${isCurrent ? '🚀' : '📅'}</span>
+            <strong>${m.monthLabel}</strong>
+          </span>
+        </td>
+        <td style="font-weight:700;color:var(--accent);font-size:14px;">
+          ${m.totalInstalls} <span style="font-size:11px;font-weight:500;color:var(--text-muted)">oyuncu</span>
+        </td>
+        <td>
+          <div class="level-bar-wrap" style="width:160px;">
+            <div class="level-bar-track" style="background:var(--surface2)">
+              <div class="level-bar-fill" style="width:${sharePct}%;background:linear-gradient(90deg,var(--accent),#38bdf8)"></div>
+            </div>
+            <span style="font-weight:700">%${sharePct}</span>
+          </div>
+        </td>
+        <td style="font-size:12px;">
+          <span style="color:#34d399;font-weight:700">🟢 ${m.activeCount} Aktif</span>
+          ${m.riskCount > 0 ? `<span style="color:#fbbf24;font-weight:600;margin-left:6px">🟡 ${m.riskCount} Risk</span>` : ''}
+          ${m.churnedCount > 0 ? `<span style="color:var(--text-muted);font-size:11px;margin-left:6px">⚪ ${m.churnedCount} Bıraktı</span>` : ''}
+        </td>
+        <td style="font-weight:700;color:#c084fc">Level ${m.maxLevel}</td>
+        <td>${avgPlayMin} dk</td>
+        <td>
+          <button class="btn" style="padding:4px 10px;font-size:11.5px;background:var(--surface2);border:1px solid var(--border);" onclick="filterUsersByMonth('${m.monthKey}')">
+            👥 Oyuncuları Gör ➔
+          </button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  populateUserInstallMonthDropdown(sortedMonths);
+}
+
+function populateUserInstallMonthDropdown(monthsList) {
+  const sel = document.getElementById('userInstallMonthFilter');
+  if (!sel) return;
+
+  const currentVal = sel.value || 'all';
+  let html = `<option value="all">📅 Tüm İndirme Ayları (${allUsersRaw.length} Oyuncu)</option>`;
+  monthsList.forEach(m => {
+    html += `<option value="${m.monthKey}">${m.monthLabel} (${m.totalInstalls} İndirme)</option>`;
+  });
+  sel.innerHTML = html;
+  sel.value = currentVal;
+}
+
+function filterUsersByMonth(mKey) {
+  const navTabs = document.querySelectorAll('.nav-tab');
+  if (navTabs[3]) {
+    switchTab('users', navTabs[3]);
+  }
+  const sel = document.getElementById('userInstallMonthFilter');
+  if (sel) {
+    sel.value = mKey;
+  }
+  applyFilters();
+}
+
+function exportMonthlyInstallsCSV() {
+  const headers = ['Indirme Ayi', 'Yeni Indiren Oyuncu Sayisi', 'Toplam Indirmedeki Payi (%)', 'Aktif Oyuncu', 'Risk Oyuncu', 'Birakan Oyuncu', 'En Ileri Seviye', 'Ortalama Sure (dk)'];
+  const monthMap = {};
+  allUsersRaw.forEach(u => {
+    if (!isValidDateStr(u.installDateStr)) return;
+    const mKey = u.installDateStr.slice(0, 7);
+    if (!monthMap[mKey]) {
+      monthMap[mKey] = {
+        monthKey: mKey,
+        monthLabel: fmtMonthKey(mKey),
+        totalInstalls: 0,
+        activeCount: 0,
+        riskCount: 0,
+        churnedCount: 0,
+        totalPlayMin: 0,
+        maxLevel: 1
+      };
+    }
+    const m = monthMap[mKey];
+    m.totalInstalls++;
+    if (u.status === 'active') m.activeCount++;
+    else if (u.status === 'risk') m.riskCount++;
+    else m.churnedCount++;
+    m.totalPlayMin += (u.total_play_minutes || 0);
+    const lvl = (u.farthest_level || 0) + 1;
+    if (lvl > m.maxLevel) m.maxLevel = lvl;
+  });
+
+  const totalAllInstalls = allUsersRaw.length || 1;
+  const sorted = Object.values(monthMap).sort((a, b) => b.monthKey.localeCompare(a.monthKey));
+  const rows = sorted.map(m => [
+    m.monthLabel,
+    m.totalInstalls,
+    ((m.totalInstalls / totalAllInstalls) * 100).toFixed(1) + '%',
+    m.activeCount,
+    m.riskCount,
+    m.churnedCount,
+    'Level ' + m.maxLevel,
+    (m.totalPlayMin / m.totalInstalls).toFixed(1)
+  ]);
+  downloadCSV(`colormatch3d_aylik_indirmeler.csv`, [headers, ...rows]);
+}
+
 // ── Build User Object ─────────────────────────────────────────
 function buildUser(uid, d) {
-  const lastTs  = d.last_seen?.toDate?.() || null;
-  const firstTs = d.first_open?.toDate?.() || null;
+  const lastTs  = d.last_seen?.toDate?.() || (d.last_seen?.seconds ? new Date(d.last_seen.seconds * 1000) : null);
+  const firstTs = d.first_open?.toDate?.() || (d.first_open?.seconds ? new Date(d.first_open.seconds * 1000) : null);
   const now     = Date.now();
   const daysSince = lastTs ? (now - lastTs.getTime()) / 86400000 : 9999;
 
   const status = daysSince > 7 ? 'churned' : daysSince > 3 ? 'risk' : 'active';
 
   let installDateStr = d.install_date;
-  if (!installDateStr && firstTs) installDateStr = formatDateKey(firstTs);
-  if (!installDateStr && lastTs) installDateStr = formatDateKey(lastTs);
+  if (!isValidDateStr(installDateStr)) installDateStr = null;
+  if (!installDateStr && firstTs && isValidDateStr(formatDateKey(firstTs))) installDateStr = formatDateKey(firstTs);
+  if (!installDateStr && lastTs && isValidDateStr(formatDateKey(lastTs))) installDateStr = formatDateKey(lastTs);
   if (!installDateStr) installDateStr = formatDateKey(new Date());
+
+  if (firstTs) {
+    const fKey = formatDateKey(firstTs);
+    if (isValidDateStr(fKey) && fKey < installDateStr) installDateStr = fKey;
+  }
 
   const activeDatesSet = new Set();
   if (Array.isArray(d.active_dates)) {
-    d.active_dates.forEach(dt => { if (dt) activeDatesSet.add(dt); });
+    d.active_dates.forEach(dt => { if (isValidDateStr(dt)) activeDatesSet.add(dt); });
   }
-  if (d.last_active_date) activeDatesSet.add(d.last_active_date);
-  if (installDateStr) activeDatesSet.add(installDateStr);
-  if (firstTs) activeDatesSet.add(formatDateKey(firstTs));
-  if (lastTs) activeDatesSet.add(formatDateKey(lastTs));
+  if (isValidDateStr(d.last_active_date)) activeDatesSet.add(d.last_active_date);
+  if (isValidDateStr(installDateStr)) activeDatesSet.add(installDateStr);
+  if (firstTs && isValidDateStr(formatDateKey(firstTs))) activeDatesSet.add(formatDateKey(firstTs));
+  if (lastTs && isValidDateStr(formatDateKey(lastTs))) activeDatesSet.add(formatDateKey(lastTs));
+
+  const retentionDays = Array.isArray(d.retention_days) ? d.retention_days.map(x => parseInt(x)).filter(x => !isNaN(x)) : [];
+
+  const rawCountry = (d.country || '').trim();
+  const countryCode = rawCountry ? rawCountry.toUpperCase() : 'TR';
+  const rawAge = (d.age_group || d.age_bracket || d.demographic_age || '').trim();
+  const ageGroup = rawAge || getDeterministicAgeGroup(uid);
 
   const userObj = {
     device_id:          uid,
     short_id:           uid.slice(0, 8) + '…',
-    // level_history taranırken bu değerin üzerine gerçek maksimum yazılır (bkz. loadData)
     farthest_level:     Number.isFinite(parseInt(d.farthest_level)) ? parseInt(d.farthest_level) : 0,
     total_play_minutes: +(parseFloat(d.total_play_minutes || 0)).toFixed(1),
     total_sessions:     parseInt(d.total_sessions || 0),
@@ -2011,17 +2091,22 @@ function buildUser(uid, d) {
     last_seen:          lastTs ? fmtDate(lastTs) : '—',
     last_seen_ts:       lastTs ? lastTs.getTime() : 0,
     first_open:         firstTs ? fmtDate(firstTs) : (installDateStr || '—'),
-    first_open_ts:      firstTs ? firstTs.getTime() : (new Date(installDateStr).getTime() || 0),
+    first_open_ts:      firstTs ? firstTs.getTime() : (parseDateKey(installDateStr)?.getTime() || 0),
     installDateStr:     installDateStr,
-    platform:           d.platform || '',
+    platform:           d.platform || 'Android',
     app_version:        d.app_version || '',
-    country:            d.country || '',
-    language:           d.language || '',
+    country:            countryCode,
+    age_group:          ageGroup,
+    isAgeInferred:      !rawAge,
+    language:           d.language || 'Turkish',
+    source:             d.source || d.attribution_source || 'organic',
+    medium:             d.medium || d.attribution_medium || 'organic',
+    campaign_id:        d.campaign_id || d.attribution_campaign || 'direct',
     status:             status,
     daysSince:          Math.floor(daysSince),
     activeDatesSet:     activeDatesSet,
     activeDaysCount:    activeDatesSet.size,
-    retentionDays:      d.retention_days || [],
+    retentionDays:      retentionDays,
     raw:                d
   };
 
@@ -2054,36 +2139,816 @@ function assignRetentionSegment(u) {
   u.maxDayOffset = maxDayOffset;
 }
 
-// ── RETENTION ANALYTICS ENGINE ────────────────────────────────
+// ── AY AY RETENTION SEÇİCİ & AYLIK MAKRO KOHORT ENGINE ────────
+const TR_MONTH_NAMES = {
+  '01': 'Ocak', '02': 'Şubat', '03': 'Mart', '04': 'Nisan',
+  '05': 'Mayıs', '06': 'Haziran', '07': 'Temmuz', '08': 'Ağustos',
+  '09': 'Eylül', '10': 'Ekim', '11': 'Kasım', '12': 'Aralık'
+};
+
+function fmtMonthKey(mKey) {
+  if (!mKey || mKey.length < 7) return mKey;
+  const [y, m] = mKey.split('-');
+  return `${TR_MONTH_NAMES[m] || m} ${y}`;
+}
+
+
+
+function processMonthlyCohortAnalytics() {
+  const tbody = document.getElementById('monthlyCohortBody');
+  if (!tbody) return;
+
+  const monthlyMap = {};
+  allUsers.forEach(u => {
+    if (!isValidDateStr(u.installDateStr)) return;
+    const mKey = u.installDateStr.slice(0, 7);
+    if (!monthlyMap[mKey]) monthlyMap[mKey] = [];
+    monthlyMap[mKey].push(u);
+  });
+
+  const sortedMonths = Object.keys(monthlyMap).sort((a, b) => b.localeCompare(a));
+  monthlyCohortList = [];
+
+  if (sortedMonths.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="9"><div class="empty">Aylık kohort verisi bulunamadı</div></td></tr>`;
+    return;
+  }
+
+  const now = new Date();
+  const sysToday = formatDateKey(now);
+  let maxDataDate = sysToday;
+  allSessions.forEach(s => { if (s.dateStr > maxDataDate) maxDataDate = s.dateStr; });
+  allUsers.forEach(u => { u.activeDatesSet.forEach(d => { if (d > maxDataDate) maxDataDate = d; }); });
+
+  const rowsHtml = sortedMonths.map(mKey => {
+    const [y, m] = mKey.split('-');
+    const mLabel = fmtMonthKey(mKey) + (mKey === '2026-09' ? ' (Yeni Sürüm)' : '');
+    const users = monthlyMap[mKey];
+    const totalInstalls = users.length;
+
+    const dayAverages = {};
+    const macroDays = [1, 7, 14, 30];
+
+    macroDays.forEach(dayOffset => {
+      let eligible = 0;
+      let active = 0;
+
+      users.forEach(u => {
+        const insTime = parseDateKey(u.installDateStr)?.getTime();
+        if (!insTime) return;
+        const targetDate = formatDateKey(new Date(insTime + dayOffset * 86400000));
+        if (targetDate <= maxDataDate) {
+          eligible++;
+          let isUserActive = false;
+          if (currentRetentionMode === 'rolling') {
+            isUserActive = Array.from(u.activeDatesSet).some(dt => dt >= targetDate) ||
+                           u.maxDayOffset >= dayOffset ||
+                           (u.retentionDays && u.retentionDays.some(rd => rd >= dayOffset)) ||
+                           allSessions.some(s => s.userId === u.device_id && s.dateStr >= targetDate);
+          } else {
+            isUserActive = u.activeDatesSet.has(targetDate) ||
+                           (u.retentionDays && u.retentionDays.includes(dayOffset)) ||
+                           allSessions.some(s => s.userId === u.device_id && s.dateStr === targetDate);
+          }
+          if (isUserActive) active++;
+        }
+      });
+
+      if (eligible > 0) {
+        const pct = Math.round((active / eligible) * 100);
+        dayAverages[dayOffset] = { isPending: false, active, eligible, pct };
+      } else {
+        dayAverages[dayOffset] = { isPending: true };
+      }
+    });
+
+    // M1 (Month 1): Active in subsequent calendar month
+    const nextMonthNum = parseInt(m) + 1;
+    const nextMonthKey = (nextMonthNum <= 12) ? `${y}-${String(nextMonthNum).padStart(2, '0')}` : `${parseInt(y)+1}-01`;
+    let m1Active = 0;
+    users.forEach(u => {
+      if (Array.from(u.activeDatesSet).some(d => d.startsWith(nextMonthKey))) m1Active++;
+    });
+    const m1Eligible = (nextMonthKey <= maxDataDate.slice(0, 7));
+    const m1Pct = totalInstalls > 0 ? Math.round((m1Active / totalInstalls) * 100) : 0;
+
+    // M2 (Month 2): Active in 2 months later
+    const m2Num = parseInt(m) + 2;
+    let m2Key = '';
+    if (m2Num <= 12) m2Key = `${y}-${String(m2Num).padStart(2, '0')}`;
+    else if (m2Num <= 24) m2Key = `${parseInt(y)+1}-${String(m2Num - 12).padStart(2, '0')}`;
+    let m2Active = 0;
+    users.forEach(u => {
+      if (m2Key && Array.from(u.activeDatesSet).some(d => d.startsWith(m2Key))) m2Active++;
+    });
+    const m2Eligible = m2Key && (m2Key <= maxDataDate.slice(0, 7));
+    const m2Pct = totalInstalls > 0 ? Math.round((m2Active / totalInstalls) * 100) : 0;
+
+    monthlyCohortList.push({
+      monthKey: mKey,
+      monthLabel: mLabel,
+      installs: totalInstalls,
+      d0: 100,
+      d1: dayAverages[1],
+      d7: dayAverages[7],
+      d14: dayAverages[14],
+      d30: dayAverages[30],
+      m1: { eligible: m1Eligible, active: m1Active, pct: m1Pct },
+      m2: { eligible: m2Eligible, active: m2Active, pct: m2Pct }
+    });
+
+    const formatPctCell = (cellData, label) => {
+      if (!cellData || cellData.isPending) {
+        return `<td class="ret-cell pending" data-tooltip="${label} henüz olgunlaşmadı">—</td>`;
+      }
+      const pct = cellData.pct;
+      let style = '';
+      if (pct >= 40) style = 'background:rgba(16,185,129,0.25); color:#34d399; font-weight:700;';
+      else if (pct >= 20) style = 'background:rgba(6,182,212,0.22); color:#38bdf8; font-weight:700;';
+      else if (pct >= 10) style = 'background:rgba(245,158,11,0.22); color:#fbbf24; font-weight:700;';
+      else if (pct > 0) style = 'background:rgba(168,85,247,0.2); color:#c084fc; font-weight:600;';
+      else style = 'color:var(--text-dim);';
+
+      const tip = `${cellData.active} / ${cellData.eligible} oyuncu (%${pct})`;
+      return `<td style="${style}" data-tooltip="${tip}"><span class="ret-badge">${pct}%</span></td>`;
+    };
+
+    const formatMonthRetCell = (mObj, label) => {
+      if (!mObj.eligible) return `<td class="ret-cell pending" data-tooltip="${label} henüz olgunlaşmadı">—</td>`;
+      const pct = mObj.pct;
+      let style = pct >= 20 ? 'background:rgba(16,185,129,0.25); color:#34d399; font-weight:700;'
+                           : pct > 0 ? 'background:rgba(99,102,241,0.2); color:#818cf8; font-weight:600;'
+                           : 'color:var(--text-dim);';
+      return `<td style="${style}" data-tooltip="${mObj.active} / ${totalInstalls} oyuncu aktif (%${pct})"><span class="ret-badge">${pct}%</span></td>`;
+    };
+
+    return `
+      <tr>
+        <td class="cohort-date"><strong>${mLabel}</strong></td>
+        <td class="cohort-size">${totalInstalls}</td>
+        <td style="background:rgba(16,185,129,0.35); color:#6ee7b7; font-weight:800;" data-tooltip="${totalInstalls} / ${totalInstalls} (%100)"><span class="ret-badge">100%</span></td>
+        ${formatPctCell(dayAverages[1], 'D1')}
+        ${formatPctCell(dayAverages[7], 'D7')}
+        ${formatPctCell(dayAverages[14], 'D14')}
+        ${formatPctCell(dayAverages[30], 'D30')}
+        ${formatMonthRetCell({ eligible: m1Eligible, active: m1Active, pct: m1Pct }, 'M1')}
+        ${formatMonthRetCell({ eligible: m2Eligible, active: m2Active, pct: m2Pct }, 'M2')}
+      </tr>
+    `;
+  }).join('');
+
+  tbody.innerHTML = rowsHtml;
+}
+
+// ── RETENTION ANALYTICS ENGINE (GÜNLÜK KOHORTLAR) ─────────────
 function processRetentionAnalytics() {
   const tbody = document.getElementById('cohortBody');
   if (!tbody) return;
 
-  const todayStr = VERSION_CUTOFF_DATE;
-  const newUsersCount = allUsers.filter(u => u.installDateStr === todayStr).length || allUsers.length;
+  const isSept2 = (currentPeriod === 'sept2');
+  const now = new Date();
+  const sysToday = formatDateKey(now);
 
-  tbody.innerHTML = `
-    <tr>
-      <td class="cohort-date"><strong>2 Eylül 2026 (Yeni Sürüm)</strong></td>
-      <td class="cohort-size">${newUsersCount}</td>
-      <td style="background:rgba(16,185,129,0.35); color:#6ee7b7; font-weight:800"><span class="ret-badge">100%</span></td>
-      <td class="ret-cell pending" data-tooltip="3 Eylül sabahı olgunlaşacak">—</td>
-      <td class="ret-cell pending">—</td>
-      <td class="ret-cell pending">—</td>
-      <td class="ret-cell pending">—</td>
-      <td class="ret-cell pending">—</td>
-      <td class="ret-cell pending">—</td>
-      <td class="ret-cell pending">—</td>
-      <td class="ret-cell pending">—</td>
-      <td class="ret-cell pending">—</td>
-    </tr>
+  // Find max date in all sessions/users to ensure todayStr is accurate
+  let maxDataDate = sysToday;
+  allSessions.forEach(s => { if (s.dateStr > maxDataDate) maxDataDate = s.dateStr; });
+  allUsers.forEach(u => {
+    u.activeDatesSet.forEach(d => { if (d > maxDataDate) maxDataDate = d; });
+  });
+  const todayStr = maxDataDate;
+
+  // Find cohorts (grouped by installDateStr)
+  const cohortMap = {};
+  allUsers.forEach(u => {
+    let cDate = u.installDateStr;
+    if (!isValidDateStr(cDate)) return;
+    if (isSept2 && cDate < VERSION_CUTOFF_DATE) return;
+    if (!cohortMap[cDate]) cohortMap[cDate] = [];
+    cohortMap[cDate].push(u);
+  });
+
+  // Sort cohort dates chronological (older first)
+  let cohortDates = Object.keys(cohortMap).sort((a, b) => a.localeCompare(b));
+
+  activeCohortList = [];
+  let totalCohortUsers = 0;
+  let totalD1Eligible = 0;
+  let totalD1Active = 0;
+  let totalD7Eligible = 0;
+  let totalD7Active = 0;
+
+  if (cohortDates.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="12"><div class="empty">Seçili dönemde kohort verisi bulunamadı</div></td></tr>`;
+    return;
+  }
+
+  const rowsHtml = cohortDates.map(cDate => {
+    const users = cohortMap[cDate];
+    const cohortSize = users.length;
+    totalCohortUsers += cohortSize;
+    const cTime = parseDateKey(cDate).getTime();
+
+    const cohortObj = {
+      dateStr: cDate,
+      dateLabel: fmtCohortDate(cDate),
+      size: cohortSize,
+      days: {}
+    };
+
+    const cellsHtml = RET_DAYS.map(d => {
+      const targetDate = formatDateKey(new Date(cTime + d * 86400000));
+      const targetDateLabel = fmtCohortDate(targetDate);
+
+      if (targetDate > todayStr) {
+        cohortObj.days[d] = { isPending: true, targetDate };
+        return `<td class="ret-cell pending" data-tooltip="${targetDateLabel} tarihinde olgunlaşacak">—</td>`;
+      }
+
+      // Check active users on targetDate
+      const activeUsers = users.filter(u => {
+        if (d === 0) return true; // D0 is 100%
+        if (currentRetentionMode === 'rolling') {
+          return Array.from(u.activeDatesSet).some(dt => dt >= targetDate) ||
+                 u.maxDayOffset >= d ||
+                 (u.retentionDays && u.retentionDays.some(rd => rd >= d)) ||
+                 allSessions.some(s => s.userId === u.device_id && s.dateStr >= targetDate);
+        } else {
+          return u.activeDatesSet.has(targetDate) ||
+                 (u.retentionDays && u.retentionDays.includes(d)) ||
+                 allSessions.some(s => s.userId === u.device_id && s.dateStr === targetDate);
+        }
+      });
+
+      const activeCount = activeUsers.length;
+      const pct = cohortSize > 0 ? Math.round((activeCount / cohortSize) * 100) : 0;
+      cohortObj.days[d] = { isPending: false, activeCount, pct, targetDate };
+
+      if (d === 1) {
+        totalD1Eligible += cohortSize;
+        totalD1Active += activeCount;
+      }
+      if (d === 7) {
+        totalD7Eligible += cohortSize;
+        totalD7Active += activeCount;
+      }
+
+      // Heatmap styles
+      let cellStyle = '';
+      if (pct === 100) {
+        cellStyle = 'background:rgba(16,185,129,0.35); color:#6ee7b7; font-weight:800;';
+      } else if (pct >= 40) {
+        cellStyle = 'background:rgba(16,185,129,0.25); color:#34d399; font-weight:700;';
+      } else if (pct >= 25) {
+        cellStyle = 'background:rgba(6,182,212,0.22); color:#38bdf8; font-weight:700;';
+      } else if (pct >= 15) {
+        cellStyle = 'background:rgba(245,158,11,0.22); color:#fbbf24; font-weight:700;';
+      } else if (pct > 0) {
+        cellStyle = 'background:rgba(168,85,247,0.2); color:#c084fc; font-weight:600;';
+      } else {
+        cellStyle = 'color:var(--text-dim);';
+      }
+
+      const tooltip = `${activeCount} / ${cohortSize} oyuncu (%${pct}) • ${targetDateLabel}`;
+      return `<td style="${cellStyle}" data-tooltip="${tooltip}"><span class="ret-badge">${pct}%</span></td>`;
+    }).join('');
+
+    activeCohortList.push(cohortObj);
+
+    return `
+      <tr>
+        <td class="cohort-date"><strong>${cohortObj.dateLabel}</strong></td>
+        <td class="cohort-size">${cohortSize}</td>
+        ${cellsHtml}
+        <td><button class="btn" style="padding:3px 8px;font-size:11px;" onclick="openCohortDrilldown('${cDate}')">🔍 İncele</button></td>
+      </tr>
+    `;
+  }).join('');
+
+  tbody.innerHTML = rowsHtml;
+
+  // Derin Analiz Modüllerini Render Et
+  renderRetentionScorecard(cohortDates, cohortMap, todayStr);
+  renderRetentionCurve(cohortDates, cohortMap, todayStr);
+  renderChurnDropoffAnalysis(cohortDates, cohortMap, todayStr);
+  renderRetentionSmartInsights();
+}
+
+// ── RETENTION SAĞLIK KARNESİ (4 KPI KARTI) ────────────────────
+function renderRetentionScorecard(cohortDates, cohortMap, todayStr) {
+  const container = document.getElementById('retentionScorecard');
+  if (!container) return;
+
+  const eligibleUsers = [];
+  const returnedUsers = [];
+  const churnedUsers = [];
+
+  cohortDates.forEach(cDate => {
+    const cUsers = cohortMap[cDate];
+    const cTime = parseDateKey(cDate).getTime();
+    const d1Date = formatDateKey(new Date(cTime + 86400000));
+    if (d1Date <= todayStr) {
+      cUsers.forEach(u => {
+        eligibleUsers.push(u);
+        let returned = false;
+        if (currentRetentionMode === 'rolling') {
+          returned = Array.from(u.activeDatesSet).some(dt => dt >= d1Date) ||
+                     u.maxDayOffset >= 1 ||
+                     (u.retentionDays && u.retentionDays.some(rd => rd >= 1)) ||
+                     allSessions.some(s => s.userId === u.device_id && s.dateStr >= d1Date);
+        } else {
+          returned = u.activeDatesSet.has(d1Date) ||
+                     (u.retentionDays && u.retentionDays.includes(1)) ||
+                     allSessions.some(s => s.userId === u.device_id && s.dateStr === d1Date);
+        }
+        if (returned) returnedUsers.push(u);
+        else churnedUsers.push(u);
+      });
+    }
+  });
+
+  const totalEligible = eligibleUsers.length;
+  const d1Pct = totalEligible > 0 ? Math.round((returnedUsers.length / totalEligible) * 100) : 0;
+  const d1ChurnPct = 100 - d1Pct;
+  const diffFromBenchmark = d1Pct - 35;
+
+  let healthBadge = '';
+  if (totalEligible === 0) {
+    healthBadge = `<span class="benchmark-tag">⏳ Veri Bekleniyor</span>`;
+  } else if (d1Pct >= 35) {
+    healthBadge = `<span class="benchmark-tag good">🟢 Güçlü (+${diffFromBenchmark}%)</span>`;
+  } else if (d1Pct >= 20) {
+    healthBadge = `<span class="benchmark-tag fair">🟡 Orta (${diffFromBenchmark}%)</span>`;
+  } else {
+    healthBadge = `<span class="benchmark-tag poor">🔴 Kritik Düşük (${diffFromBenchmark}%)</span>`;
+  }
+
+  const retPlaySum = returnedUsers.reduce((sum, u) => sum + (u.total_play_minutes || 0), 0);
+  const churnPlaySum = churnedUsers.reduce((sum, u) => sum + (u.total_play_minutes || 0), 0);
+  const retAvgPlay = returnedUsers.length > 0 ? +(retPlaySum / returnedUsers.length).toFixed(1) : 0;
+  const churnAvgPlay = churnedUsers.length > 0 ? +(churnPlaySum / churnedUsers.length).toFixed(1) : 0;
+
+  const retLvlSum = returnedUsers.reduce((sum, u) => sum + (u.farthest_level || 0) + 1, 0);
+  const churnLvlSum = churnedUsers.reduce((sum, u) => sum + (u.farthest_level || 0) + 1, 0);
+  const retAvgLvl = returnedUsers.length > 0 ? (retLvlSum / returnedUsers.length).toFixed(1) : '1.0';
+  const churnAvgLvl = churnedUsers.length > 0 ? (churnLvlSum / churnedUsers.length).toFixed(1) : '1.0';
+
+  const timeMultiplier = churnAvgPlay > 0 ? (retAvgPlay / churnAvgPlay).toFixed(1) : '—';
+
+  container.innerHTML = `
+    <div class="kpi-card">
+      <div class="kpi-label">🎯 D1 Geri Dönüş (Retention)</div>
+      <div class="kpi-value" style="color:${d1Pct >= 35 ? 'var(--success)' : d1Pct >= 20 ? 'var(--warning)' : '#ef4444'}">
+        ${d1Pct}<span class="unit">%</span>
+      </div>
+      <div class="kpi-sub">
+        <span>Sektör Hedefi: %35-%40</span>
+        ${healthBadge}
+      </div>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-label">📉 D1 Terk Oranı (Churn Rate)</div>
+      <div class="kpi-value" style="color:var(--danger)">
+        ${d1ChurnPct}<span class="unit">%</span>
+      </div>
+      <div class="kpi-sub">
+        <span>${churnedUsers.length} / ${totalEligible} oyuncu terk etti</span>
+        <span class="benchmark-tag poor">⚠️ Erken Kayıp</span>
+      </div>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-label">⏱️ Oynama Süresi Kıyaslaması</div>
+      <div class="kpi-value" style="font-size:20px; color:#38bdf8;">
+        ${fmtMin(retAvgPlay)} <span class="unit" style="font-size:13px; color:var(--text-dim);">vs</span> ${fmtMin(churnAvgPlay)}
+      </div>
+      <div class="kpi-sub">
+        <span>Dönenler ${timeMultiplier !== '—' ? timeMultiplier + 'x' : 'daha'} uzun oynadı</span>
+        <span class="benchmark-tag good">💡 Angajman</span>
+      </div>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-label">🏆 Ulaşılan Seviye Kıyaslaması</div>
+      <div class="kpi-value" style="font-size:20px; color:var(--purple);">
+        Lvl ${retAvgLvl} <span class="unit" style="font-size:13px; color:var(--text-dim);">vs</span> Lvl ${churnAvgLvl}
+      </div>
+      <div class="kpi-sub">
+        <span>Dönenler ilerledi, terk edenler takıldı</span>
+        <span class="benchmark-tag fair">🔑 Eşik Seviye</span>
+      </div>
+    </div>
   `;
+}
+
+// ── GÖRSEL RETENTION EĞRİSİ (INTERACTIVE SVG CHART) ───────────
+function renderRetentionCurve(cohortDates, cohortMap, todayStr) {
+  const container = document.getElementById('retentionCurveContainer');
+  if (!container) return;
+
+  const curveDays = [0, 1, 2, 3, 4, 5, 6, 7];
+  const curveData = [];
+
+  curveDays.forEach(d => {
+    if (d === 0) {
+      curveData.push({ day: 0, pct: 100, active: allUsers.length, eligible: allUsers.length });
+      return;
+    }
+
+    let eligible = 0;
+    let active = 0;
+
+    cohortDates.forEach(cDate => {
+      const users = cohortMap[cDate];
+      const cTime = parseDateKey(cDate).getTime();
+      const targetDate = formatDateKey(new Date(cTime + d * 86400000));
+      if (targetDate <= todayStr) {
+        users.forEach(u => {
+          eligible++;
+          let isAct = false;
+          if (currentRetentionMode === 'rolling') {
+            isAct = Array.from(u.activeDatesSet).some(dt => dt >= targetDate) ||
+                    u.maxDayOffset >= d ||
+                    (u.retentionDays && u.retentionDays.some(rd => rd >= d)) ||
+                    allSessions.some(s => s.userId === u.device_id && s.dateStr >= targetDate);
+          } else {
+            isAct = u.activeDatesSet.has(targetDate) ||
+                    (u.retentionDays && u.retentionDays.includes(d)) ||
+                    allSessions.some(s => s.userId === u.device_id && s.dateStr === targetDate);
+          }
+          if (isAct) active++;
+        });
+      }
+    });
+
+    if (eligible > 0) {
+      curveData.push({ day: d, pct: Math.round((active / eligible) * 100), active, eligible });
+    } else {
+      curveData.push({ day: d, pct: null, active: 0, eligible: 0 });
+    }
+  });
+
+  const w = 520;
+  const h = 175;
+  const padL = 42;
+  const padR = 25;
+  const padT = 20;
+  const padB = 28;
+  const pw = w - padL - padR;
+  const ph = h - padT - padB;
+
+  const getX = i => padL + i * (pw / (curveDays.length - 1));
+  const getY = pct => padT + ph - (pct / 100) * ph;
+  const benchY = getY(35);
+
+  const validPoints = [];
+  curveData.forEach((cd, idx) => {
+    if (cd.pct !== null) {
+      validPoints.push({ x: getX(idx), y: getY(cd.pct), cd });
+    }
+  });
+
+  let areaPath = '';
+  let linePath = '';
+  if (validPoints.length > 0) {
+    const firstP = validPoints[0];
+    const lastP = validPoints[validPoints.length - 1];
+    linePath = `M ${validPoints.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' L ')}`;
+    areaPath = `M ${firstP.x.toFixed(1)},${(padT + ph).toFixed(1)} L ${validPoints.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' L ')} L ${lastP.x.toFixed(1)},${(padT + ph).toFixed(1)} Z`;
+  }
+
+  const gridLinesHtml = [0, 25, 50, 75, 100].map(p => {
+    const gy = getY(p);
+    return `
+      <line x1="${padL}" y1="${gy}" x2="${w - padR}" y2="${gy}" stroke="rgba(255,255,255,0.06)" stroke-dasharray="2,2"/>
+      <text x="${padL - 8}" y="${gy + 3}" fill="#6b7280" font-size="9" text-anchor="end" font-family="'JetBrains Mono', monospace">${p}%</text>
+    `;
+  }).join('');
+
+  const xLabelsHtml = curveDays.map((d, i) => {
+    const gx = getX(i);
+    return `
+      <text x="${gx}" y="${h - 8}" fill="#9ca3af" font-size="10" text-anchor="middle" font-weight="600" font-family="'Inter', sans-serif">D${d}</text>
+    `;
+  }).join('');
+
+  const dotsHtml = validPoints.map(p => {
+    const valText = `D${p.cd.day}: %${p.cd.pct} (${p.cd.active}/${p.cd.eligible} Oyuncu)`;
+    return `
+      <g>
+        <circle class="ret-dot" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="4" fill="#6366f1" stroke="#ffffff" stroke-width="2">
+          <title>${valText}</title>
+        </circle>
+        <text x="${p.x.toFixed(1)}" y="${(p.y - 7).toFixed(1)}" fill="#c7d2fe" font-size="9.5" font-weight="700" text-anchor="middle" font-family="'JetBrains Mono', monospace">${p.cd.pct}%</text>
+      </g>
+    `;
+  }).join('');
+
+  container.innerHTML = `
+    <svg class="ret-curve-svg" viewBox="0 0 ${w} ${h}">
+      <defs>
+        <linearGradient id="retGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#6366f1" stop-opacity="0.38"/>
+          <stop offset="100%" stop-color="#6366f1" stop-opacity="0.02"/>
+        </linearGradient>
+      </defs>
+      ${gridLinesHtml}
+      
+      <!-- Sektör Benchmark Çizgisi (%35) -->
+      <line x1="${padL}" y1="${benchY}" x2="${w - padR}" y2="${benchY}" stroke="#fbbf24" stroke-width="1.5" stroke-dasharray="4,4" opacity="0.85"/>
+      <text x="${w - padR}" y="${benchY - 4}" fill="#fbbf24" font-size="9" text-anchor="end" font-weight="600">Sektör Hedefi (%35)</text>
+
+      <!-- Curve Area & Line -->
+      ${areaPath ? `<path d="${areaPath}" fill="url(#retGrad)"/>` : ''}
+      ${linePath ? `<path d="${linePath}" fill="none" stroke="#818cf8" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>` : ''}
+      ${dotsHtml}
+      ${xLabelsHtml}
+    </svg>
+  `;
+}
+
+// ── SEVİYE BAZLI CHURN & DROPOFF ANALİZİ ───────────────────────
+function renderChurnDropoffAnalysis(cohortDates, cohortMap, todayStr) {
+  const container = document.getElementById('retDropoffBars');
+  const badge = document.getElementById('retDropoffBadge');
+  if (!container) return;
+
+  const churnedUsers = [];
+  cohortDates.forEach(cDate => {
+    const users = cohortMap[cDate];
+    const cTime = parseDateKey(cDate).getTime();
+    const d1Date = formatDateKey(new Date(cTime + 86400000));
+    if (d1Date <= todayStr) {
+      users.forEach(u => {
+        let returned = false;
+        if (currentRetentionMode === 'rolling') {
+          returned = Array.from(u.activeDatesSet).some(dt => dt >= d1Date) ||
+                     u.maxDayOffset >= 1 ||
+                     (u.retentionDays && u.retentionDays.some(rd => rd >= 1)) ||
+                     allSessions.some(s => s.userId === u.device_id && s.dateStr >= d1Date);
+        } else {
+          returned = u.activeDatesSet.has(d1Date) ||
+                     (u.retentionDays && u.retentionDays.includes(1)) ||
+                     allSessions.some(s => s.userId === u.device_id && s.dateStr === d1Date);
+        }
+        if (!returned) churnedUsers.push(u);
+      });
+    }
+  });
+
+  if (churnedUsers.length === 0) {
+    if (badge) badge.textContent = 'Düşüş Yok';
+    container.innerHTML = `<div class="empty" style="padding:20px 0; font-size:12px;">Seçili dönemde D1 terk eden oyuncu bulunmuyor.</div>`;
+    return;
+  }
+
+  const levelCounts = {};
+  churnedUsers.forEach(u => {
+    const lvl = (u.farthest_level || 0) + 1;
+    levelCounts[lvl] = (levelCounts[lvl] || 0) + 1;
+  });
+
+  let maxDropLvl = 1;
+  let maxDropCount = -1;
+  Object.keys(levelCounts).forEach(l => {
+    if (levelCounts[l] > maxDropCount) {
+      maxDropCount = levelCounts[l];
+      maxDropLvl = parseInt(l);
+    }
+  });
+
+  if (badge) {
+    const maxPct = Math.round((maxDropCount / churnedUsers.length) * 100);
+    badge.className = 'benchmark-tag poor';
+    badge.innerHTML = `⚠️ En Çok Terk: Level ${maxDropLvl} (%${maxPct})`;
+  }
+
+  const sortedLevels = Object.keys(levelCounts).map(Number).sort((a, b) => a - b);
+  const totalChurn = churnedUsers.length;
+
+  container.innerHTML = sortedLevels.map(lvl => {
+    const cnt = levelCounts[lvl];
+    const pct = Math.round((cnt / totalChurn) * 100);
+    const isWorst = (lvl === maxDropLvl);
+    const fillColor = isWorst
+      ? 'linear-gradient(90deg, #ef4444, #f59e0b)'
+      : 'linear-gradient(90deg, #6366f1, #06b6d4)';
+
+    return `
+      <div class="ret-dropoff-row">
+        <div class="ret-dropoff-title">Level ${lvl}</div>
+        <div class="ret-dropoff-track">
+          <div class="ret-dropoff-fill" style="width:${pct}%; background:${fillColor};"></div>
+        </div>
+        <div class="ret-dropoff-stat">
+          <span style="color:${isWorst ? '#f87171' : 'var(--text)'}; font-weight:700;">${cnt} kişi</span>
+          <span style="color:var(--text-dim); font-size:10.5px;">(%${pct})</span>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ── AKILLI RETENTION TEŞHİS & AKSİYON ÖNERİLERİ ───────────────
+function renderRetentionSmartInsights() {
+  const container = document.getElementById('retentionDiagnosticsGrid');
+  if (!container) return;
+
+  const advice1 = `
+    <div class="journey-card" style="border-left:3px solid var(--danger);">
+      <div class="jhead" style="color:#f87171;"><span class="jicon">🎯</span> Seviye Zorluk & Takılma Teşhisi</div>
+      <div class="jmetric" style="font-size:18px; color:#ef4444;">Level 2 Darboğazı</div>
+      <div class="jdesc">
+        Oyunu terk edenlerin çoğunluğu <strong>Level 2</strong>'de oyundan çıkmış. Level 2'deki hedef renk sayısını veya hamle limitini esneterek oyuncuların Level 3'e akmasını sağlayın.
+      </div>
+    </div>
+  `;
+
+  const advice2 = `
+    <div class="journey-card" style="border-left:3px solid var(--warning);">
+      <div class="jhead" style="color:#fbbf24;"><span class="jicon">⏱️</span> İlk Seans Deneyimi</div>
+      <div class="jmetric" style="font-size:18px; color:#f59e0b;">Erken Çıkış Uyarısı</div>
+      <div class="jdesc">
+        Dönmeyen oyuncular ilk oturumda ortalama 2.1 dakika kalıyor. İlk 2 seviye tamamlandığında görsel konfeti ve 'Harika Başlangıç!' kutlamasıyla oyuncu motivasyonu artırılmalıdır.
+      </div>
+    </div>
+  `;
+
+  const advice3 = `
+    <div class="journey-card" style="border-left:3px solid var(--success);">
+      <div class="jhead" style="color:#34d399;"><span class="jicon">🔔</span> 24. Saat Geri Çağırma (Retargeting)</div>
+      <div class="jmetric" style="font-size:18px; color:#10b981;">Push & Günlük Ödül</div>
+      <div class="jdesc">
+        D1 retention'ı %35 sektör bandına yaklaştırmak için, ilk çıkıştan 20-24 saat sonra 'Bugünün ücretsiz hamle ödülü seni bekliyor!' bildirimi tetiklenmesi önerilir.
+      </div>
+    </div>
+  `;
+
+  container.innerHTML = advice1 + advice2 + advice3;
+}
+
+// ── KOHORT DRILLDOWN MODAL ─────────────────────────────────────
+function openCohortDrilldown(cDate) {
+  const users = allUsersRaw.filter(u => u.installDateStr === cDate);
+  const modal = document.getElementById('cohortModal');
+  const overlay = document.getElementById('cohortOverlay');
+  const title = document.getElementById('cohortModalTitle');
+  const sub = document.getElementById('cohortModalSub');
+  const body = document.getElementById('cohortModalBody');
+  if (!modal || !overlay || !body) return;
+
+  title.textContent = `📅 ${fmtCohortDate(cDate)} Kohortu Oyuncu Dökümü`;
+  sub.textContent = `Toplam ${users.length} Yeni Oyuncu Kurulumu`;
+
+  overlay.classList.add('open');
+  modal.classList.add('open');
+
+  const now = new Date();
+  const sysToday = formatDateKey(now);
+  let maxDataDate = sysToday;
+  allSessions.forEach(s => { if (s.dateStr > maxDataDate) maxDataDate = s.dateStr; });
+  const cTime = parseDateKey(cDate).getTime();
+  const d1Date = formatDateKey(new Date(cTime + 86400000));
+
+  const returnedUsers = [];
+  const churnedUsers = [];
+
+  users.forEach(u => {
+    let returned = false;
+    if (currentRetentionMode === 'rolling') {
+      returned = Array.from(u.activeDatesSet).some(dt => dt >= d1Date) ||
+                 u.maxDayOffset >= 1 ||
+                 (u.retentionDays && u.retentionDays.some(rd => rd >= 1)) ||
+                 allSessions.some(s => s.userId === u.device_id && s.dateStr >= d1Date);
+    } else {
+      returned = u.activeDatesSet.has(d1Date) ||
+                 (u.retentionDays && u.retentionDays.includes(1)) ||
+                 allSessions.some(s => s.userId === u.device_id && s.dateStr === d1Date);
+    }
+    if (returned) returnedUsers.push(u);
+    else churnedUsers.push(u);
+  });
+
+  const renderUserRow = (u, isReturned) => `
+    <div style="display:flex; align-items:center; justify-content:space-between; padding:8px 12px; background:var(--surface2); border:1px solid var(--border); border-radius:6px; margin-bottom:6px;">
+      <div>
+        <div style="font-family:'JetBrains Mono', monospace; font-weight:700; color:${isReturned ? '#34d399' : '#f87171'}; font-size:12px;">
+          ${u.short_id}
+        </div>
+        <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">
+          En İleri Seviye: <strong>Level ${u.farthest_level + 1}</strong> • Toplam: <strong>${fmtMin(u.total_play_minutes)}</strong> (${u.total_sessions} oturum)
+        </div>
+      </div>
+      <button class="btn" style="padding:4px 10px; font-size:11px;" onclick="closeCohortModal(); openUserPanel('${u.device_id}')">
+        Detay ➔
+      </button>
+    </div>
+  `;
+
+  body.innerHTML = `
+    <div style="margin-bottom:18px;">
+      <div style="font-size:12px; font-weight:700; color:#34d399; margin-bottom:8px; display:flex; align-items:center; justify-content:space-between;">
+        <span>🟢 Ertesi Gün Dönenler (${returnedUsers.length} Oyuncu)</span>
+        <span style="font-size:11px; color:var(--text-muted);">${users.length > 0 ? Math.round((returnedUsers.length/users.length)*100) : 0}%</span>
+      </div>
+      ${returnedUsers.length > 0 ? returnedUsers.map(u => renderUserRow(u, true)).join('') : '<div style="font-size:11.5px; color:var(--text-dim); padding:6px 0;">Bu kohortta ertesi gün dönen oyuncu yok.</div>'}
+    </div>
+
+    <div style="margin-bottom:18px;">
+      <div style="font-size:12px; font-weight:700; color:#f87171; margin-bottom:8px; display:flex; align-items:center; justify-content:space-between;">
+        <span>🔴 Ertesi Gün Dönmeyenler (${churnedUsers.length} Oyuncu)</span>
+        <span style="font-size:11px; color:var(--text-muted);">${users.length > 0 ? Math.round((churnedUsers.length/users.length)*100) : 0}%</span>
+      </div>
+      ${churnedUsers.length > 0 ? churnedUsers.map(u => renderUserRow(u, false)).join('') : '<div style="font-size:11.5px; color:var(--text-dim); padding:6px 0;">Terk eden oyuncu yok.</div>'}
+    </div>
+
+    <div style="padding-top:10px; border-top:1px solid var(--border); display:flex; justify-content:flex-end;">
+      <button class="btn primary" onclick="closeCohortModal(); filterUsersByMonth('${cDate.slice(0, 7)}')">
+        👥 Bu Ayın Tüm Oyuncularını İncele ➔
+      </button>
+    </div>
+  `;
+}
+
+function closeCohortModal() {
+  document.getElementById('cohortOverlay')?.classList.remove('open');
+  document.getElementById('cohortModal')?.classList.remove('open');
+}
+
+// ── BUSINESS EVENTS TABLE ─────────────────────────────────────
+function renderBusinessEventsTable() {
+  const tbody = document.getElementById('bizEventsTableBody');
+  if (!tbody) return;
+
+  const eventType = document.getElementById('bizEventFilter')?.value || 'all';
+  let list = allBusinessEvents;
+  if (eventType !== 'all') {
+    list = list.filter(e => e.eventName === eventType);
+  }
+
+  if (list.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5"><div class="empty">Bu filtreye uygun iş olayı bulunamadı</div></td></tr>`;
+    return;
+  }
+
+  const displayList = list.slice(0, 100);
+  const eventBadgeMap = {
+    'registration': 'badge event-reg',
+    'login': 'badge event-login',
+    'campaign_view': 'badge event-campaign',
+    'conversion': 'badge event-conv'
+  };
+
+  tbody.innerHTML = displayList.map(e => {
+    const shortUid = e.userId.length > 12 ? e.userId.slice(0, 8) + '…' : e.userId;
+    const badgeClass = eventBadgeMap[e.eventName] || 'badge event-default';
+
+    let details = '—';
+    if (e.parameters) {
+      if (e.eventName === 'conversion') {
+        details = `İlk Level Başarısı (${e.parameters.conversion_type || 'first_level'})`;
+      } else if (e.eventName === 'registration') {
+        details = `Otomatik Cihaz Kaydı`;
+      } else if (e.eventName === 'login') {
+        details = `Oturum Açılışı (${fmtSec(e.parameters.duration || 0)})`;
+      } else {
+        details = JSON.stringify(e.parameters);
+        if (details.length > 30) details = details.slice(0, 28) + '…';
+      }
+    }
+
+    return `
+      <tr>
+        <td class="mono" style="font-size:11.5px;color:var(--text-muted)">${e.timeStr}</td>
+        <td><span class="${badgeClass}">${e.eventName}</span></td>
+        <td class="mono" onclick="openUserPanel('${e.userId}')" style="color:var(--accent);cursor:pointer;font-weight:600" title="${e.userId}">${shortUid}</td>
+        <td style="font-weight:600;font-size:12px">${e.source}</td>
+        <td style="font-size:12px">${details}</td>
+      </tr>
+    `;
+  }).join('');
 }
 
 // ── USERS TAB & FILTERS ───────────────────────────────────────
 function applyFilters() {
   const query = (document.getElementById('searchBox')?.value || '').toLowerCase().trim();
+  const monthFilter = document.getElementById('userInstallMonthFilter')?.value || 'all';
+  const countryFilter = document.getElementById('userCountryFilter')?.value || 'all';
+  const ageFilter = document.getElementById('userAgeFilter')?.value || 'all';
+
   let list = allUsers;
+
+  if (monthFilter !== 'all') {
+    list = list.filter(u => u.installDateStr && u.installDateStr.startsWith(monthFilter));
+  }
+
+  if (countryFilter !== 'all') {
+    list = list.filter(u => u.country === countryFilter);
+  }
+
+  if (ageFilter !== 'all') {
+    list = list.filter(u => u.age_group === ageFilter);
+  }
 
   if (query) {
     list = list.filter(u => u.device_id.toLowerCase().includes(query));
@@ -2109,73 +2974,426 @@ function renderUserTable(list) {
   if (!tbody) return;
 
   if (list.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="10"><div class="empty">Eşleşen oyuncu bulunamadı</div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="10"><div class="empty">Filtrelere uygun oyuncu bulunamadı</div></td></tr>`;
     return;
   }
 
-  tbody.innerHTML = list.map(u => `
-    <tr onclick="openUserPanel('${u.device_id}')">
-      <td class="mono" style="font-weight:600;color:var(--text)">${u.short_id}</td>
-      <td style="font-weight:700">Level ${u.farthest_level + 1}</td>
-      <td>${fmtMin(u.total_play_minutes)}</td>
-      <td>${u.total_sessions}</td>
-      <td style="font-weight:600;color:var(--accent)">${u.activeDaysCount} gün</td>
-      <td>${u.total_fails}</td>
-      <td>${u.total_resets}</td>
-      <td style="font-size:12px;color:var(--text-muted)">${u.first_open}</td>
-      <td style="font-size:12px;color:var(--text-muted)">${u.last_seen}</td>
-      <td><span class="badge ${u.status}">${u.status.toUpperCase()}</span></td>
-    </tr>`).join('');
+  tbody.innerHTML = list.map(u => {
+    let statusBadge = '<span class="badge active">🟢 Aktif</span>';
+    if (u.status === 'risk') statusBadge = '<span class="badge risk">🟡 Risk</span>';
+    else if (u.status === 'churned') statusBadge = '<span class="badge churned">⚪ Bıraktı</span>';
+
+    const cObj = getCountryObj(u.country);
+
+    return `
+      <tr onclick="openUserPanel('${u.device_id}')" style="cursor:pointer">
+        <td class="mono" style="font-weight:600;color:var(--text)" title="${u.device_id}">${u.short_id}</td>
+        <td style="font-size:12px;font-weight:600;white-space:nowrap;">${cObj.flag} ${cObj.code}</td>
+        <td><span class="badge" style="background:rgba(168,85,247,0.15);color:#c084fc;font-weight:600;font-size:11px;">${u.age_group || '—'}</span></td>
+        <td style="font-weight:700;color:var(--accent)">Level ${u.farthest_level + 1}</td>
+        <td>${fmtMin(u.total_play_minutes)}</td>
+        <td>${u.total_sessions}</td>
+        <td style="font-size:12.5px;font-weight:600;color:#e0e7ff">
+          ${fmtCohortDate(u.installDateStr)}
+        </td>
+        <td style="font-size:12px;color:var(--text-muted)">${u.last_seen}</td>
+        <td style="font-size:12px">${u.source || 'organic'}</td>
+        <td>${statusBadge}</td>
+      </tr>`;
+  }).join('');
 }
 
-// ── LEVEL ANALYTICS TAB (SEPT 2) ──────────────────────────────
+// ── LEVEL ANALYTICS TAB ───────────────────────────────────────
 function renderLevelTable() {
   const tbody = document.getElementById('levelTableBody');
   if (!tbody) return;
 
   if (allLevelData.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="11"><div class="empty">Henüz level oynanış verisi kaydedilmedi</div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7"><div class="empty">Henüz level oynanış verisi kaydedilmedi</div></td></tr>`;
     return;
   }
 
-  // Funnel tabanı: ilk levele ulaşan oyuncu sayısı
-  const basePlayers = allLevelData[0]?.players || 0;
-
   tbody.innerHTML = allLevelData.map(l => {
-    const passRate = l.attempts > 0 ? Math.min(100, Math.round((l.completions / l.attempts) * 100)) : 100;
-    const avgTime = l.attempts > 0 ? Math.round(l.total_time / l.attempts) : 0;
+    const attempts = l.attempts || 0;
+    const completions = l.completions || 0;
+    const passRate = attempts > 0 ? Math.min(100, Math.round((completions / attempts) * 100)) : 100;
+    const avgTime = attempts > 0 ? Math.round(l.total_time / attempts) : 0;
     const players = l.players || 0;
-    const funnelPct = basePlayers > 0 ? Math.round((players / basePlayers) * 100) : 0;
+    const drops = (l.fails || 0) + (l.quits || 0);
 
-    let evalTag = '<span style="color:var(--success)">🟢 Dengeli & Akıcı</span>';
-    if (l.fails > 3) evalTag = '<span style="color:var(--danger)">🔴 Çok Zor</span>';
-    else if (l.quits > 3) evalTag = '<span style="color:var(--warning)">🟡 Terk Riski</span>';
+    let evalBadge = '<span class="badge active" style="background:rgba(16,185,129,0.15);color:#34d399;border:1px solid rgba(16,185,129,0.3)">🟢 Kolay & Akıcı</span>';
+    if (l.fails > 4 || passRate < 45) {
+      evalBadge = '<span class="badge churned" style="background:rgba(239,68,68,0.15);color:#f87171;border:1px solid rgba(239,68,68,0.3)">🔴 Zor (Takılma Var)</span>';
+    } else if (l.quits > 2 || passRate < 65) {
+      evalBadge = '<span class="badge risk" style="background:rgba(245,158,11,0.15);color:#fbbf24;border:1px solid rgba(245,158,11,0.3)">🟡 Orta / Dengeli</span>';
+    }
 
     return `
       <tr>
         <td style="font-weight:700">Level ${l.level_index + 1}</td>
         <td style="font-weight:700">${players}</td>
-        <td>
-          <div class="level-bar-wrap">
-            <div class="level-bar-track"><div class="level-bar-fill" style="width:${funnelPct}%"></div></div>
-            <span style="font-weight:700">${funnelPct}%</span>
-          </div>
-        </td>
-        <td>${l.attempts}</td>
-        <td style="color:var(--success);font-weight:600">${l.completions}</td>
+        <td style="color:#34d399;font-weight:700">${completions}</td>
         <td>
           <div class="level-bar-wrap">
             <div class="level-bar-track"><div class="level-bar-fill" style="width:${passRate}%"></div></div>
             <span style="font-weight:700">${passRate}%</span>
           </div>
         </td>
-        <td style="${l.fails > 0 ? 'color:var(--danger);font-weight:700' : ''}">${l.fails}</td>
-        <td style="${l.quits > 1 ? 'color:var(--warning);font-weight:700' : ''}">${l.quits}</td>
-        <td>${l.resets}</td>
+        <td style="${drops > 2 ? 'color:#f87171;font-weight:700' : 'color:var(--text-muted)'}">${drops} (${l.quits || 0} çıkış)</td>
         <td>${fmtSec(avgTime)}</td>
-        <td>${evalTag}</td>
+        <td>${evalBadge}</td>
       </tr>`;
   }).join('');
+}
+
+// ── DEMOGRAPHICS & AUDIENCE TAB ───────────────────────────────
+function renderDemographicsTab() {
+  const kpisContainer = document.getElementById('demographicsKpis');
+  const countryBody = document.getElementById('countryTableBody');
+  const ageBarsContainer = document.getElementById('ageGroupBars');
+  const dominantBadge = document.getElementById('dominantAgeBadge');
+  const platformBarsContainer = document.getElementById('platformAndLanguageBars');
+  const insightsGrid = document.getElementById('audienceInsightsGrid');
+
+  if (!countryBody) return;
+
+  const users = allUsers;
+  const totalCount = users.length;
+
+  if (totalCount === 0) {
+    if (countryBody) countryBody.innerHTML = `<tr><td colspan="7"><div class="empty">Seçili dönemde oyuncu verisi bulunamadı</div></td></tr>`;
+    if (kpisContainer) kpisContainer.innerHTML = `<div class="empty">Veri yok</div>`;
+    return;
+  }
+
+  // 1. Group by Country
+  const countryMap = {};
+  users.forEach(u => {
+    const c = u.country || 'TR';
+    if (!countryMap[c]) {
+      countryMap[c] = {
+        code: c,
+        users: [],
+        count: 0,
+        playtimeSum: 0,
+        levelSum: 0,
+        d1Eligible: 0,
+        d1Active: 0
+      };
+    }
+    const item = countryMap[c];
+    item.users.push(u);
+    item.count++;
+    item.playtimeSum += (u.total_play_minutes || 0);
+    item.levelSum += ((u.farthest_level || 0) + 1);
+    
+    // D1 check
+    const insTime = parseDateKey(u.installDateStr)?.getTime();
+    if (insTime) {
+      const targetDate = formatDateKey(new Date(insTime + 86400000));
+      const now = new Date();
+      const sysToday = formatDateKey(now);
+      if (targetDate <= sysToday) {
+        item.d1Eligible++;
+        if (u.activeDatesSet.has(targetDate) || (u.retentionDays && u.retentionDays.includes(1))) {
+          item.d1Active++;
+        }
+      }
+    }
+  });
+
+  const sortedCountries = Object.values(countryMap).sort((a, b) => b.count - a.count);
+  const topCountryObj = getCountryObj(sortedCountries[0]?.code);
+  const topCountryPct = Math.round((sortedCountries[0]?.count / totalCount) * 100);
+
+  // 2. Group by Age Group
+  const ageMap = {};
+  DEMO_AGE_GROUPS.forEach(ag => { ageMap[ag] = { grp: ag, count: 0, users: [] }; });
+  users.forEach(u => {
+    const ag = u.age_group || '25-34';
+    if (!ageMap[ag]) ageMap[ag] = { grp: ag, count: 0, users: [] };
+    ageMap[ag].count++;
+    ageMap[ag].users.push(u);
+  });
+
+  let dominantAge = { grp: '25-34', count: 0, pct: 0 };
+  Object.values(ageMap).forEach(item => {
+    if (item.count > dominantAge.count) {
+      dominantAge = { grp: item.grp, count: item.count, pct: Math.round((item.count / totalCount) * 100) };
+    }
+  });
+
+  // 3. Group by Platform & Language
+  const platformMap = {};
+  const langMap = {};
+  users.forEach(u => {
+    const p = u.platform || 'Android';
+    platformMap[p] = (platformMap[p] || 0) + 1;
+    const l = u.language || 'Turkish';
+    langMap[l] = (langMap[l] || 0) + 1;
+  });
+
+  const sortedPlatforms = Object.entries(platformMap).sort((a, b) => b[1] - a[1]);
+  const sortedLangs = Object.entries(langMap).sort((a, b) => b[1] - a[1]);
+
+  const topPlatform = sortedPlatforms[0] ? { name: sortedPlatforms[0][0], count: sortedPlatforms[0][1], pct: Math.round((sortedPlatforms[0][1] / totalCount) * 100) } : { name: 'Android', count: 0, pct: 100 };
+  const topLang = sortedLangs[0] ? { name: sortedLangs[0][0], count: sortedLangs[0][1], pct: Math.round((sortedLangs[0][1] / totalCount) * 100) } : { name: 'Turkish', count: 0, pct: 100 };
+
+  // ── Render 4 KPI Cards ──
+  if (kpisContainer) {
+    kpisContainer.innerHTML = `
+      <div class="kpi-card">
+        <div class="kpi-label">🌍 Lider Ülke / Pazar</div>
+        <div class="kpi-value" style="font-size:22px; color:var(--text);">
+          ${topCountryObj.flag} ${topCountryObj.name}
+        </div>
+        <div class="kpi-sub">
+          <span>${sortedCountries[0]?.count || 0} oyuncu</span>
+          <span class="benchmark-tag good">%${topCountryPct} Pazar Payı</span>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-label">🎂 Çekirdek Yaş Grubu</div>
+        <div class="kpi-value" style="color:#c084fc;">
+          ${dominantAge.grp} <span class="unit">Yaş</span>
+        </div>
+        <div class="kpi-sub">
+          <span>${dominantAge.count} oyuncu</span>
+          <span class="benchmark-tag good">⭐ %${dominantAge.pct} Ağırlık</span>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-label">📱 Birincil Platform</div>
+        <div class="kpi-value" style="color:#38bdf8;">
+          ${topPlatform.name}
+        </div>
+        <div class="kpi-sub">
+          <span>${topPlatform.count} cihaz</span>
+          <span class="benchmark-tag fair">%${topPlatform.pct} Ekosistem</span>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-label">🗣️ Birincil Sistem Dili</div>
+        <div class="kpi-value" style="color:var(--success);">
+          ${topLang.name}
+        </div>
+        <div class="kpi-sub">
+          <span>${topLang.count} kullanıcı</span>
+          <span class="benchmark-tag info">%${topLang.pct} Yerelleştirme</span>
+        </div>
+      </div>
+    `;
+  }
+
+  // ── Render Country Table ──
+  if (countryBody) {
+    countryBody.innerHTML = sortedCountries.map(c => {
+      const cObj = getCountryObj(c.code);
+      const pct = Math.round((c.count / totalCount) * 100);
+      const avgLvl = (c.levelSum / c.count).toFixed(1);
+      const avgPlay = +(c.playtimeSum / c.count).toFixed(1);
+      const d1Pct = c.d1Eligible > 0 ? Math.round((c.d1Active / c.d1Eligible) * 100) : '—';
+      const d1Str = d1Pct === '—' ? '<span style="color:var(--text-dim)">—</span>' : `%${d1Pct}`;
+
+      return `
+        <tr>
+          <td style="font-weight:700; display:flex; align-items:center; gap:8px;">
+            <span style="font-size:18px;">${cObj.flag}</span>
+            <span>${cObj.name}</span>
+            <span style="font-size:11px; color:var(--text-muted); font-family:'JetBrains Mono', monospace;">(${c.code})</span>
+          </td>
+          <td style="font-weight:700; font-family:'JetBrains Mono', monospace;">${c.count}</td>
+          <td>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <div style="flex:1; height:8px; background:var(--surface2); border:1px solid var(--border); border-radius:3px; overflow:hidden; min-width:50px;">
+                <div style="width:${pct}%; height:100%; background:linear-gradient(90deg, #6366f1, #06b6d4); border-radius:2px;"></div>
+              </div>
+              <span style="font-size:11.5px; font-weight:600; font-family:'JetBrains Mono', monospace;">%${pct}</span>
+            </div>
+          </td>
+          <td style="font-weight:600; color:var(--purple);">Level ${avgLvl}</td>
+          <td>${fmtMin(avgPlay)}</td>
+          <td style="font-weight:700;">${d1Str}</td>
+          <td>
+            <button class="btn" style="padding:4px 9px; font-size:11px;" onclick="filterUsersByCountry('${c.code}')">
+              👥 Filtrele
+            </button>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  // ── Render Age Group Bars ──
+  if (ageBarsContainer) {
+    if (dominantBadge) {
+      dominantBadge.innerHTML = `⭐ Çekirdek Kitle: ${dominantAge.grp} Yaş (%${dominantAge.pct})`;
+    }
+
+    ageBarsContainer.innerHTML = DEMO_AGE_GROUPS.map(ag => {
+      const item = ageMap[ag] || { count: 0 };
+      const pct = Math.round((item.count / totalCount) * 100);
+      const isDominant = (ag === dominantAge.grp);
+      const barFill = isDominant
+        ? 'linear-gradient(90deg, #a855f7, #6366f1)'
+        : 'linear-gradient(90deg, #3b82f6, #06b6d4)';
+
+      return `
+        <div style="cursor:pointer; padding:6px 8px; border-radius:6px; background:${isDominant ? 'rgba(168,85,247,0.06)' : 'transparent'}; border:${isDominant ? '1px solid rgba(168,85,247,0.25)' : '1px solid transparent'}; transition:background 0.15s;" onclick="filterUsersByAge('${ag}')" title="Bu yaş grubundaki oyuncuları listelemek için tıklayın">
+          <div style="display:flex; align-items:center; justify-content:space-between; font-size:12px; margin-bottom:4px;">
+            <span style="font-weight:700; color:${isDominant ? '#e9d5ff' : 'var(--text)'};">
+              ${ag} Yaş ${isDominant ? '<span class="benchmark-tag good" style="font-size:9.5px; padding:1px 5px; margin-left:6px;">Çekirdek</span>' : ''}
+            </span>
+            <span style="font-family:'JetBrains Mono', monospace; font-size:11.5px; font-weight:600; color:var(--text-muted);">
+              ${item.count} oyuncu (%${pct})
+            </span>
+          </div>
+          <div style="width:100%; height:12px; background:var(--surface2); border:1px solid var(--border); border-radius:4px; overflow:hidden;">
+            <div style="width:${pct}%; height:100%; background:${barFill}; border-radius:3px; transition:width 0.5s ease;"></div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  // ── Render Platform & Language Bars ──
+  if (platformBarsContainer) {
+    platformBarsContainer.innerHTML = `
+      <div style="font-size:11.5px; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:6px;">Platform Dağılımı</div>
+      ${sortedPlatforms.map(([p, cnt]) => {
+        const pct = Math.round((cnt / totalCount) * 100);
+        return `
+          <div style="display:flex; align-items:center; gap:10px; font-size:12px; margin-bottom:6px;">
+            <span style="width:85px; font-weight:600;">${p}</span>
+            <div style="flex:1; height:10px; background:var(--surface2); border:1px solid var(--border); border-radius:3px; overflow:hidden;">
+              <div style="width:${pct}%; height:100%; background:#38bdf8; border-radius:2px;"></div>
+            </div>
+            <span style="width:70px; text-align:right; font-family:'JetBrains Mono', monospace; font-size:11px; color:var(--text-muted);">${cnt} (%${pct})</span>
+          </div>
+        `;
+      }).join('')}
+
+      <div style="font-size:11.5px; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-top:14px; margin-bottom:6px;">Sistem Dili Dağılımı</div>
+      ${sortedLangs.slice(0, 4).map(([l, cnt]) => {
+        const pct = Math.round((cnt / totalCount) * 100);
+        return `
+          <div style="display:flex; align-items:center; gap:10px; font-size:12px; margin-bottom:6px;">
+            <span style="width:85px; font-weight:600;">${l}</span>
+            <div style="flex:1; height:10px; background:var(--surface2); border:1px solid var(--border); border-radius:3px; overflow:hidden;">
+              <div style="width:${pct}%; height:100%; background:#10b981; border-radius:2px;"></div>
+            </div>
+            <span style="width:70px; text-align:right; font-family:'JetBrains Mono', monospace; font-size:11px; color:var(--text-muted);">${cnt} (%${pct})</span>
+          </div>
+        `;
+      }).join('')}
+    `;
+  }
+
+  // ── Render Audience Insights ──
+  if (insightsGrid) {
+    insightsGrid.innerHTML = `
+      <div class="journey-card" style="border-left:3px solid var(--purple);">
+        <div class="jhead" style="color:#c084fc;"><span class="jicon">🎯</span> Çekirdek Kitle Profil Analizi</div>
+        <div class="jdesc">
+          ColorMatch3D oyuncu tabanının <strong>%${dominantAge.pct}'lik</strong> dilimi <strong>${dominantAge.grp} yaş grubunda</strong> yoğunlaşıyor. Reklam kreatiflerinizde minimalist renk estetiğini ve zeka/rahatlatıcı bulmaca vurgusunu öne çıkarmanız dönüşümü artıracaktır.
+        </div>
+      </div>
+      <div class="journey-card" style="border-left:3px solid var(--cyan);">
+        <div class="jhead" style="color:#38bdf8;"><span class="jicon">🌍</span> Coğrafi Hedefleme (Tier-1 vs Tier-2)</div>
+        <div class="jdesc">
+          Oyuncuların <strong>%${topCountryPct}'i ${topCountryObj.name}</strong> pazarından geliyor. Gelir potansiyelini (eCPM) büyütmek için ABD (US) ve Avrupa (DE, UK) ülkelerine yönelik hedefli test kampanyaları başlatılabilir.
+        </div>
+      </div>
+    `;
+  }
+
+  updateDemographicDropdownOptions(sortedCountries);
+}
+
+function updateDemographicDropdownOptions(sortedCountries) {
+  const cSel = document.getElementById('userCountryFilter');
+  const aSel = document.getElementById('userAgeFilter');
+  if (cSel) {
+    const curVal = cSel.value;
+    let opts = '<option value="all">🌍 Tüm Ülkeler</option>';
+    sortedCountries.forEach(c => {
+      const cObj = getCountryObj(c.code);
+      opts += `<option value="${c.code}">${cObj.flag} ${cObj.name} (${c.count})</option>`;
+    });
+    cSel.innerHTML = opts;
+    if (curVal) cSel.value = curVal;
+  }
+  if (aSel) {
+    const curVal = aSel.value;
+    let opts = '<option value="all">🎂 Tüm Yaşlar</option>';
+    DEMO_AGE_GROUPS.forEach(ag => {
+      opts += `<option value="${ag}">${ag} Yaş</option>`;
+    });
+    aSel.innerHTML = opts;
+    if (curVal) aSel.value = curVal;
+  }
+}
+
+function filterUsersByCountry(code) {
+  const tabs = document.querySelectorAll('.nav-tab');
+  const userTabBtn = Array.from(tabs).find(b => b.textContent.includes('Oyuncular'));
+  switchTab('users', userTabBtn);
+  const cSel = document.getElementById('userCountryFilter');
+  if (cSel) cSel.value = code;
+  applyFilters();
+}
+
+function filterUsersByAge(ag) {
+  const tabs = document.querySelectorAll('.nav-tab');
+  const userTabBtn = Array.from(tabs).find(b => b.textContent.includes('Oyuncular'));
+  switchTab('users', userTabBtn);
+  const aSel = document.getElementById('userAgeFilter');
+  if (aSel) aSel.value = ag;
+  applyFilters();
+}
+
+async function updateUserAgeGroup(uid, newAge) {
+  const user = allUsers.find(u => u.device_id === uid) || allUsersRaw.find(u => u.device_id === uid);
+  if (user) {
+    user.age_group = newAge;
+    user.isAgeInferred = false;
+  }
+  try {
+    await db.collection('users').doc(uid).set({ age_group: newAge }, { merge: true });
+  } catch(e) {
+    console.warn('Age group update warning:', e);
+  }
+  renderDemographicsTab();
+  applyFilters();
+}
+
+function exportDemographicsCSV() {
+  const users = allUsers;
+  const countryMap = {};
+  users.forEach(u => {
+    const c = u.country || 'TR';
+    countryMap[c] = (countryMap[c] || 0) + 1;
+  });
+  const rows = [
+    ['Ulke Kodu', 'Ulke Adi', 'Oyuncu Sayisi', 'Pay Yuzdesi']
+  ];
+  Object.keys(countryMap).sort((a,b) => countryMap[b] - countryMap[a]).forEach(code => {
+    const cObj = getCountryObj(code);
+    const cnt = countryMap[code];
+    const pct = Math.round((cnt / users.length) * 100);
+    rows.push([code, cObj.name, cnt, '%' + pct]);
+  });
+  const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + rows.map(r => r.join(';')).join('\n');
+  const enc = encodeURI(csvContent);
+  const link = document.createElement('a');
+  link.setAttribute('href', enc);
+  link.setAttribute('download', `demografi_analizi_${currentPeriod}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
 }
 
 // ── USER DETAIL PANEL ─────────────────────────────────────────
@@ -2201,6 +3419,9 @@ async function openUserPanel(uid) {
     <span class="date-badge ${dStr === user.installDateStr ? 'first' : ''}">${fmtCohortDate(dStr)}</span>
   `).join('');
 
+  const installTimeInfo = user.daysSince === 0 ? 'Bugün indirildi' : `${user.daysSince} gün önce indirildi`;
+  const cObj = getCountryObj(user.country);
+
   const profileHtml = `
     <div class="profile-grid">
       <div class="pitem">
@@ -2212,6 +3433,21 @@ async function openUserPanel(uid) {
         <div class="pitem-value">${fmtMin(user.total_play_minutes)}</div>
       </div>
       <div class="pitem">
+        <div class="pitem-label">Ülke / Konum</div>
+        <div class="pitem-value v-sm" style="display:flex;align-items:center;gap:6px;">
+          <span style="font-size:16px;">${cObj.flag}</span> <span style="font-weight:700;">${cObj.name}</span> <span style="font-size:11px;color:var(--text-muted)">(${cObj.code})</span>
+        </div>
+      </div>
+      <div class="pitem">
+        <div class="pitem-label">Yaş Grubu (Demografi)</div>
+        <div class="pitem-value v-sm" style="display:flex;align-items:center;gap:8px;">
+          <select id="userAgeSelect_${user.device_id}" onchange="updateUserAgeGroup('${user.device_id}', this.value)" style="background:var(--surface3); color:var(--text); border:1px solid var(--accent); padding:3px 8px; border-radius:4px; font-size:12px; font-weight:700; cursor:pointer;">
+            ${DEMO_AGE_GROUPS.map(ag => `<option value="${ag}" ${ag === user.age_group ? 'selected' : ''}>${ag} Yaş</option>`).join('')}
+          </select>
+          <span style="font-size:10.5px; color:var(--text-muted);">${user.isAgeInferred ? '(Modelleme)' : '(Kayıtlı)'}</span>
+        </div>
+      </div>
+      <div class="pitem">
         <div class="pitem-label">Toplam Oturum</div>
         <div class="pitem-value">${user.total_sessions}</div>
       </div>
@@ -2220,8 +3456,8 @@ async function openUserPanel(uid) {
         <div class="pitem-value ${user.total_fails > 5 ? 'v-danger' : 'v-success'}">${user.total_fails} / ${user.total_resets}</div>
       </div>
       <div class="pitem">
-        <div class="pitem-label">İlk Kurulum</div>
-        <div class="pitem-value v-sm">${user.first_open}</div>
+        <div class="pitem-label">İlk İndirme (Kurulum)</div>
+        <div class="pitem-value v-sm" style="color:#38bdf8;font-weight:700">${fmtCohortDate(user.installDateStr)} <span style="font-size:11px;color:var(--text-muted)">(${installTimeInfo})</span></div>
       </div>
       <div class="pitem">
         <div class="pitem-label">Platform & Versiyon</div>
@@ -2289,21 +3525,22 @@ function exportDailyMetricsCSV() {
   const rows = dailyMetricsList.map(d => [
     d.dateStr, d.installs, d.logins, d.dauSet.size, d.totalDurationSec, d.totalLevelsPlayed
   ]);
-  downloadCSV(`colormatch3d_gunluk_metrikler_${versionScope}.csv`, [headers, ...rows]);
-}
-
-function exportSessionsCSV() {
-  const headers = ['Giris Zamani', 'Oyuncu UserID', 'Durasyon (sn)', 'Oynanan Level', 'Cihaz Modeli', 'OS Versiyonu', 'Platform'];
-  const rows = allSessions.map(s => [
-    s.startTimeStr, s.userId, s.durationSeconds, s.levelsPlayed, s.deviceModel, s.osVersion, s.platform
-  ]);
-  downloadCSV(`colormatch3d_oturum_gunlugu_${versionScope}.csv`, [headers, ...rows]);
+  downloadCSV(`colormatch3d_gunluk_metrikler_${currentPeriod}.csv`, [headers, ...rows]);
 }
 
 function exportCohortCSV() {
-  const headers = ['Cohort Date', 'New Users', 'D0'];
-  const rows = [['2026-09-02 (Yeni Sürüm)', allUsers.length, '100%']];
-  downloadCSV(`colormatch3d_cohort_${versionScope}.csv`, [headers, ...rows]);
+  const headers = ['Kurulum Kohortu', 'Yeni Oyuncu', 'D0', 'D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7', 'D14', 'D30'];
+  const rows = activeCohortList.map(c => [
+    c.dateStr,
+    c.size,
+    ...RET_DAYS.map(d => {
+      const dayData = c.days[d];
+      if (!dayData) return '—';
+      if (dayData.isPending) return '—';
+      return dayData.pct + '%';
+    })
+  ]);
+  downloadCSV(`colormatch3d_cohort_${currentPeriod}.csv`, [headers, ...rows]);
 }
 
 function exportUsersCSV() {
@@ -2312,7 +3549,35 @@ function exportUsersCSV() {
     u.device_id, u.farthest_level, u.total_play_minutes, u.total_sessions, u.activeDaysCount,
     u.total_fails, u.total_resets, u.last_seen, u.first_open, u.status
   ]);
-  downloadCSV(`colormatch3d_users_${versionScope}.csv`, [headers, ...rows]);
+  downloadCSV(`colormatch3d_users_${currentPeriod}.csv`, [headers, ...rows]);
+}
+
+function exportMonthlyCohortCSV() {
+  const headers = ['Ay Kohortu', 'Toplam Yeni Oyuncu', 'D0 (%)', 'Ort D1 (%)', 'Ort D7 (%)', 'Ort D14 (%)', 'Ort D30 (%)', 'M1 (%)', 'M2 (%)'];
+  const rows = monthlyCohortList.map(m => [
+    m.monthLabel,
+    m.installs,
+    '100%',
+    m.d1 && !m.d1.isPending ? m.d1.pct + '%' : '—',
+    m.d7 && !m.d7.isPending ? m.d7.pct + '%' : '—',
+    m.d14 && !m.d14.isPending ? m.d14.pct + '%' : '—',
+    m.d30 && !m.d30.isPending ? m.d30.pct + '%' : '—',
+    m.m1 && m.m1.eligible ? m.m1.pct + '%' : '—',
+    m.m2 && m.m2.eligible ? m.m2.pct + '%' : '—'
+  ]);
+  downloadCSV(`colormatch3d_aylik_makro_kohort_${currentPeriod}.csv`, [headers, ...rows]);
+}
+
+function exportBusinessEventsCSV() {
+  const headers = ['Zaman', 'Olay Adi', 'Kullanici ID', 'Kaynak (Source)', 'Detay'];
+  const rows = allBusinessEvents.map(e => [
+    e.timeStr,
+    e.eventName,
+    e.userId,
+    e.source,
+    JSON.stringify(e.parameters || {})
+  ]);
+  downloadCSV(`colormatch3d_business_events_${currentPeriod}.csv`, [headers, ...rows]);
 }
 
 function downloadCSV(filename, dataRows) {
@@ -2325,41 +3590,14 @@ function downloadCSV(filename, dataRows) {
   a.click();
 }
 
-// ── Helpers ───────────────────────────────────────────────────
-function formatDateKey(d) { return d.toISOString().slice(0, 10); }
-function parseDateKey(str) {
-  if (!str) return null;
-  const parts = str.split('-');
-  if (parts.length !== 3) return new Date(str);
-  return new Date(Date.UTC(+parts[0], +parts[1] - 1, +parts[2]));
-}
-function fmtCohortDate(str) {
-  const d = parseDateKey(str);
-  if (!d) return str;
-  return d.toLocaleDateString('tr-TR', { day:'2-digit', month:'short', year:'numeric' });
-}
-function fmtDate(d) { return d.toLocaleDateString('tr-TR', { day:'2-digit', month:'short', year:'numeric' }); }
-function fmtMin(m) {
-  if (!m || m < 1) return '< 1 dk';
-  if (m < 60) return Math.round(m) + ' dk';
-  return Math.floor(m / 60) + 'sa ' + Math.round(m % 60) + 'dk';
-}
-function fmtSec(s) {
-  if (!s || s === 0) return '—';
-  if (s < 60) return s + 's';
-  return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
-}
 function showError(msg) {
-  document.getElementById('dailyBreakdownBody').innerHTML = `
-    <tr><td colspan="7"><div class="empty">❌ Hata: ${msg}</div></td></tr>`;
+  const body = document.getElementById('dailyBreakdownBody');
+  if (body) {
+    body.innerHTML = `<tr><td colspan="6"><div class="empty">❌ Hata: ${msg}</div></td></tr>`;
+  }
 }
 
 // ── Bootstrap ─────────────────────────────────────────────────
-window.addEventListener('resize', () => {
-  if (document.getElementById('tab-demographics').classList.contains('active')) {
-    renderDemographicsHourlyChart();
-  }
-});
 loadData();
 </script>
 </body>
