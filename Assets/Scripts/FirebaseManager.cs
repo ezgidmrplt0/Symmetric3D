@@ -378,7 +378,7 @@ public class FirebaseManager : MonoBehaviour
         if (Defer(() => LogRegistration(method))) return;
 #if ENABLE_FIREBASE
         FirebaseAnalytics.LogEvent(FirebaseAnalytics.EventSignUp,
-            new Parameter(FirebaseAnalytics.ParameterSignUpMethod, method));
+            new Parameter(FirebaseAnalytics.ParameterMethod, method));
 #endif
     }
 
