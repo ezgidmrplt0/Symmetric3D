@@ -14,67 +14,67 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   levelDisplayName: Level_04
   levelType: 1
-  timeLimit: 150
+  timeLimit: 200.0
   boardMode: 0
-  gridX: 4
-  gridY: 4
+  gridX: 3
+  gridY: 3
   customGridPositions: []
   shapePrefab: {fileID: 0}
   shapeFaces: []
   pieces:
-  - gridPosition: {x: 0, y: 3}
+  - gridPosition: {x: 0, y: 0}
     faceIndex: 0
-    liquidColor: {r: 1, g: 0, b: 0, a: 1}
+    liquidColor: {r: 0.92, g: 0.22, b: 0.22, a: 1.0}
     currentSlices: 2
-    rotationZ: -90
-    linkId: 0
-    canRotate: 1
-  - gridPosition: {x: 2, y: 3}
-    faceIndex: 0
-    liquidColor: {r: 1, g: 0, b: 0, a: 1}
-    currentSlices: 2
-    rotationZ: 90
-    linkId: 0
-    canRotate: 1
-  - gridPosition: {x: 0, y: 2}
-    faceIndex: 0
-    liquidColor: {r: 0, g: 1, b: 0, a: 1}
-    currentSlices: 2
-    rotationZ: -90
-    linkId: 0
-    canRotate: 1
-  - gridPosition: {x: 1, y: 0}
-    faceIndex: 0
-    liquidColor: {r: 0, g: 1, b: 0, a: 1}
-    currentSlices: 2
-    rotationZ: 90
-    linkId: 0
-    canRotate: 1
-  - gridPosition: {x: 0, y: 1}
-    faceIndex: 0
-    liquidColor: {r: 0, g: 0, b: 1, a: 1}
-    currentSlices: 2
-    rotationZ: -90
-    linkId: 0
-    canRotate: 1
-  - gridPosition: {x: 3, y: 2}
-    faceIndex: 0
-    liquidColor: {r: 0, g: 0, b: 1, a: 1}
-    currentSlices: 2
-    rotationZ: 90
-    linkId: 0
-    canRotate: 1
-  - gridPosition: {x: 2, y: 1}
-    faceIndex: 0
-    liquidColor: {r: 1, g: 1, b: 0, a: 1}
-    currentSlices: 2
-    rotationZ: 180
+    rotationZ: 0
     linkId: 0
     canRotate: 0
-  - gridPosition: {x: 3, y: 3}
+  - gridPosition: {x: 1, y: 0}
     faceIndex: 0
-    liquidColor: {r: 1, g: 1, b: 0, a: 1}
+    liquidColor: {r: 0.18, g: 0.52, b: 0.95, a: 1.0}
     currentSlices: 2
+    rotationZ: 0
+    linkId: 0
+    canRotate: 0
+  - gridPosition: {x: 2, y: 0}
+    faceIndex: 0
+    liquidColor: {r: 0.95, g: 0.82, b: 0.15, a: 1.0}
+    currentSlices: 4
+    rotationZ: 0
+    linkId: 0
+    canRotate: 0
+  - gridPosition: {x: 3, y: 0}
+    faceIndex: 0
+    liquidColor: {r: 1.0, g: 1.0, b: 1.0, a: 1.0}
+    currentSlices: 0
+    rotationZ: 0
+    linkId: 0
+    canRotate: 0
+  - gridPosition: {x: 4, y: 0}
+    faceIndex: 0
+    liquidColor: {r: 0.22, g: 0.78, b: 0.35, a: 1.0}
+    currentSlices: 4
+    rotationZ: 0
+    linkId: 0
+    canRotate: 0
+  - gridPosition: {x: 5, y: 0}
+    faceIndex: 0
+    liquidColor: {r: 0.92, g: 0.22, b: 0.22, a: 1.0}
+    currentSlices: 2
+    rotationZ: 0
+    linkId: 0
+    canRotate: 0
+  - gridPosition: {x: 6, y: 0}
+    faceIndex: 0
+    liquidColor: {r: 0.18, g: 0.52, b: 0.95, a: 1.0}
+    currentSlices: 2
+    rotationZ: 0
+    linkId: 0
+    canRotate: 0
+  - gridPosition: {x: 7, y: 0}
+    faceIndex: 0
+    liquidColor: {r: 1.0, g: 1.0, b: 1.0, a: 1.0}
+    currentSlices: 0
     rotationZ: 0
     linkId: 0
     canRotate: 0

@@ -82,8 +82,11 @@ public partial class GridSpawner : MonoBehaviour
     {
         currentLevelIndex = PlayerPrefs.GetInt("CurrentLevelIndex", 0);
 
-        if (levels != null && currentLevelIndex >= levels.Count)
-            currentLevelIndex = levels.Count - 1;
+        if (levels != null && (currentLevelIndex >= levels.Count || currentLevelIndex < 0))
+        {
+            currentLevelIndex = 0;
+            PlayerPrefs.SetInt("CurrentLevelIndex", 0);
+        }
 
         // İlk açılışta mevcut level başlangıcını logla
         GameManager.Instance?.ResetLevelState();
@@ -190,6 +193,29 @@ public partial class GridSpawner : MonoBehaviour
             SpawnShapeLevel(level, gridSize);
         else
             SpawnFlat2DLevel(level, gridSize);
+    }
+
+    // ──────────────────────────────────────────────────────────────
+    // MAGIC SORT ŞİŞE DİZİLİMİ (ELİPTİK HALKA)
+    // ──────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Magic Sort eliptik halka şişe yerleşimi (Kullanıcı çizimine uygun).
+    /// Şişeleri ekran merkezine göre saat yönünde, eliptik ve 2 sütunlu yay şeklinde dağıtır.
+    /// </summary>
+    public static Vector3 GetBottlePosition(int index, int totalBottles, float radiusX = 1.35f, float radiusY = 2.0f)
+    {
+        if (totalBottles <= 0) return Vector3.zero;
+        if (totalBottles == 1) return Vector3.zero;
+
+        // 6 şişe için açılar: 60°, 0°, -60°, -120°, -180°, -240°
+        // Bu açılar: Üst-Sağ, Orta-Sağ (dışa bombe), Alt-Sağ, Alt-Sol, Orta-Sol (dışa bombe), Üst-Sol noktalarını üretir.
+        float angleDeg = 90f - (360f / totalBottles) * (index + 0.5f);
+        float rad = angleDeg * Mathf.Deg2Rad;
+
+        float x = Mathf.Cos(rad) * radiusX;
+        float y = Mathf.Sin(rad) * radiusY;
+        return new Vector3(x, y, 0f);
     }
 
     // ──────────────────────────────────────────────────────────────
@@ -352,49 +378,35 @@ public partial class GridSpawner : MonoBehaviour
                 return true;
             }
 
-            // Yok edilmekte / tamamlanmış / boşalmış parçaları sayma
-            if (lt.currentSlices <= 0 || lt.currentSlices >= lt.maxSlices)
-                continue;
-
-            // Parça yok olma (küçülme) animasyonundaysa sayma
-            if (lt.transform.parent != null && lt.transform.parent.localScale.x <= 0.05f)
-                continue;
-
             activePieces.Add(lt);
         }
 
-        // Tahtada parça kalmadıysa fail değildir (LevelComplete tetiklenecektir)
-        if (activePieces.Count <= 0)
-        {
-            return true;
-        }
+        if (activePieces.Count <= 0) return true;
 
-        // Tek bir parça kaldıysa eşleşebileceği başka parça olamaz -> FAIL
-        if (activePieces.Count == 1)
+        // Bütün dolu şişeler tamamlanmış mı?
+        bool allComplete = true;
+        int withLiquid = 0;
+        foreach (var p in activePieces)
         {
-            return false;
+            if (p.currentSlices > 0)
+            {
+                withLiquid++;
+                if (p.currentSlices < p.maxSlices) allComplete = false;
+            }
         }
+        if (allComplete && withLiquid > 0) return true;
 
-        // Donuk olmayan (serbestçe sürüklenebilen) parça sayısı
-        int unfrozenCount = 0;
-        foreach (var piece in activePieces)
-        {
-            DragObject dobj = piece.GetComponentInParent<DragObject>();
-            if (dobj == null || !dobj.isFrozen)
-                unfrozenCount++;
-        }
-
-        // Eğer tahtada kalan TÜM parçalar donuksa ve hiçbiri hareket edemiyorsa -> FAIL
-        if (unfrozenCount == 0)
-        {
-            return false;
-        }
-
+        // Herhangi bir şişe A'dan başka bir şişe B'ye aktarım yapılabilir mi?
         for (int i = 0; i < activePieces.Count; i++)
         {
-            for (int j = i + 1; j < activePieces.Count; j++)
+            LiquidTransfer a = activePieces[i];
+            if (a.currentSlices <= 0) continue;
+
+            for (int j = 0; j < activePieces.Count; j++)
             {
-                if (CanInteractionsExist(activePieces[i], activePieces[j], unfrozenCount))
+                if (i == j) continue;
+                LiquidTransfer b = activePieces[j];
+                if (a.CanPourInto(b))
                 {
                     return true;
                 }
@@ -407,50 +419,6 @@ public partial class GridSpawner : MonoBehaviour
     private bool CanInteractionsExist(LiquidTransfer a, LiquidTransfer b, int unfrozenCount = 2)
     {
         if (a == null || b == null) return false;
-        if (a.currentSlices <= 0 || a.currentSlices >= a.maxSlices) return false;
-        if (b.currentSlices <= 0 || b.currentSlices >= b.maxSlices) return false;
-
-        // Aynı linked grubundaki objeler hiçbir zaman birbirini tamamlayamaz
-        DragObject dobjA = a.GetComponentInParent<DragObject>();
-        DragObject dobjB = b.GetComponentInParent<DragObject>();
-        if (dobjA != null && dobjB != null && dobjA.linkId > 0 && dobjA.linkId == dobjB.linkId)
-            return false;
-
-        // İki parça da donuksa ve kilitleri çözecek başka serbest eşleşme yoksa hareket edemezler
-        bool aFrozen = dobjA != null && dobjA.isFrozen;
-        bool bFrozen = dobjB != null && dobjB.isFrozen;
-        if (aFrozen && bFrozen && unfrozenCount < 2)
-            return false;
-
-        // Renk ve Dilim sayısı eşleşmesi
-        bool colorMatch = ColorMixData.ColorsMatch(a.liquidColor, b.liquidColor);
-        bool sliceMatch = a.currentSlices == b.currentSlices;
-
-        if (!colorMatch || !sliceMatch) return false;
-
-        // Rotasyon ve Yönlenebilirlik Kontrolü
-        bool levelHasRotation = CurrentLevelType.HasFlag(LevelData.LevelType.Rotation);
-        bool canRotA = levelHasRotation && (dobjA != null && dobjA.canRotate && dobjA.linkId == 0);
-        bool canRotB = levelHasRotation && (dobjB != null && dobjB.canRotate && dobjB.linkId == 0);
-
-        // En az biri döndürülebiliyorsa birbirine bakacak şekilde ayarlanabilir
-        if (canRotA || canRotB)
-            return true;
-
-        // Shape3D modunda parçalar farklı yüzeylere taşınarak 90° göreceli yön değiştirebilir
-        bool is3D = levels != null &&
-                    currentLevelIndex < levels.Count &&
-                    levels[currentLevelIndex] != null &&
-                    levels[currentLevelIndex].boardMode == LevelData.BoardMode.Shape3D;
-        if (is3D)
-            return true;
-
-        // 2D modunda ve hiçbiri dönemiyorsa, yönlerinin zıt (karşı karşıya) bakması zorunludur
-        Vector3 myFace = a.transform.up;
-        Vector3 otherFace = b.transform.up;
-        if (Vector3.Dot(myFace, -otherFace) < 0.8f)
-            return false;
-
-        return true;
+        return a.CanPourInto(b) || b.CanPourInto(a);
     }
 }

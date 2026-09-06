@@ -147,12 +147,10 @@ public class TutorialManager : MonoBehaviour
             return;
         }
 
-        // --- LEVEL 1 CLASSIC TUTORIAL ---
-        // Oyunun temel kuralını (ağız ağıza getirme) hiçbir yerde öğretmiyorduk.
-        // El, sağ alttaki parçayı sol alta sürükleyerek eşleşmeyi gösterir.
+        // --- LEVEL 1 MAGIC SORT TUTORIAL ---
         if (spawner.currentLevelIndex == 0 || (currentLevel != null && currentLevel.name == "Level_01"))
         {
-            activeTutorial.path = new Vector2Int[] { new Vector2Int(1, 0), new Vector2Int(0, 0) };
+            activeTutorial.path = new Vector2Int[] { new Vector2Int(0, 1), new Vector2Int(1, 0) };
         }
 
         // --- LEVEL 6 ROTATION TUTORIAL ADIMLARI ---

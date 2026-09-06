@@ -16,229 +16,80 @@ public partial class GridSpawner
 
     private void SpawnFlat2DLevel(LevelData level, float gridSize)
     {
-        bool isCustom = level.customGridPositions != null && level.customGridPositions.Count > 0;
-
-        float minX = 0, maxX = level.gridX - 1;
-        float minY = 0, maxY = level.gridY - 1;
-
-        if (isCustom)
-        {
-            minX = minY = float.MaxValue;
-            maxX = maxY = float.MinValue;
-            foreach (var pos in level.customGridPositions)
-            {
-                if (pos.x < minX) minX = pos.x;
-                if (pos.x > maxX) maxX = pos.x;
-                if (pos.y < minY) minY = pos.y;
-                if (pos.y > maxY) maxY = pos.y;
-            }
-        }
-
-        float offsetX = (minX + maxX) * (gridSize + spacing) / 2f;
-        float offsetY = (minY + maxY) * (gridSize + spacing) / 2f;
-
-        // Grid zeminlerini çiz
-        if (isCustom)
-        {
-            foreach (var pos in level.customGridPositions)
-            {
-                Vector3 worldPos = new Vector3(
-                    pos.x * (gridSize + spacing) - offsetX,
-                    pos.y * (gridSize + spacing) - offsetY,
-                    0
-                );
-                GameObject gridObj = Instantiate(gridPrefab, transform.position + worldPos, Quaternion.identity, transform);
-                activeSpawnedObjects.Add(gridObj);
-
-                LevelData.FrozenCellData frozenData = level.GetFrozenCell(pos, 0);
-                if (frozenData != null)
-                {
-                    FrozenGridCell fgc = gridObj.AddComponent<FrozenGridCell>();
-                    fgc.Initialize(pos, 0, frozenData.requiredMatches);
-                }
-            }
-        }
-        else
-        {
-            for (int x = 0; x < level.gridX; x++)
-            {
-                for (int y = 0; y < level.gridY; y++)
-                {
-                    Vector2Int pos = new Vector2Int(x, y);
-                    Vector3 worldPos = new Vector3(
-                        x * (gridSize + spacing) - offsetX,
-                        y * (gridSize + spacing) - offsetY,
-                        0
-                    );
-                    GameObject gridObj = Instantiate(gridPrefab, transform.position + worldPos, Quaternion.identity, transform);
-                    activeSpawnedObjects.Add(gridObj);
-
-                    LevelData.FrozenCellData frozenData = level.GetFrozenCell(pos, 0);
-                    if (frozenData != null)
-                    {
-                        FrozenGridCell fgc = gridObj.AddComponent<FrozenGridCell>();
-                        fgc.Initialize(pos, 0, frozenData.requiredMatches);
-                    }
-                }
-            }
-        }
-
         groups.Clear(); // Yeni level için grupları temizle
-        foreach (var piece in level.pieces)
+        int totalBottles = level.pieces != null ? level.pieces.Count : 0;
+
+        for (int i = 0; i < totalBottles; i++)
         {
-            Vector3 piecePos = new Vector3(
-                piece.gridPosition.x * (gridSize + spacing) - offsetX,
-                piece.gridPosition.y * (gridSize + spacing) - offsetY,
-                -objectOffset
-            );
+            var piece = level.pieces[i];
+            Vector3 piecePos = GetBottlePosition(i, totalBottles);
+            piecePos.z = -objectOffset;
 
             GameObject newObj = Instantiate(objectPrefab, transform.position + piecePos,
-                Quaternion.Euler(0, 0, piece.rotationZ), transform);
+                Quaternion.identity, transform);
+            newObj.transform.localRotation = Quaternion.identity;
             activeSpawnedObjects.Add(newObj);
-
-            bool isPieceFrozen = level.IsCellFrozen(piece.gridPosition, piece.faceIndex);
 
             DragObject dobj = newObj.GetComponent<DragObject>();
             if (dobj != null)
             {
                 dobj.linkId = piece.linkId;
-                dobj.canRotate = piece.canRotate;
-                dobj.SetFrozen(isPieceFrozen);
-
-                if (isPieceFrozen)
-                {
-                    foreach (var fgcObj in activeSpawnedObjects)
-                    {
-                        FrozenGridCell fgc = fgcObj.GetComponent<FrozenGridCell>();
-                        if (fgc != null && fgc.gridPosition == piece.gridPosition)
-                        {
-                            fgc.frozenPiece = dobj;
-                            break;
-                        }
-                    }
-                }
-            }
-
-            // Group ekleme
-            if (piece.linkId > 0)
-            {
-                if (!groups.ContainsKey(piece.linkId))
-                {
-                    GameObject grpObj = new GameObject("LinkedGroup_" + piece.linkId);
-                    grpObj.transform.parent = transform;
-                    grpObj.transform.position = transform.position;
-                    LinkedObjectGroup log = grpObj.AddComponent<LinkedObjectGroup>();
-                    groups[piece.linkId] = log;
-                    activeSpawnedObjects.Add(grpObj);
-                }
-                newObj.transform.SetParent(groups[piece.linkId].transform, true);
+                dobj.canRotate = false;
+                dobj.SetFrozen(false);
             }
 
             LiquidTransfer lt = newObj.GetComponentInChildren<LiquidTransfer>();
             if (lt != null)
             {
-                lt.liquidColor     = piece.liquidColor;
-                lt.currentSlices   = piece.currentSlices;
-                lt.initialGridPos = piece.gridPosition;
+                lt.InitializeSlices(piece.sliceColors, piece.liquidColor, piece.currentSlices);
+                lt.initialGridPos  = new Vector2Int(i, 0);
                 lt.initialFaceIndex = piece.faceIndex;
+            }
+
+            if (piece.isFrozen)
+            {
+                FrozenBottle fb = newObj.GetComponent<FrozenBottle>();
+                if (fb == null) fb = newObj.AddComponent<FrozenBottle>();
+                fb.Initialize(piece.requiredMatches);
             }
         }
 
         foreach (var kvp in groups)
             kvp.Value.InitGroup();
 
-        StartCoroutine(AdjustViewportCoroutine(level, minX, maxX, minY, maxY, gridSize));
+        StartCoroutine(AdjustViewportCoroutine(level, totalBottles));
     }
 
     // ──────────────────────────────────────────────────────────────
-    // 2D KAMERA + ÇERÇEVE (coroutine — aspect ratio için 1 kare bekler)
+    // 2D KAMERA (coroutine — aspect ratio için 1 kare bekler)
     // ──────────────────────────────────────────────────────────────
 
-    private IEnumerator AdjustViewportCoroutine(LevelData level, float minX, float maxX, float minY, float maxY, float gridSize)
+    private IEnumerator AdjustViewportCoroutine(LevelData level, int totalBottles)
     {
         yield return new WaitForEndOfFrame();
-
-        HashSet<Vector2Int> occupied = new HashSet<Vector2Int>();
-        if (level.customGridPositions != null && level.customGridPositions.Count > 0)
-        {
-            foreach (var p in level.customGridPositions) occupied.Add(p);
-        }
-        else
-        {
-            for (int x = 0; x < level.gridX; x++)
-                for (int y = 0; y < level.gridY; y++)
-                    occupied.Add(new Vector2Int(x, y));
-        }
 
         foreach (var seg in activeFrameSegments) if (seg != null) Destroy(seg);
         activeFrameSegments.Clear();
 
-        float step = gridSize + spacing;
-        float offsetX = (minX + maxX) * step / 2f;
-        float offsetY = (minY + maxY) * step / 2f;
-
-        bool boundsInit = false;
-        Bounds combinedBounds = new Bounds(Vector3.zero, Vector3.zero);
-
-        foreach (var pos in occupied)
+        // Şişelerin kapladığı alanı hesapla (Grid ve arka plaka oluşturulmaz, zemin tamamen temiz kalır)
+        Bounds combinedBounds = new Bounds(transform.position, new Vector3(3.2f, 4.4f, 1f));
+        if (totalBottles > 0)
         {
-            Vector3 tileWorldPos = transform.position + new Vector3(
-                pos.x * step - offsetX,
-                pos.y * step - offsetY,
-                0
-            );
-
-            if (!boundsInit) { combinedBounds = new Bounds(tileWorldPos, Vector3.one * gridSize); boundsInit = true; }
-            else combinedBounds.Encapsulate(new Bounds(tileWorldPos, Vector3.one * gridSize));
-        }
-
-        SpawnFlat2DFrameSegments(occupied, step, gridSize, offsetX, offsetY);
-
-        // Arka zemin plakaları
-        float localPlateZ = 0.015f;
-        float plateSize = step;
-        foreach (var pos in occupied)
-        {
-            GameObject bgTile = null;
-            Vector3 localPos = new Vector3(pos.x * step - offsetX, pos.y * step - offsetY, localPlateZ);
-
-            if (backgroundPlatePrefab != null)
+            combinedBounds = new Bounds(transform.position + GetBottlePosition(0, totalBottles), new Vector3(1.2f, 2.0f, 1f));
+            for (int i = 1; i < totalBottles; i++)
             {
-                bgTile = Instantiate(backgroundPlatePrefab, transform);
+                Vector3 worldPos = transform.position + GetBottlePosition(i, totalBottles);
+                combinedBounds.Encapsulate(new Bounds(worldPos, new Vector3(1.2f, 2.0f, 1f)));
             }
-            else
-            {
-                bgTile = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                Destroy(bgTile.GetComponent<BoxCollider>());
-                bgTile.transform.SetParent(transform);
-                Renderer r = bgTile.GetComponent<Renderer>();
-                if (r != null) r.material.color = Color.white;
-            }
-
-            bgTile.name = $"GridBG_{pos.x}_{pos.y}";
-            bgTile.transform.localRotation = Quaternion.identity;
-            bgTile.transform.localPosition = localPos;
-            
-            // Eğer prefab varsa onun scale'ini koru, yoksa default ata
-            if (backgroundPlatePrefab == null)
-                bgTile.transform.localScale = new Vector3(plateSize, plateSize, 0.01f);
-            
-            activeSpawnedObjects.Add(bgTile);
         }
 
         // Kamera ayarla
         Camera cam = mainCamera != null ? mainCamera : Camera.main;
         if (cam != null)
         {
-            float frameFullEdge = framePadding + frameThickness;
-            combinedBounds.Expand(frameFullEdge * 2f);
-
             float h = combinedBounds.size.y + cameraPadding * 2f;
             float w = combinedBounds.size.x + cameraPadding * 2f;
 
-            // uiTopMarginNormalized: ekranın üst kısmında UI'ın kapladığı oran (0–1).
-            // Oyun alanı yalnızca kalan (1 - margin) yüksekliğe sığdırılır ve
-            // kamera merkezi aşağı kaydırılarak üst UI'ın altında ortalanır.
             float uiMargin = Mathf.Clamp01(uiTopMarginNormalized);
 
             if (cam.orthographic)
@@ -251,7 +102,6 @@ public partial class GridSpawner
                 cam.DOOrthoSize(targetSize, 0.6f).SetEase(Ease.OutCubic);
 
                 Vector3 camTarget = combinedBounds.center;
-                // Kamera merkezini UI yüksekliğinin yarısı kadar aşağı kaydır
                 camTarget.y -= targetSize * uiMargin;
                 camTarget.y += cameraVerticalOffset;
                 camTarget.z = cam.transform.position.z;
@@ -266,7 +116,6 @@ public partial class GridSpawner
                 float targetDistance = Mathf.Max(distByHeight, distByWidth) * cameraZoomFactor;
 
                 Vector3 baseTarget = combinedBounds.center;
-                // Perspektif kamerada da merkezi UI yüksekliğine orantılı kaydır
                 baseTarget.y -= (targetDistance * Mathf.Tan(halfFovRad)) * uiMargin;
                 baseTarget.y += cameraVerticalOffset;
                 cam.transform.DOMove(baseTarget - cam.transform.forward * targetDistance, 0.6f).SetEase(Ease.OutCubic);

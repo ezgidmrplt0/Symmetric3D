@@ -106,16 +106,20 @@ Shader "Custom/HypercasualIceShader"
                 float cracks = smoothstep(0.06, 0.0, abs(v - 0.5)) * _FrostStrength;
                 float frost = (v * 0.3) * _FrostStrength;
 
+                // Subtle magical crystal glint / frost sparkle
+                float glint = sin(_Time.y * 2.5 + i.worldPos.x * 6.0 + i.worldPos.y * 8.0);
+                float crystalGlint = saturate(pow(abs(glint), 8.0)) * 0.45 * _FrostStrength;
+
                 // 2. Base & Deep Color Gradient with smooth spherical curvature
                 float NdotV = saturate(dot(viewDir, normal));
                 float depthFactor = pow(1.0 - NdotV, 1.4);
                 fixed4 iceColor = lerp(_Color, _DeepColor, depthFactor * 0.7);
                 
-                // Add internal crystalline crack brightness
-                iceColor.rgb += float3(0.6, 0.9, 1.0) * cracks * 1.2;
-                iceColor.rgb += float3(0.15, 0.35, 0.55) * frost;
+                // Add internal crystalline crack brightness and sparkles
+                iceColor.rgb += float3(0.65, 0.95, 1.0) * (cracks * 1.35 + crystalGlint);
+                iceColor.rgb += float3(0.18, 0.40, 0.65) * frost;
 
-                float baseA = saturate(iceColor.a + cracks * 0.3 + frost * 0.2);
+                float baseA = saturate(iceColor.a + cracks * 0.35 + frost * 0.25 + crystalGlint * 0.2);
                 float3 baseC = iceColor.rgb * baseA;
 
                 // 3. Rim Lighting (Smooth Crystal Glow around sphere contour)

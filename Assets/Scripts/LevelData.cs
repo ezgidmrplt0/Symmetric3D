@@ -37,8 +37,11 @@ public class LevelData : ScriptableObject
         public int faceIndex = 0;
         public Color liquidColor = Color.white;
         public int currentSlices = 1;
+        public List<Color> sliceColors = new List<Color>();
         public float rotationZ = 0f;
         public int linkId = 0;
+        public bool isFrozen = false;
+        public int requiredMatches = 2;
         [HideInInspector]
         public bool canRotate = true;
     }
