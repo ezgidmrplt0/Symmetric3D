@@ -199,6 +199,7 @@ public partial class DragObject : MonoBehaviour
                     if (transfer != null && transfer.currentSlices > 0)
                     {
                         transfer.Select();
+                        return;
                     }
                     else
                     {

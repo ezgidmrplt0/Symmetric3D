@@ -24,22 +24,50 @@ MonoBehaviour:
   pieces:
   - gridPosition: {x: 0, y: 0}
     faceIndex: 0
-    liquidColor: {r: 0.92, g: 0.22, b: 0.22, a: 1}
-    currentSlices: 2
-    sliceColors: []
+    liquidColor: {r: 0.18, g: 0.52, b: 0.95, a: 1}
+    currentSlices: 4
+    sliceColors:
+    - {r: 0.92, g: 0.22, b: 0.22, a: 1}
+    - {r: 0.18, g: 0.52, b: 0.95, a: 1}
+    - {r: 0.92, g: 0.22, b: 0.22, a: 1}
+    - {r: 0.18, g: 0.52, b: 0.95, a: 1}
     rotationZ: 0
     linkId: 0
     isFrozen: 0
-    requiredMatches: 2
+    requiredMatches: 1
     canRotate: 0
   - gridPosition: {x: 1, y: 0}
     faceIndex: 0
-    liquidColor: {r: 0.68, g: 0.26, b: 0.92, a: 1}
-    currentSlices: 1
+    liquidColor: {r: 0.92, g: 0.22, b: 0.22, a: 1}
+    currentSlices: 4
+    sliceColors:
+    - {r: 0.18, g: 0.52, b: 0.95, a: 1}
+    - {r: 0.92, g: 0.22, b: 0.22, a: 1}
+    - {r: 0.18, g: 0.52, b: 0.95, a: 1}
+    - {r: 0.92, g: 0.22, b: 0.22, a: 1}
+    rotationZ: 0
+    linkId: 0
+    isFrozen: 0
+    requiredMatches: 1
+    canRotate: 0
+  - gridPosition: {x: 2, y: 0}
+    faceIndex: 0
+    liquidColor: {r: 1, g: 1, b: 1, a: 1}
+    currentSlices: 0
     sliceColors: []
     rotationZ: 0
     linkId: 0
     isFrozen: 0
-    requiredMatches: 2
+    requiredMatches: 1
+    canRotate: 0
+  - gridPosition: {x: 3, y: 0}
+    faceIndex: 0
+    liquidColor: {r: 1, g: 1, b: 1, a: 1}
+    currentSlices: 0
+    sliceColors: []
+    rotationZ: 0
+    linkId: 0
+    isFrozen: 0
+    requiredMatches: 1
     canRotate: 0
   frozenCells: []

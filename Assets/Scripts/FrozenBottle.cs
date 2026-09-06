@@ -177,7 +177,7 @@ public class FrozenBottle : MonoBehaviour
         badgeRoot = new GameObject("FrostedBadgeRoot");
         badgeRoot.transform.SetParent(transform, false);
         // Parent MainObject scale = 0.5 olduğundan, -0.68f local Z = -0.34f world Z (küre yüzeyi -0.25f'tir)
-        badgeRoot.transform.localPosition = new Vector3(0f, 0.06f, -0.68f);
+        badgeRoot.transform.localPosition = new Vector3(0f, 0.35f, -0.68f);
         badgeRoot.transform.localRotation = Quaternion.identity;
         badgeRoot.transform.localScale = Vector3.zero;
 
@@ -246,7 +246,7 @@ public class FrozenBottle : MonoBehaviour
         KillTweens();
 
         // Hafif havada süzülme (bobbing)
-        idleFloatTween = badgeRoot.transform.DOLocalMoveY(0.06f + 0.035f, 1.4f)
+        idleFloatTween = badgeRoot.transform.DOLocalMoveY(0.35f + 0.035f, 1.4f)
             .SetLoops(-1, LoopType.Yoyo)
             .SetEase(Ease.InOutSine);
 

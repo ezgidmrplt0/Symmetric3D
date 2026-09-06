@@ -22,8 +22,8 @@ public partial class GridSpawner
         for (int i = 0; i < totalBottles; i++)
         {
             var piece = level.pieces[i];
+            // 3D Masa üzerinde X-Z derinliğinde önlü-arkalı yerleşim
             Vector3 piecePos = GetBottlePosition(i, totalBottles);
-            piecePos.z = -objectOffset;
 
             GameObject newObj = Instantiate(objectPrefab, transform.position + piecePos,
                 Quaternion.identity, transform);
@@ -44,6 +44,9 @@ public partial class GridSpawner
                 lt.InitializeSlices(piece.sliceColors, piece.liquidColor, piece.currentSlices);
                 lt.initialGridPos  = new Vector2Int(i, 0);
                 lt.initialFaceIndex = piece.faceIndex;
+
+                if (lt.cork == null)
+                    lt.cork = newObj.GetComponentInChildren<BottleCork>();
             }
 
             if (piece.isFrozen)
@@ -61,7 +64,7 @@ public partial class GridSpawner
     }
 
     // ──────────────────────────────────────────────────────────────
-    // 2D KAMERA (coroutine — aspect ratio için 1 kare bekler)
+    // 3D MASA VE KAMERA PERSPESKTİFİ
     // ──────────────────────────────────────────────────────────────
 
     private IEnumerator AdjustViewportCoroutine(LevelData level, int totalBottles)
@@ -71,55 +74,105 @@ public partial class GridSpawner
         foreach (var seg in activeFrameSegments) if (seg != null) Destroy(seg);
         activeFrameSegments.Clear();
 
-        // Şişelerin kapladığı alanı hesapla (Grid ve arka plaka oluşturulmaz, zemin tamamen temiz kalır)
-        Bounds combinedBounds = new Bounds(transform.position, new Vector3(3.2f, 4.4f, 1f));
+        // 1. Şişelerin kapladığı 2D alanı hesapla
+        float minX = float.MaxValue, maxX = float.MinValue;
+        float minY = float.MaxValue, maxY = float.MinValue;
+        float bottleHeight = 1.35f;
+
         if (totalBottles > 0)
         {
-            combinedBounds = new Bounds(transform.position + GetBottlePosition(0, totalBottles), new Vector3(1.2f, 2.0f, 1f));
-            for (int i = 1; i < totalBottles; i++)
+            for (int i = 0; i < totalBottles; i++)
             {
-                Vector3 worldPos = transform.position + GetBottlePosition(i, totalBottles);
-                combinedBounds.Encapsulate(new Bounds(worldPos, new Vector3(1.2f, 2.0f, 1f)));
+                Vector3 pos = GetBottlePosition(i, totalBottles);
+                if (pos.x < minX) minX = pos.x;
+                if (pos.x > maxX) maxX = pos.x;
+                if (pos.y < minY) minY = pos.y;
+                if (pos.y > maxY) maxY = pos.y;
             }
         }
+        else
+        {
+            minX = -1f; maxX = 1f;
+            minY = -1f; maxY = 1f;
+        }
 
-        // Kamera ayarla
+        Vector3 boundsCenter = transform.position + new Vector3((minX + maxX) * 0.5f, (minY + maxY) * 0.5f + bottleHeight * 0.5f, 0f);
+        Vector3 boundsSize = new Vector3(Mathf.Max(2.4f, (maxX - minX) + 1.4f), Mathf.Max(2.4f, (maxY - minY) + bottleHeight + 0.8f), 1f);
+        Bounds combinedBounds = new Bounds(boundsCenter, boundsSize);
+
+        // 2. Kamera Hizalaması (Klasik 2D Düz Bakış - Açı ve Masa Yok)
         Camera cam = mainCamera != null ? mainCamera : Camera.main;
+        float targetOrthoSize = 8f;
+
         if (cam != null)
         {
-            float h = combinedBounds.size.y + cameraPadding * 2f;
-            float w = combinedBounds.size.x + cameraPadding * 2f;
+            cam.orthographic = true;
+            cam.transform.DORotate(Vector3.zero, 0.5f).SetEase(Ease.OutCubic);
 
             float uiMargin = Mathf.Clamp01(uiTopMarginNormalized);
+            float playableHeightRatio = Mathf.Max(0.5f, 1f - uiMargin);
 
-            if (cam.orthographic)
+            float h = combinedBounds.size.y + cameraPadding * 1.5f;
+            float w = combinedBounds.size.x + cameraPadding * 1.5f;
+
+            float sizeByHeight = (h / 2f) / playableHeightRatio;
+            float sizeByWidth  = (w / 2f) / cam.aspect;
+            targetOrthoSize = Mathf.Max(sizeByHeight, sizeByWidth) * (cameraZoomFactor > 0 ? cameraZoomFactor : 0.85f) * 1.05f;
+
+            cam.DOOrthoSize(targetOrthoSize, 0.5f).SetEase(Ease.OutCubic);
+
+            Vector3 targetCamPos = combinedBounds.center;
+            targetCamPos.z = -10f;
+            targetCamPos.y += cameraVerticalOffset;
+
+            cam.transform.DOMove(targetCamPos, 0.5f).SetEase(Ease.OutCubic);
+        }
+
+        // 3. Arkaplan "Zemin" objesini arkaplan resmi (arkaplan.jpeg) olarak hizala ve ESNEMEYİ (Stretching) ÖNLE
+        GameObject zeminObj = GameObject.Find("Zemin");
+        if (zeminObj != null)
+        {
+            float bgZ = 15f;
+            Renderer zeminRen = zeminObj.GetComponent<Renderer>();
+            float texAspect = 390f / 844f; // arkaplan.jpeg orijinal aspect ratio (Portrait 390x844)
+
+            if (zeminRen != null && zeminRen.material != null)
             {
-                float playableHeightRatio = 1f - uiMargin;
-                float sizeByHeight = (h / 2f) / playableHeightRatio;
-                float sizeByWidth = (w / 2f) / cam.aspect;
-                float targetSize = Mathf.Max(sizeByHeight, sizeByWidth) * cameraZoomFactor;
-
-                cam.DOOrthoSize(targetSize, 0.6f).SetEase(Ease.OutCubic);
-
-                Vector3 camTarget = combinedBounds.center;
-                camTarget.y -= targetSize * uiMargin;
-                camTarget.y += cameraVerticalOffset;
-                camTarget.z = cam.transform.position.z;
-                cam.transform.DOMove(camTarget, 0.6f).SetEase(Ease.OutCubic);
+                if (zeminRen.material.mainTexture == null)
+                {
+                    Texture2D bgTex = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Images/arkaplan.jpeg");
+                    if (bgTex != null)
+                    {
+                        zeminRen.material.mainTexture = bgTex;
+                        texAspect = (float)bgTex.width / bgTex.height;
+                    }
+                }
+                else if (zeminRen.material.mainTexture is Texture2D t2d && t2d.height > 0)
+                {
+                    texAspect = (float)t2d.width / t2d.height;
+                }
+                zeminRen.material.color = Color.white;
+                zeminRen.material.mainTextureScale = new Vector2(1f, -1f);
+                zeminRen.material.mainTextureOffset = new Vector2(0f, 1f);
             }
-            else
-            {
-                float playableHeightRatio = 1f - uiMargin;
-                float halfFovRad = cam.fieldOfView * 0.5f * Mathf.Deg2Rad;
-                float distByHeight = (h / 2f) / (Mathf.Tan(halfFovRad) * playableHeightRatio);
-                float distByWidth  = (w / 2f) / (Mathf.Tan(halfFovRad) * cam.aspect);
-                float targetDistance = Mathf.Max(distByHeight, distByWidth) * cameraZoomFactor;
 
-                Vector3 baseTarget = combinedBounds.center;
-                baseTarget.y -= (targetDistance * Mathf.Tan(halfFovRad)) * uiMargin;
-                baseTarget.y += cameraVerticalOffset;
-                cam.transform.DOMove(baseTarget - cam.transform.forward * targetDistance, 0.6f).SetEase(Ease.OutCubic);
-            }
+            // Kameranın görüş alanını kaplayacak boyutu orijinal oranları koruyarak (Aspect Cover) hesapla
+            float camAspect = cam != null ? cam.aspect : 0.5625f;
+            float camOrthoHeight = targetOrthoSize * 2f;
+            float camOrthoWidth = camOrthoHeight * camAspect;
+
+            // Orijinal en/boy oranını bozmadan ekranı tamamen dolduracak boyut (Aspect Fill / Cover)
+            float bgHeight = Mathf.Max(camOrthoHeight * 1.5f, (camOrthoWidth / texAspect) * 1.5f);
+            float bgWidth = bgHeight * texAspect;
+
+            // Dynamic mesh bounds scaling (Cube = 1x1, Plane = 10x10)
+            MeshFilter mf = zeminObj.GetComponent<MeshFilter>();
+            float meshWidth = (mf != null && mf.sharedMesh != null && mf.sharedMesh.bounds.size.x > 0f) ? mf.sharedMesh.bounds.size.x : 1f;
+            float meshHeight = (mf != null && mf.sharedMesh != null && mf.sharedMesh.bounds.size.z > 0f) ? mf.sharedMesh.bounds.size.z : 1f;
+
+            zeminObj.transform.position = new Vector3(combinedBounds.center.x, combinedBounds.center.y, bgZ);
+            zeminObj.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
+            zeminObj.transform.localScale = new Vector3(bgWidth / meshWidth, 1f, bgHeight / meshHeight);
         }
     }
 

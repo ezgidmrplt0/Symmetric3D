@@ -294,6 +294,10 @@ MonoBehaviour:
   lifetimeProgress: 0
   newMechanicUnlocked: 0
   hitProgressHundred: 0
+  movesMade: 0
+  rotationsUsed: 0
+  matchesMade: 0
+  attemptNumber: 1
 --- !u!4 &83771858
 Transform:
   m_ObjectHideFlags: 0
@@ -2856,8 +2860,8 @@ Transform:
   m_GameObject: {fileID: 1318699516}
   serializedVersion: 2
   m_LocalRotation: {x: 0.7071068, y: -0, z: -0, w: 0.7071068}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 28.4265, y: 0.18951008, z: 28.4265}
+  m_LocalPosition: {x: 0, y: 0, z: 15}
+  m_LocalScale: {x: 20, y: 1, z: 40}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
@@ -3660,13 +3664,14 @@ MonoBehaviour:
   objectOffset: 0.3
   frameSegmentPrefab: {fileID: 8705812165778106834, guid: 27a9482575df76f6095aaf58024fda5b, type: 3}
   shapeCornerPrefab: {fileID: 0}
-  backgroundPlatePrefab: {fileID: 5607704547805368945, guid: c3e229a9c7edd294c840d7268bc203de, type: 3}
+  backgroundPlatePrefab: {fileID: 5705869208705355488, guid: 47033a6ff949909428cc5889fa136aab, type: 3}
   mainCamera: {fileID: 963194227}
   frameThickness: 0.2
   framePadding: 0.1
   cameraPadding: 1
   cameraZoomFactor: 0.75
   cameraVerticalOffset: 0.5
+  cameraPitchAngle: 20
   uiTopMarginNormalized: 0.12
   shapeZOffset: 5
   levelText: {fileID: 1595179919}

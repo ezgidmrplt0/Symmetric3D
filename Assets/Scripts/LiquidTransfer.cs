@@ -10,6 +10,9 @@ public class LiquidTransfer : MonoBehaviour
     public List<Color> slices = new List<Color>();
     public int maxSlices = 4;
     public int currentSlices = 0;
+    [Header("Kapak & Etiket (Dekoratif)")]
+    public BottleCork cork;
+    public BottleLabel label;
     public Color liquidColor = Color.white;
     public float fillAmount = 0f; 
     public float transferDuration = 0.5f;
@@ -121,19 +124,18 @@ public class LiquidTransfer : MonoBehaviour
         return slices != null && slices.Count == maxSlices && IsMonochrome();
     }
 
+    private static readonly float[] FILL_LEVELS =
+    {
+        0.17f, 0.28f, 0.39f, 0.50f
+    };
+
     public float GetTargetFill()
     {
         int count = slices != null ? slices.Count : currentSlices;
-        if (count <= 0) return -0.55f;
+        if (count <= 0) return 0.0f;
 
-        // Katman doluluk seviyeleri
-        switch (count)
-        {
-            case 1: return -0.18f;
-            case 2: return 0.02f;
-            case 3: return 0.22f;
-            default: return 0.44f;
-        }
+        int idx = Mathf.Clamp(count, 1, FILL_LEVELS.Length) - 1;
+        return FILL_LEVELS[idx];
     }
 
     public void UpdateVisuals()
@@ -143,6 +145,14 @@ public class LiquidTransfer : MonoBehaviour
 
         LiquidTilt tiltCode = GetComponent<LiquidTilt>();
         if (tiltCode != null) tiltCode.liquidMat = liquidMat;
+
+        if (cork == null) cork = GetComponentInChildren<BottleCork>(true);
+        if (cork == null && transform.parent != null) cork = transform.parent.GetComponentInChildren<BottleCork>(true);
+
+        if (IsComplete() && cork != null)
+        {
+            cork.PlayCloseAnimation();
+        }
     }
 
     public void ApplyPropertyBlock()
@@ -258,9 +268,19 @@ public class LiquidTransfer : MonoBehaviour
         if (target.slices.Count >= target.maxSlices) return false;
 
         // Eğer bu şişe zaten 4/4 tam dolu ve tek renk ise (çözülmüş), bozulmasını önle
-        if (this.IsComplete()) return false;
+        // RENK UYUMLULUK KONTROLÜ (Water Sort Kuralı):
+        // Hedef şişe ya BOMBOŞ olmalı, ya da en üstteki sıvının rengi dökülen sıvının rengiyle EŞİT olmalı!
+        if (target.slices != null && target.slices.Count > 0)
+        {
+            Color myTopColor = this.GetTopColor();
+            Color targetTopColor = target.GetTopColor();
 
-        // Hedefte boşluk olduğu sürece aktarıma izin ver (katmanlar karışmadan üst üste biner)
+            if (!ColorMixData.ColorsMatch(myTopColor, targetTopColor))
+            {
+                return false; // Farklı renkler birbirinin üzerine dökülemez!
+            }
+        }
+
         return true;
     }
 
@@ -284,11 +304,24 @@ public class LiquidTransfer : MonoBehaviour
 
         // İksir şişesi ağzından dökülme konumu ve açısı
         bool pourFromLeft = mover.position.x <= receiver.position.x;
-        Vector3 pourPos = receiver.position + Vector3.up * 0.90f + (pourFromLeft ? -Vector3.right : Vector3.right) * 0.40f;
-        pourPos.z = receiver.position.z - 0.15f;
-
         float tiltAngle = pourFromLeft ? -75f : 75f;
         Quaternion pourRot = Quaternion.Euler(0, 0, tiltAngle);
+
+        // Şişenin dünya ölçeği (transform.lossyScale.y ~ 1.35)
+        float scale = mover.lossyScale.y > 0.01f ? mover.lossyScale.y : 1.35f;
+        float tiltRad = Mathf.Abs(tiltAngle) * Mathf.Deg2Rad;
+
+        // Hedef şişenin ağzının hafifçe üstü (Düz dik akıntı için Y yüksekliği)
+        float targetSpoutY = 1.08f * scale;
+
+        // Dökülen şişe 75° eğildiğinde ağzının kendi tabanına göre dünya offset'i
+        float spoutOffsetX = Mathf.Sin(tiltRad) * (0.95f * scale);
+        float spoutOffsetY = Mathf.Cos(tiltRad) * (0.95f * scale);
+
+        // Şişe ağzının tam hedef şişe ağız merkezine hizalanması:
+        float xOffset = pourFromLeft ? -spoutOffsetX : spoutOffsetX;
+        float yOffset = targetSpoutY - spoutOffsetY;
+        Vector3 pourPos = receiver.position + new Vector3(xOffset, yOffset, -0.10f);
 
         Color pourColor = this.GetTopColor();
         int contiguousTop = this.GetContiguousTopCount();
@@ -334,10 +367,15 @@ public class LiquidTransfer : MonoBehaviour
                 .SetTarget(target.gameObject)
                 .OnUpdate(() => { if (target != null) target.ApplyPropertyBlock(); });
 
+            // Sıvı Akış Efekti — Şişenin tam üstünden (0, targetSpoutY) dosdoğru aşağıya dökülen dik akıntı
+            Vector3 sourceSpout = receiver.position + Vector3.up * targetSpoutY;
+            Vector3 targetInside = receiver.position + Vector3.up * (0.45f * scale);
+            LiquidStreamEffect.CreateStream(sourceSpout, targetInside, pourColor, transferDuration);
+
             if (EffectsManager.Instance != null)
             {
                 EffectsManager.Instance.SpawnGlowPulse(target.transform, pourColor);
-                EffectsManager.Instance.SpawnTransferParticles(mover.position, receiver.position, pourColor, transferDuration);
+                EffectsManager.Instance.SpawnTransferParticles(sourceSpout, targetInside, pourColor, transferDuration);
             }
         });
 
@@ -358,9 +396,18 @@ public class LiquidTransfer : MonoBehaviour
             this.UpdateVisuals();
             target.UpdateVisuals();
 
-            // Hedef tamamlandıysa (tam dolduysa ve tek renkse) kutlama partikülü ve donmuş şişelerin sayaç azaltımı
+            // Hedef tamamlandıysa (tam dolduysa ve tek renkse) tıpa (kapağı) kapat, kutlama partikülü at ve donmuş şişe sayacını azalt
             if (target.IsComplete())
             {
+                BottleCork corkComp = target.cork;
+                if (corkComp == null) corkComp = target.GetComponentInChildren<BottleCork>(true);
+                if (corkComp == null && target.transform.parent != null) corkComp = target.transform.parent.GetComponentInChildren<BottleCork>(true);
+
+                if (corkComp != null)
+                {
+                    corkComp.PlayCloseAnimation();
+                }
+
                 FrozenBottle.NotifyBottleCompleted();
 
                 if (EffectsManager.Instance != null)

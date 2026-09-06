@@ -2,22 +2,22 @@ Shader "Custom/HypercasualCrispGlass"
 {
     Properties
     {
-        _Color ("Base Tint", Color) = (0.8, 0.9, 1.0, 0.05)
-        _RimColor ("Rim Color", Color) = (1.0, 1.0, 1.0, 0.85)
-        _RimPower ("Rim Power", Range(0.1, 8.0)) = 1.3
-        _SpecColor ("Specular Color", Color) = (1.0, 1.0, 1.0, 1.0)
-        _Shininess ("Shininess", Range(0.01, 1)) = 0.55
+        _Color ("Base Tint", Color) = (0.75, 0.88, 1.0, 0.18)
+        _RimColor ("Rim Color", Color) = (0.85, 0.95, 1.0, 0.65)
+        _RimPower ("Rim Power", Range(0.5, 8.0)) = 2.3
+        _SpecColor ("Specular Color", Color) = (1.0, 1.0, 1.0, 0.85)
+        _Shininess ("Shininess", Range(0.01, 1)) = 0.70
         _LightDirX ("Light X", Range(-1, 1)) = -0.3
         _LightDirY ("Light Y", Range(0, 1)) = 1.0
         _LightDirZ ("Light Z", Range(-1, 1)) = -0.2
     }
     SubShader
     {
-        Tags {"Queue"="Transparent" "IgnoreProjector"="True" "RenderType"="Transparent"}
+        Tags {"Queue"="Transparent+10" "IgnoreProjector"="True" "RenderType"="Transparent"}
         LOD 100
 
         ZWrite Off
-        Blend One OneMinusSrcAlpha // Premultiplied Alpha
+        Blend SrcAlpha OneMinusSrcAlpha
         Cull Back
 
         Pass
@@ -54,7 +54,7 @@ Shader "Custom/HypercasualCrispGlass"
                 v2f o;
                 o.vertex = UnityObjectToClipPos(v.vertex);
                 o.worldNormal = UnityObjectToWorldNormal(v.normal);
-                o.viewDir = WorldSpaceViewDir(v.vertex); // Towards camera
+                o.viewDir = WorldSpaceViewDir(v.vertex);
                 return o;
             }
 
@@ -64,29 +64,26 @@ Shader "Custom/HypercasualCrispGlass"
                 float3 viewDir = normalize(i.viewDir);
                 float3 lightDir = normalize(float3(_LightDirX, _LightDirY, _LightDirZ));
                 
-                // 1. Base color (Tint)
+                // 1. Realistic glass body tint
                 float baseA = _Color.a;
                 float3 baseC = _Color.rgb * baseA;
                 
-                // 2. Rim Lighting (Fresnel edge glow)
-                float rim = 1.0 - saturate(dot(viewDir, normal));
-                rim = pow(rim, _RimPower);
+                // 2. Smooth 3D Fresnel Glass Contour
+                float NdotV = saturate(dot(normal, viewDir));
+                float rim = pow(1.0 - NdotV, _RimPower);
                 float rimAlpha = rim * _RimColor.a;
                 float3 rimC = _RimColor.rgb * rimAlpha;
                 
-                // 3. Fake Specular Highlight (Shiny point)
+                // 3. Crisp Glossy Specular Highlight
                 float3 halfVector = normalize(lightDir + viewDir);
                 float NdotH = max(0, dot(normal, halfVector));
-                float spec = pow(NdotH, _Shininess * 128.0);
-                float specAlpha = saturate(spec * _SpecColor.a);
+                float spec = pow(NdotH, lerp(32.0, 256.0, _Shininess));
+                float specAlpha = spec * _SpecColor.a;
                 float3 specC = _SpecColor.rgb * specAlpha;
                 
-                // Combine everything
-                // Final color uses additive math, so highlights make it shine brightly
+                // Balanced additive + alpha blend
                 float3 finalColor = baseC + rimC + specC;
-                
-                // Final alpha determines how much of the background is obscured
-                float finalAlpha = saturate(baseA + rimAlpha + specAlpha);
+                float finalAlpha = saturate(baseA + rimAlpha * 0.7 + specAlpha * 0.8);
                 
                 return fixed4(finalColor, finalAlpha);
             }

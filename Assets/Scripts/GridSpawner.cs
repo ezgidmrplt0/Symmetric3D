@@ -36,6 +36,8 @@ public partial class GridSpawner : MonoBehaviour
     public float cameraPadding = 0.2f;
     public float cameraZoomFactor = 0.65f;
     public float cameraVerticalOffset = 0.1f;
+    [Tooltip("2D ve 3D sahnelerde kameranın şişelere bakış eğiklik açısı (ör: 20 derece).")]
+    public float cameraPitchAngle = 20f;
     [Tooltip("Ekranın üst kısmında UI (buton, level yazısı vb.) tarafından kullanılan yükseklik oranı (0–1). " +
              "Örn: 0.12 → ekranın %12'si UI'a ayrılmış. Kamera hesaplamaları bu alanı dışarıda tutar.")]
     [Range(0f, 0.4f)]
@@ -171,7 +173,6 @@ public partial class GridSpawner : MonoBehaviour
     /// <summary>Board moduna göre 2D veya 3D spawn'ı başlatır.</summary>
     void SpawnLevel(LevelData level)
     {
-
         if (levelText != null)
         {
             levelText.text = "LEVEL " + (currentLevelIndex + 1);
@@ -196,26 +197,52 @@ public partial class GridSpawner : MonoBehaviour
     }
 
     // ──────────────────────────────────────────────────────────────
-    // MAGIC SORT ŞİŞE DİZİLİMİ (ELİPTİK HALKA)
+    // MAGIC SORT ŞİŞE DİZİLİMİ (ÇAKIŞMASIZ KAVİSLİ & ŞAŞIRTMANI DİZİLİM)
     // ──────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Magic Sort eliptik halka şişe yerleşimi (Kullanıcı çizimine uygun).
-    /// Şişeleri ekran merkezine göre saat yönünde, eliptik ve 2 sütunlu yay şeklinde dağıtır.
+    /// Klasik Düz 2D Dizilim (Satır Başına Maksimum 4 Şişe):
+    /// Şişe sayısına göre dengeli satırlara böler (ör. 4=2+2, 5=3+2, 6=3+3, 7=4+3, 8=4+4).
     /// </summary>
-    public static Vector3 GetBottlePosition(int index, int totalBottles, float radiusX = 1.35f, float radiusY = 2.0f)
+    public static Vector3 GetBottlePosition(int index, int totalBottles, float spacingX = 1.65f, float spacingY = 2.4f)
     {
         if (totalBottles <= 0) return Vector3.zero;
         if (totalBottles == 1) return Vector3.zero;
 
-        // 6 şişe için açılar: 60°, 0°, -60°, -120°, -180°, -240°
-        // Bu açılar: Üst-Sağ, Orta-Sağ (dışa bombe), Alt-Sağ, Alt-Sol, Orta-Sol (dışa bombe), Üst-Sol noktalarını üretir.
-        float angleDeg = 90f - (360f / totalBottles) * (index + 0.5f);
-        float rad = angleDeg * Mathf.Deg2Rad;
+        int rowCount;
+        if (totalBottles <= 3) rowCount = 1;
+        else if (totalBottles <= 8) rowCount = 2;
+        else if (totalBottles <= 12) rowCount = 3;
+        else rowCount = Mathf.CeilToInt(totalBottles / 4.0f);
 
-        float x = Mathf.Cos(rad) * radiusX;
-        float y = Mathf.Sin(rad) * radiusY;
-        return new Vector3(x, y, 0f);
+        int baseCount = totalBottles / rowCount;
+        int remainder = totalBottles % rowCount;
+
+        int[] rowCapacities = new int[rowCount];
+        for (int r = 0; r < rowCount; r++)
+        {
+            rowCapacities[r] = baseCount + (r < remainder ? 1 : 0);
+        }
+
+        int targetRow = 0;
+        int indexInRow = index;
+        for (int r = 0; r < rowCount; r++)
+        {
+            if (indexInRow < rowCapacities[r])
+            {
+                targetRow = r;
+                break;
+            }
+            indexInRow -= rowCapacities[r];
+        }
+
+        int countInRow = rowCapacities[targetRow];
+        float posX = (indexInRow - (countInRow - 1) * 0.5f) * spacingX;
+
+        float middleRowIdx = (rowCount - 1) * 0.5f;
+        float posY = (middleRowIdx - targetRow) * spacingY;
+
+        return new Vector3(posX, posY, 0f);
     }
 
     // ──────────────────────────────────────────────────────────────
