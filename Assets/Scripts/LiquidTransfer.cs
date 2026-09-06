@@ -149,9 +149,17 @@ public class LiquidTransfer : MonoBehaviour
         if (cork == null) cork = GetComponentInChildren<BottleCork>(true);
         if (cork == null && transform.parent != null) cork = transform.parent.GetComponentInChildren<BottleCork>(true);
 
+        if (label == null) label = GetComponentInChildren<BottleLabel>(true);
+        if (label == null && transform.parent != null) label = transform.parent.GetComponentInChildren<BottleLabel>(true);
+
         if (IsComplete() && cork != null)
         {
             cork.PlayCloseAnimation();
+        }
+
+        if (IsComplete() && label != null)
+        {
+            label.ShowLabel(GetTopColor());
         }
     }
 
@@ -406,6 +414,15 @@ public class LiquidTransfer : MonoBehaviour
                 if (corkComp != null)
                 {
                     corkComp.PlayCloseAnimation();
+                }
+
+                BottleLabel labelComp = target.label;
+                if (labelComp == null) labelComp = target.GetComponentInChildren<BottleLabel>(true);
+                if (labelComp == null && target.transform.parent != null) labelComp = target.transform.parent.GetComponentInChildren<BottleLabel>(true);
+
+                if (labelComp != null)
+                {
+                    labelComp.ShowLabel(target.GetTopColor());
                 }
 
                 FrozenBottle.NotifyBottleCompleted();

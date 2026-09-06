@@ -133,6 +133,9 @@ public class LevelInitializer
             level.levelDisplayName = name;
             level.timeLimit = timeLimit;
             level.boardMode = LevelData.BoardMode.Flat2D;
+            level.customSpacingX = 1.85f;
+            level.customSpacingY = 2.65f;
+            level.bottleScale = 1.15f;
             level.pieces = pieces;
             AssetDatabase.CreateAsset(level, path);
         }
@@ -141,6 +144,9 @@ public class LevelInitializer
             level.levelDisplayName = name;
             level.timeLimit = timeLimit;
             level.boardMode = LevelData.BoardMode.Flat2D;
+            level.customSpacingX = 1.85f;
+            level.customSpacingY = 2.65f;
+            level.bottleScale = 1.15f;
             level.pieces = pieces;
             EditorUtility.SetDirty(level);
         }

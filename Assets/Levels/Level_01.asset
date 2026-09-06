@@ -16,13 +16,21 @@ MonoBehaviour:
   levelType: 1
   timeLimit: 120
   boardMode: 0
+  flatLayoutMode: 2
   gridX: 3
   gridY: 3
+  customSpacingX: 1.22
+  customSpacingY: 1.95
+  bottleScale: 1.15
+  rowStaggerX: 0
+  customRowDistribution: 030000000300000002000000
+  customRowY: []
   customGridPositions: []
   shapePrefab: {fileID: 0}
   shapeFaces: []
   pieces:
   - gridPosition: {x: 0, y: 0}
+    customPosition: {x: -3.3657897, y: -0.9460523}
     faceIndex: 0
     liquidColor: {r: 0.18, g: 0.52, b: 0.95, a: 1}
     currentSlices: 4
@@ -37,6 +45,7 @@ MonoBehaviour:
     requiredMatches: 1
     canRotate: 0
   - gridPosition: {x: 1, y: 0}
+    customPosition: {x: 1.5289471, y: 3.1671052}
     faceIndex: 0
     liquidColor: {r: 0.92, g: 0.22, b: 0.22, a: 1}
     currentSlices: 4
@@ -51,6 +60,7 @@ MonoBehaviour:
     requiredMatches: 1
     canRotate: 0
   - gridPosition: {x: 2, y: 0}
+    customPosition: {x: -1.1289477, y: 2.9644735}
     faceIndex: 0
     liquidColor: {r: 1, g: 1, b: 1, a: 1}
     currentSlices: 0
@@ -61,6 +71,7 @@ MonoBehaviour:
     requiredMatches: 1
     canRotate: 0
   - gridPosition: {x: 3, y: 0}
+    customPosition: {x: 1.8710523, y: -1.5802634}
     faceIndex: 0
     liquidColor: {r: 1, g: 1, b: 1, a: 1}
     currentSlices: 0
@@ -69,5 +80,236 @@ MonoBehaviour:
     linkId: 0
     isFrozen: 0
     requiredMatches: 1
+    canRotate: 0
+  - gridPosition: {x: 4, y: 0}
+    customPosition: {x: 0, y: 0}
+    faceIndex: 0
+    liquidColor: {r: 0.68, g: 0.26, b: 0.92, a: 1}
+    currentSlices: 0
+    sliceColors: []
+    rotationZ: 0
+    linkId: 0
+    isFrozen: 0
+    requiredMatches: 2
+    canRotate: 0
+  - gridPosition: {x: 5, y: 0}
+    customPosition: {x: 0, y: 0}
+    faceIndex: 0
+    liquidColor: {r: 0.95, g: 0.55, b: 0.15, a: 1}
+    currentSlices: 0
+    sliceColors: []
+    rotationZ: 0
+    linkId: 0
+    isFrozen: 0
+    requiredMatches: 2
+    canRotate: 0
+  - gridPosition: {x: 6, y: 0}
+    customPosition: {x: 0, y: 0}
+    faceIndex: 0
+    liquidColor: {r: 0.2, g: 0.82, b: 0.88, a: 1}
+    currentSlices: 0
+    sliceColors: []
+    rotationZ: 0
+    linkId: 0
+    isFrozen: 0
+    requiredMatches: 2
+    canRotate: 0
+  - gridPosition: {x: 7, y: 0}
+    customPosition: {x: 0, y: 0}
+    faceIndex: 0
+    liquidColor: {r: 0.95, g: 0.35, b: 0.65, a: 1}
+    currentSlices: 0
+    sliceColors: []
+    rotationZ: 0
+    linkId: 0
+    isFrozen: 0
+    requiredMatches: 2
+    canRotate: 0
+  - gridPosition: {x: 8, y: 0}
+    customPosition: {x: 0, y: 0}
+    faceIndex: 0
+    liquidColor: {r: 0.92, g: 0.22, b: 0.22, a: 1}
+    currentSlices: 0
+    sliceColors: []
+    rotationZ: 0
+    linkId: 0
+    isFrozen: 0
+    requiredMatches: 2
+    canRotate: 0
+  - gridPosition: {x: 9, y: 0}
+    customPosition: {x: 0, y: 0}
+    faceIndex: 0
+    liquidColor: {r: 0.18, g: 0.52, b: 0.95, a: 1}
+    currentSlices: 0
+    sliceColors: []
+    rotationZ: 0
+    linkId: 0
+    isFrozen: 0
+    requiredMatches: 2
+    canRotate: 0
+  - gridPosition: {x: 10, y: 0}
+    customPosition: {x: 0, y: 0}
+    faceIndex: 0
+    liquidColor: {r: 0.22, g: 0.78, b: 0.35, a: 1}
+    currentSlices: 0
+    sliceColors: []
+    rotationZ: 0
+    linkId: 0
+    isFrozen: 0
+    requiredMatches: 2
+    canRotate: 0
+  - gridPosition: {x: 11, y: 0}
+    customPosition: {x: 0, y: 0}
+    faceIndex: 0
+    liquidColor: {r: 0.95, g: 0.82, b: 0.15, a: 1}
+    currentSlices: 0
+    sliceColors: []
+    rotationZ: 0
+    linkId: 0
+    isFrozen: 0
+    requiredMatches: 2
+    canRotate: 0
+  - gridPosition: {x: 12, y: 0}
+    customPosition: {x: 0, y: 0}
+    faceIndex: 0
+    liquidColor: {r: 0.68, g: 0.26, b: 0.92, a: 1}
+    currentSlices: 0
+    sliceColors: []
+    rotationZ: 0
+    linkId: 0
+    isFrozen: 0
+    requiredMatches: 2
+    canRotate: 0
+  - gridPosition: {x: 13, y: 0}
+    customPosition: {x: 0, y: 0}
+    faceIndex: 0
+    liquidColor: {r: 0.95, g: 0.55, b: 0.15, a: 1}
+    currentSlices: 0
+    sliceColors: []
+    rotationZ: 0
+    linkId: 0
+    isFrozen: 0
+    requiredMatches: 2
+    canRotate: 0
+  - gridPosition: {x: 14, y: 0}
+    customPosition: {x: 0, y: 0}
+    faceIndex: 0
+    liquidColor: {r: 0.2, g: 0.82, b: 0.88, a: 1}
+    currentSlices: 0
+    sliceColors: []
+    rotationZ: 0
+    linkId: 0
+    isFrozen: 0
+    requiredMatches: 2
+    canRotate: 0
+  - gridPosition: {x: 15, y: 0}
+    customPosition: {x: 0, y: 0}
+    faceIndex: 0
+    liquidColor: {r: 0.95, g: 0.35, b: 0.65, a: 1}
+    currentSlices: 0
+    sliceColors: []
+    rotationZ: 0
+    linkId: 0
+    isFrozen: 0
+    requiredMatches: 2
+    canRotate: 0
+  - gridPosition: {x: 16, y: 0}
+    customPosition: {x: 0, y: 0}
+    faceIndex: 0
+    liquidColor: {r: 0.92, g: 0.22, b: 0.22, a: 1}
+    currentSlices: 0
+    sliceColors: []
+    rotationZ: 0
+    linkId: 0
+    isFrozen: 0
+    requiredMatches: 2
+    canRotate: 0
+  - gridPosition: {x: 17, y: 0}
+    customPosition: {x: 0, y: 0}
+    faceIndex: 0
+    liquidColor: {r: 0.18, g: 0.52, b: 0.95, a: 1}
+    currentSlices: 0
+    sliceColors: []
+    rotationZ: 0
+    linkId: 0
+    isFrozen: 0
+    requiredMatches: 2
+    canRotate: 0
+  - gridPosition: {x: 18, y: 0}
+    customPosition: {x: 0, y: 0}
+    faceIndex: 0
+    liquidColor: {r: 0.22, g: 0.78, b: 0.35, a: 1}
+    currentSlices: 0
+    sliceColors: []
+    rotationZ: 0
+    linkId: 0
+    isFrozen: 0
+    requiredMatches: 2
+    canRotate: 0
+  - gridPosition: {x: 19, y: 0}
+    customPosition: {x: 0, y: 0}
+    faceIndex: 0
+    liquidColor: {r: 0.95, g: 0.82, b: 0.15, a: 1}
+    currentSlices: 0
+    sliceColors: []
+    rotationZ: 0
+    linkId: 0
+    isFrozen: 0
+    requiredMatches: 2
+    canRotate: 0
+  - gridPosition: {x: 20, y: 0}
+    customPosition: {x: 0, y: 0}
+    faceIndex: 0
+    liquidColor: {r: 0.68, g: 0.26, b: 0.92, a: 1}
+    currentSlices: 0
+    sliceColors: []
+    rotationZ: 0
+    linkId: 0
+    isFrozen: 0
+    requiredMatches: 2
+    canRotate: 0
+  - gridPosition: {x: 21, y: 0}
+    customPosition: {x: 0, y: 0}
+    faceIndex: 0
+    liquidColor: {r: 0.95, g: 0.55, b: 0.15, a: 1}
+    currentSlices: 0
+    sliceColors: []
+    rotationZ: 0
+    linkId: 0
+    isFrozen: 0
+    requiredMatches: 2
+    canRotate: 0
+  - gridPosition: {x: 22, y: 0}
+    customPosition: {x: 0, y: 0}
+    faceIndex: 0
+    liquidColor: {r: 0.2, g: 0.82, b: 0.88, a: 1}
+    currentSlices: 0
+    sliceColors: []
+    rotationZ: 0
+    linkId: 0
+    isFrozen: 0
+    requiredMatches: 2
+    canRotate: 0
+  - gridPosition: {x: 23, y: 0}
+    customPosition: {x: 0, y: 0}
+    faceIndex: 0
+    liquidColor: {r: 0.95, g: 0.35, b: 0.65, a: 1}
+    currentSlices: 0
+    sliceColors: []
+    rotationZ: 0
+    linkId: 0
+    isFrozen: 0
+    requiredMatches: 2
+    canRotate: 0
+  - gridPosition: {x: 24, y: 0}
+    customPosition: {x: 0, y: 0}
+    faceIndex: 0
+    liquidColor: {r: 0.92, g: 0.22, b: 0.22, a: 1}
+    currentSlices: 0
+    sliceColors: []
+    rotationZ: 0
+    linkId: 0
+    isFrozen: 0
+    requiredMatches: 2
     canRotate: 0
   frozenCells: []

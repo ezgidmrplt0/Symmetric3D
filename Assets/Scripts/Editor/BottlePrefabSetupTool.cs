@@ -180,8 +180,18 @@ public class BottlePrefabSetupTool
             labelGo.transform.localRotation = Quaternion.identity;
             labelGo.transform.localScale = Vector3.one;
 
+            // Eski çakışan SpriteRenderer varsa kaldır (MeshFilter/MeshRenderer ile 3D silindirik kavisli etiket kullanılır)
             SpriteRenderer labelSr = labelGo.GetComponent<SpriteRenderer>();
-            if (labelSr == null) labelSr = labelGo.AddComponent<SpriteRenderer>();
+            if (labelSr != null)
+            {
+                Object.DestroyImmediate(labelSr, true);
+            }
+
+            MeshFilter labelMf = labelGo.GetComponent<MeshFilter>();
+            if (labelMf == null) labelMf = labelGo.AddComponent<MeshFilter>();
+
+            MeshRenderer labelMr = labelGo.GetComponent<MeshRenderer>();
+            if (labelMr == null) labelMr = labelGo.AddComponent<MeshRenderer>();
 
             BottleLabel bottleLabel = labelGo.GetComponent<BottleLabel>();
             if (bottleLabel == null) bottleLabel = labelGo.AddComponent<BottleLabel>();

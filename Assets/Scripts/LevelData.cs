@@ -19,6 +19,14 @@ public class LevelData : ScriptableObject
         Shape3D
     }
 
+    public enum FlatLayoutMode
+    {
+        AutoFlow,       // Standart otomatik satır dizilimi (küçük seviyeler için)
+        Grid,           // Izgara (Sütun x Satır) dizilimi (piece.gridPosition kullanılır)
+        StaggeredV,     // Görseldeki 7 Sütunlu Kademeli V / Chevron Düzeni (4-4-3-3-3-4-4)
+        CustomPositions // Serbest pozisyonlandırma
+    }
+
     [System.Serializable]
     public class FaceLayoutData
     {
@@ -34,6 +42,7 @@ public class LevelData : ScriptableObject
     public class PieceData
     {
         public Vector2Int gridPosition;
+        public Vector2 customPosition;
         public int faceIndex = 0;
         public Color liquidColor = Color.white;
         public int currentSlices = 1;
@@ -63,8 +72,20 @@ public class LevelData : ScriptableObject
     public BoardMode boardMode = BoardMode.Flat2D;
 
     [Header("Flat Grid")]
+    public FlatLayoutMode flatLayoutMode = FlatLayoutMode.AutoFlow;
     public int gridX = 3;
     public int gridY = 3;
+    public float customSpacingX = 1.85f;
+    public float customSpacingY = 2.6f;
+    [Tooltip("2D düzlemde şişe boyutu çarpanı (1.0 = standart, 1.25 = daha dolgun/büyük şişeler)")]
+    [Range(0.5f, 2.5f)]
+    public float bottleScale = 1.0f;
+    [Tooltip("Satırlar arası kademeli/şaşırtmalı X ofseti")]
+    public float rowStaggerX = 0f;
+    [Tooltip("Özel satır şişe kapasiteleri (Örn: 3, 3, 2)")]
+    public List<int> customRowDistribution = new List<int>();
+    [Tooltip("Satırların özel Y koordinatları (Arka plan raflarına tam hizalama için)")]
+    public List<float> customRowY = new List<float>();
     public List<Vector2Int> customGridPositions = new List<Vector2Int>();
 
     [Header("3D Shape")]

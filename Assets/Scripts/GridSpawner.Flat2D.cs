@@ -22,12 +22,18 @@ public partial class GridSpawner
         for (int i = 0; i < totalBottles; i++)
         {
             var piece = level.pieces[i];
-            // 3D Masa üzerinde X-Z derinliğinde önlü-arkalı yerleşim
-            Vector3 piecePos = GetBottlePosition(i, totalBottles);
+            // Seviyenin layout moduna göre pozisyon (StaggeredV, Grid veya AutoFlow)
+            Vector3 piecePos = GetBottlePositionForLevel(level, i, totalBottles);
 
             GameObject newObj = Instantiate(objectPrefab, transform.position + piecePos,
                 Quaternion.identity, transform);
             newObj.transform.localRotation = Quaternion.identity;
+
+            // Şişe boyutunu uygula (Level bazlı veya global 2D boyutu)
+            float levelScale = (level != null && level.bottleScale > 0.1f) ? level.bottleScale : 1.0f;
+            float currentBottleScale = (bottleScale2D > 0.1f ? bottleScale2D : 1.65f) * levelScale;
+            newObj.transform.localScale = Vector3.one * currentBottleScale;
+
             activeSpawnedObjects.Add(newObj);
 
             DragObject dobj = newObj.GetComponent<DragObject>();
@@ -46,7 +52,9 @@ public partial class GridSpawner
                 lt.initialFaceIndex = piece.faceIndex;
 
                 if (lt.cork == null)
-                    lt.cork = newObj.GetComponentInChildren<BottleCork>();
+                    lt.cork = newObj.GetComponentInChildren<BottleCork>(true);
+                if (lt.label == null)
+                    lt.label = newObj.GetComponentInChildren<BottleLabel>(true);
             }
 
             if (piece.isFrozen)
@@ -77,13 +85,15 @@ public partial class GridSpawner
         // 1. Şişelerin kapladığı 2D alanı hesapla
         float minX = float.MaxValue, maxX = float.MinValue;
         float minY = float.MaxValue, maxY = float.MinValue;
-        float bottleHeight = 1.35f;
+        float levelScale = (level != null && level.bottleScale > 0.1f) ? level.bottleScale : 1.0f;
+        float currentBottleScale = (bottleScale2D > 0.1f ? bottleScale2D : 1.65f) * levelScale;
+        float bottleHeight = 1.0f * currentBottleScale;
 
         if (totalBottles > 0)
         {
             for (int i = 0; i < totalBottles; i++)
             {
-                Vector3 pos = GetBottlePosition(i, totalBottles);
+                Vector3 pos = GetBottlePositionForLevel(level, i, totalBottles);
                 if (pos.x < minX) minX = pos.x;
                 if (pos.x > maxX) maxX = pos.x;
                 if (pos.y < minY) minY = pos.y;
@@ -97,7 +107,7 @@ public partial class GridSpawner
         }
 
         Vector3 boundsCenter = transform.position + new Vector3((minX + maxX) * 0.5f, (minY + maxY) * 0.5f + bottleHeight * 0.5f, 0f);
-        Vector3 boundsSize = new Vector3(Mathf.Max(2.4f, (maxX - minX) + 1.4f), Mathf.Max(2.4f, (maxY - minY) + bottleHeight + 0.8f), 1f);
+        Vector3 boundsSize = new Vector3(Mathf.Max(2.8f, (maxX - minX) + 1.6f), Mathf.Max(2.8f, (maxY - minY) + bottleHeight + 1.0f), 1f);
         Bounds combinedBounds = new Bounds(boundsCenter, boundsSize);
 
         // 2. Kamera Hizalaması (Klasik 2D Düz Bakış - Açı ve Masa Yok)
@@ -117,7 +127,12 @@ public partial class GridSpawner
 
             float sizeByHeight = (h / 2f) / playableHeightRatio;
             float sizeByWidth  = (w / 2f) / cam.aspect;
-            targetOrthoSize = Mathf.Max(sizeByHeight, sizeByWidth) * (cameraZoomFactor > 0 ? cameraZoomFactor : 0.85f) * 1.05f;
+
+            // Geniş ızgaralarda (ör. 7 sütunlu 25 şişe) kameranın kenarları kesmemesi için güvenli zoom
+            bool isLargeLayout = totalBottles > 8 || (level != null && level.flatLayoutMode == LevelData.FlatLayoutMode.StaggeredV);
+            float zoom = isLargeLayout ? 1.05f : (cameraZoomFactor > 0 ? cameraZoomFactor : 0.82f) * 1.05f;
+
+            targetOrthoSize = Mathf.Max(sizeByHeight, sizeByWidth) * zoom;
 
             cam.DOOrthoSize(targetOrthoSize, 0.5f).SetEase(Ease.OutCubic);
 

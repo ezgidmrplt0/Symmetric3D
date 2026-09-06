@@ -16,13 +16,21 @@ MonoBehaviour:
   levelType: 1
   timeLimit: 220
   boardMode: 0
+  flatLayoutMode: 0
   gridX: 3
   gridY: 3
+  customSpacingX: 1.85
+  customSpacingY: 2.65
+  bottleScale: 1.15
+  rowStaggerX: 0
+  customRowDistribution: 
+  customRowY: []
   customGridPositions: []
   shapePrefab: {fileID: 0}
   shapeFaces: []
   pieces:
   - gridPosition: {x: 0, y: 0}
+    customPosition: {x: 0, y: 0}
     faceIndex: 0
     liquidColor: {r: 0.92, g: 0.22, b: 0.22, a: 1}
     currentSlices: 4
@@ -37,6 +45,7 @@ MonoBehaviour:
     requiredMatches: 1
     canRotate: 0
   - gridPosition: {x: 1, y: 0}
+    customPosition: {x: 0, y: 0}
     faceIndex: 0
     liquidColor: {r: 0.22, g: 0.78, b: 0.35, a: 1}
     currentSlices: 4
@@ -51,6 +60,7 @@ MonoBehaviour:
     requiredMatches: 1
     canRotate: 0
   - gridPosition: {x: 2, y: 0}
+    customPosition: {x: 0, y: 0}
     faceIndex: 0
     liquidColor: {r: 0.68, g: 0.26, b: 0.92, a: 1}
     currentSlices: 4
@@ -65,6 +75,7 @@ MonoBehaviour:
     requiredMatches: 1
     canRotate: 0
   - gridPosition: {x: 3, y: 0}
+    customPosition: {x: 0, y: 0}
     faceIndex: 0
     liquidColor: {r: 0.98, g: 0.55, b: 0.15, a: 1}
     currentSlices: 4
@@ -79,6 +90,7 @@ MonoBehaviour:
     requiredMatches: 1
     canRotate: 0
   - gridPosition: {x: 4, y: 0}
+    customPosition: {x: 0, y: 0}
     faceIndex: 0
     liquidColor: {r: 0.98, g: 0.82, b: 0.15, a: 1}
     currentSlices: 4
@@ -93,6 +105,7 @@ MonoBehaviour:
     requiredMatches: 1
     canRotate: 0
   - gridPosition: {x: 5, y: 0}
+    customPosition: {x: 0, y: 0}
     faceIndex: 0
     liquidColor: {r: 0.18, g: 0.52, b: 0.95, a: 1}
     currentSlices: 4
@@ -107,6 +120,7 @@ MonoBehaviour:
     requiredMatches: 1
     canRotate: 0
   - gridPosition: {x: 6, y: 0}
+    customPosition: {x: 0, y: 0}
     faceIndex: 0
     liquidColor: {r: 1, g: 1, b: 1, a: 1}
     currentSlices: 0
@@ -117,6 +131,7 @@ MonoBehaviour:
     requiredMatches: 1
     canRotate: 0
   - gridPosition: {x: 7, y: 0}
+    customPosition: {x: 0, y: 0}
     faceIndex: 0
     liquidColor: {r: 1, g: 1, b: 1, a: 1}
     currentSlices: 0

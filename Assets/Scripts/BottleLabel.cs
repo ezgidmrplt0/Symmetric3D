@@ -69,6 +69,7 @@ public class BottleLabel : MonoBehaviour
     [Tooltip("Etiketin belirme süresi")]
     public float popDuration = 0.38f;
 
+    private SpriteRenderer spriteRenderer;
     private MeshFilter meshFilter;
     private MeshRenderer meshRenderer;
     private Material labelMaterial;
@@ -77,20 +78,32 @@ public class BottleLabel : MonoBehaviour
 
     void Awake()
     {
+        spriteRenderer = GetComponent<SpriteRenderer>();
         meshFilter = GetComponent<MeshFilter>();
-        if (meshFilter == null) meshFilter = gameObject.AddComponent<MeshFilter>();
-
         meshRenderer = GetComponent<MeshRenderer>();
-        if (meshRenderer == null) meshRenderer = gameObject.AddComponent<MeshRenderer>();
 
-        // 3D Kavisli Etiket Mesh'ini Oluştur (Şişeyi saran silindir parçası)
-        meshFilter.mesh = CreateCurvedLabelMesh(bottleRadius, wrapArcAngle, labelHeight);
+        // Eğer SpriteRenderer yoksa 3D silindirik kavisli etiket için MeshFilter ve MeshRenderer sağla
+        if (spriteRenderer == null)
+        {
+            if (meshFilter == null) meshFilter = gameObject.AddComponent<MeshFilter>();
+            if (meshRenderer == null) meshRenderer = gameObject.AddComponent<MeshRenderer>();
+        }
 
-        // Transparent Unlit Material
-        Shader unlitShader = Shader.Find("Sprites/Default");
-        if (unlitShader == null) unlitShader = Shader.Find("Unlit/Transparent");
-        labelMaterial = new Material(unlitShader);
-        meshRenderer.material = labelMaterial;
+        if (meshFilter != null)
+        {
+            meshFilter.mesh = CreateCurvedLabelMesh(bottleRadius, wrapArcAngle, labelHeight);
+        }
+
+        if (meshRenderer != null)
+        {
+            Shader unlitShader = Shader.Find("Sprites/Default");
+            if (unlitShader == null) unlitShader = Shader.Find("Unlit/Transparent");
+            if (unlitShader != null)
+            {
+                labelMaterial = new Material(unlitShader);
+                meshRenderer.material = labelMaterial;
+            }
+        }
 
         targetScale = transform.localScale;
         if (targetScale.sqrMagnitude < 0.001f) targetScale = Vector3.one;
@@ -115,9 +128,16 @@ public class BottleLabel : MonoBehaviour
             chosenSprite = DynamicLabelGenerator.GetOrCreateFallbackSprite(potionColor);
         }
 
-        if (chosenSprite != null && labelMaterial != null)
+        if (chosenSprite != null)
         {
-            labelMaterial.mainTexture = chosenSprite.texture;
+            if (labelMaterial != null)
+            {
+                labelMaterial.mainTexture = chosenSprite.texture;
+            }
+            if (spriteRenderer != null)
+            {
+                spriteRenderer.sprite = chosenSprite;
+            }
         }
 
         gameObject.SetActive(true);

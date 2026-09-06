@@ -235,6 +235,8 @@ public partial class GridSpawner
                 lt.currentSlices   = piece.currentSlices;
                 lt.initialGridPos = piece.gridPosition;
                 lt.initialFaceIndex = piece.faceIndex;
+                if (lt.cork == null) lt.cork = newObj.GetComponentInChildren<BottleCork>(true);
+                if (lt.label == null) lt.label = newObj.GetComponentInChildren<BottleLabel>(true);
             }
         }
 
