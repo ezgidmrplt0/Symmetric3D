@@ -473,8 +473,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   liquidMat: {fileID: 2100000, guid: 2e7b1fb41ceb7d5498a28adeb7b4e01e, type: 2}
-  tiltAmount: 0.5
-  smoothSpeed: 5
 --- !u!114 &4349819098547815733
 MonoBehaviour:
   m_ObjectHideFlags: 0

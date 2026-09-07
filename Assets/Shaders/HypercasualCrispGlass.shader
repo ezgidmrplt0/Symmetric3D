@@ -3,26 +3,26 @@ Shader "Custom/HypercasualCrispGlass"
     Properties
     {
         [Header(Glass Body Tint)]
-        _Color ("Base Tint", Color) = (0.05, 0.10, 0.22, 0.12)
+        _Color ("Base Tint", Color) = (0.85, 0.95, 1.0, 0.02)
         
         [Header(Outer Rim Fresnel)]
-        _RimColor ("Outer Rim Color", Color) = (0.45, 0.88, 1.0, 0.95)
-        _RimPower ("Outer Rim Power", Range(0.5, 8.0)) = 2.4
+        _RimColor ("Outer Rim Color", Color) = (0.75, 0.90, 1.0, 0.20)
+        _RimPower ("Outer Rim Power", Range(0.5, 8.0)) = 4.2
         
         [Header(Inner Backface Rim)]
-        _InnerRimColor ("Inner Rim Color", Color) = (0.22, 0.65, 0.95, 0.40)
-        _InnerRimPower ("Inner Rim Power", Range(0.5, 8.0)) = 2.0
+        _InnerRimColor ("Inner Rim Color", Color) = (0.30, 0.70, 1.0, 0.04)
+        _InnerRimPower ("Inner Rim Power", Range(0.5, 8.0)) = 4.0
         
         [Header(Specular Highlight)]
-        _SpecColor ("Specular Color", Color) = (1.0, 1.0, 1.0, 0.95)
-        _Shininess ("Shininess", Range(0.01, 1)) = 0.85
+        _SpecColor ("Specular Color", Color) = (1.0, 1.0, 1.0, 0.35)
+        _Shininess ("Shininess", Range(0.01, 1)) = 0.88
         _LightDirX ("Light X", Range(-1, 1)) = -0.35
         _LightDirY ("Light Y", Range(0, 1)) = 0.90
         _LightDirZ ("Light Z", Range(-1, 1)) = -0.40
 
-        [Header(Vertical Cylindrical Streaks)]
-        _StreakIntensity ("Streak Intensity", Range(0, 1)) = 0.70
-        _StreakPower ("Streak Sharpness", Range(4, 64)) = 22.0
+        [Header(Vertical Highlight Streaks)]
+        _StreakIntensity ("Streak Intensity", Range(0, 1)) = 0.0
+        _StreakPower ("Streak Sharpness", Range(4, 64)) = 24.0
         _StreakOffsetLeft ("Left Streak Pos", Range(-1, 0)) = -0.62
         _StreakOffsetRight ("Right Streak Pos", Range(0, 1)) = 0.68
     }
@@ -33,7 +33,7 @@ Shader "Custom/HypercasualCrispGlass"
 
         // ====================================================================
         // PASS 1: BACKFACE / INNER GLASS DEPTH (Cull Front)
-        // Renders the back lip, inner wall, and bottom curve seen through the glass
+        // Çok hafif, sıvıyı perdelemeyen arka cam hissi
         // ====================================================================
         Pass
         {
@@ -75,7 +75,6 @@ Shader "Custom/HypercasualCrispGlass"
 
             fixed4 frag (v2f i) : SV_Target
             {
-                // Invert normal for backface
                 float3 normal = -normalize(i.worldNormal);
                 float3 viewDir = normalize(i.viewDir);
 
@@ -83,11 +82,8 @@ Shader "Custom/HypercasualCrispGlass"
                 float innerRim = pow(1.0 - NdotV, _InnerRimPower);
                 float innerRimAlpha = innerRim * _InnerRimColor.a;
 
-                float3 baseC = _Color.rgb * (_Color.a * 0.5);
-                float3 rimC = _InnerRimColor.rgb * innerRimAlpha;
-
-                float3 finalColor = baseC + rimC;
-                float finalAlpha = saturate(_Color.a * 0.6 + innerRimAlpha * 0.8);
+                float3 finalColor = _InnerRimColor.rgb;
+                float finalAlpha = innerRimAlpha;
 
                 return fixed4(finalColor, finalAlpha);
             }
@@ -95,8 +91,8 @@ Shader "Custom/HypercasualCrispGlass"
         }
 
         // ====================================================================
-        // PASS 2: FRONTFACE / CRISP FRESNEL & SPECULAR (Cull Back)
-        // Renders crisp electric ice-blue rim, vertical glossy streaks, and glossy spec
+        // PASS 2: FRONTFACE / CRYSTAL CLEAR GLASS (Cull Back)
+        // Zarif, ince dış siluet kenarı ve net şeffaf cam
         // ====================================================================
         Pass
         {
@@ -144,7 +140,6 @@ Shader "Custom/HypercasualCrispGlass"
                 o.worldNormal = UnityObjectToWorldNormal(v.normal);
                 o.viewDir = WorldSpaceViewDir(v.vertex);
 
-                // View-space normal for screen-aligned vertical highlights
                 float3 wNormal = UnityObjectToWorldNormal(v.normal);
                 o.viewNormal = mul((float3x3)UNITY_MATRIX_V, wNormal);
                 return o;
@@ -157,38 +152,33 @@ Shader "Custom/HypercasualCrispGlass"
                 float3 vNormal = normalize(i.viewNormal);
                 float3 lightDir = normalize(float3(_LightDirX, _LightDirY, _LightDirZ));
 
-                // 1. Crystal-clear dark-tinted body
+                // 1. Kristal şeffaf gövde
                 float baseA = _Color.a;
-                float3 baseC = _Color.rgb * baseA;
+                float3 baseC = _Color.rgb;
 
-                // 2. Crisp Hypercasual Fresnel Rim Sheen
+                // 2. Çok ince, zarif siluet kenar kontürü (parlama yapmaz)
                 float NdotV = saturate(dot(normal, viewDir));
                 float rim = pow(1.0 - NdotV, _RimPower);
-                
-                // Extra glow on bottom curve (normal pointing downwards)
-                float bottomCurveBoost = saturate(-normal.y) * 0.45;
-                rim = saturate(rim + bottomCurveBoost * rim);
-
                 float rimAlpha = rim * _RimColor.a;
-                float3 rimC = _RimColor.rgb * rimAlpha;
+                float3 rimC = _RimColor.rgb;
 
-                // 3. Primary Directional Glossy Specular Highlight
+                // 3. Zarif noktasal ışık parıltısı (specular)
                 float3 halfVector = normalize(lightDir + viewDir);
                 float NdotH = max(0.0, dot(normal, halfVector));
                 float spec = pow(NdotH, lerp(32.0, 256.0, _Shininess));
                 float specAlpha = spec * _SpecColor.a;
-                float3 specC = _SpecColor.rgb * specAlpha;
+                float3 specC = _SpecColor.rgb;
 
-                // 4. Vertical Cylindrical Glossy Highlight Streaks (Iconic Mobile Look)
-                // Highlights running along the left and right curvatures of the cylindrical flask
+                // 4. Dikey yansıma (varsayılan kapalı - sıvıyı asla perdelemez)
                 float streakLeft = pow(saturate(1.0 - abs(vNormal.x - _StreakOffsetLeft)), _StreakPower);
                 float streakRight = pow(saturate(1.0 - abs(vNormal.x - _StreakOffsetRight)), _StreakPower) * 0.65;
                 float totalStreak = saturate(streakLeft + streakRight) * _StreakIntensity;
-                float3 streakC = _SpecColor.rgb * totalStreak;
+                float3 streakC = _SpecColor.rgb;
 
-                // 5. Final Balanced Additive + Transparent Color Composition
-                float3 finalColor = baseC + rimC + specC + streakC;
-                float finalAlpha = saturate(baseA + rimAlpha * 0.85 + specAlpha * 0.90 + totalStreak * 0.75);
+                // Şeffaflık dengesi: Sıvı %95+ berrak kalır
+                float finalAlpha = saturate(baseA + rimAlpha * 0.35 + specAlpha * 0.45 + totalStreak * 0.30);
+                float3 blendedColor = baseC * baseA + rimC * rimAlpha + specC * specAlpha + streakC * totalStreak;
+                float3 finalColor = (finalAlpha > 0.001) ? (blendedColor / finalAlpha) : float3(0, 0, 0);
 
                 return fixed4(finalColor, finalAlpha);
             }

@@ -18,7 +18,7 @@ public class LiquidTransfer : MonoBehaviour
     public float transferDuration = 0.5f;
     public float maxAdjacencyDistance = 1.6f; 
 
-    private static MaterialPropertyBlock _propBlock;
+    private MaterialPropertyBlock _propBlock;
     private Renderer[] _renderers;
     private DragObject _parentDrag;
 
@@ -165,22 +165,27 @@ public class LiquidTransfer : MonoBehaviour
 
     public void ApplyPropertyBlock()
     {
+        ApplyPropertyBlockWithSlices(this.slices, this.fillAmount);
+    }
+
+    public void ApplyPropertyBlockWithSlices(List<Color> sliceList, float customFill)
+    {
         if (_renderers == null) _renderers = GetComponentsInChildren<Renderer>();
         if (_propBlock == null) _propBlock = new MaterialPropertyBlock();
 
-        Color c0 = (slices != null && slices.Count > 0) ? slices[0] : Color.clear;
-        Color c1 = (slices != null && slices.Count > 1) ? slices[1] : c0;
-        Color c2 = (slices != null && slices.Count > 2) ? slices[2] : c1;
-        Color c3 = (slices != null && slices.Count > 3) ? slices[3] : c2;
+        Color c0 = (sliceList != null && sliceList.Count > 0) ? sliceList[0] : Color.clear;
+        Color c1 = (sliceList != null && sliceList.Count > 1) ? sliceList[1] : c0;
+        Color c2 = (sliceList != null && sliceList.Count > 2) ? sliceList[2] : c1;
+        Color c3 = (sliceList != null && sliceList.Count > 3) ? sliceList[3] : c2;
 
-        Color topColor = GetTopColor();
-        int count = slices != null ? slices.Count : currentSlices;
+        Color topColor = (sliceList != null && sliceList.Count > 0) ? sliceList[sliceList.Count - 1] : liquidColor;
+        int count = sliceList != null ? sliceList.Count : 0;
 
         foreach (Renderer r in _renderers)
         {
             if (r == null) continue;
             r.GetPropertyBlock(_propBlock);
-            _propBlock.SetFloat("_FillAmount", fillAmount);
+            _propBlock.SetFloat("_FillAmount", customFill);
             _propBlock.SetFloat("_Mode", 0f); // 0 = Y ekseni
             _propBlock.SetFloat("_SliceCount", count);
 
@@ -231,11 +236,6 @@ public class LiquidTransfer : MonoBehaviour
 
         rootT.DOKill();
         rootT.DOLocalMove(originalLocalPos + Vector3.up * 0.45f, 0.2f).SetEase(Ease.OutBack);
-
-        if (EffectsManager.Instance != null)
-        {
-            EffectsManager.Instance.SpawnGlowPulse(transform, GetTopColor());
-        }
     }
 
     public void Deselect()
@@ -310,47 +310,151 @@ public class LiquidTransfer : MonoBehaviour
         Vector3 startPos = mover.position;
         Quaternion startRot = mover.rotation;
 
-        // İksir şişesi ağzından dökülme konumu ve açısı
-        bool pourFromLeft = mover.position.x <= receiver.position.x;
-        float tiltAngle = pourFromLeft ? -75f : 75f;
-        Quaternion pourRot = Quaternion.Euler(0, 0, tiltAngle);
-
-        // Şişenin dünya ölçeği (transform.lossyScale.y ~ 1.35)
-        float scale = mover.lossyScale.y > 0.01f ? mover.lossyScale.y : 1.35f;
-        float tiltRad = Mathf.Abs(tiltAngle) * Mathf.Deg2Rad;
-
-        // Hedef şişenin ağzının hafifçe üstü (Düz dik akıntı için Y yüksekliği)
-        float targetSpoutY = 1.08f * scale;
-
-        // Dökülen şişe 75° eğildiğinde ağzının kendi tabanına göre dünya offset'i
-        float spoutOffsetX = Mathf.Sin(tiltRad) * (0.95f * scale);
-        float spoutOffsetY = Mathf.Cos(tiltRad) * (0.95f * scale);
-
-        // Şişe ağzının tam hedef şişe ağız merkezine hizalanması:
-        float xOffset = pourFromLeft ? -spoutOffsetX : spoutOffsetX;
-        float yOffset = targetSpoutY - spoutOffsetY;
-        Vector3 pourPos = receiver.position + new Vector3(xOffset, yOffset, -0.10f);
-
         Color pourColor = this.GetTopColor();
         int contiguousTop = this.GetContiguousTopCount();
         int targetSpace = target.maxSlices - target.slices.Count;
         int takeAmount = Mathf.Clamp(Mathf.Min(targetSpace, contiguousTop), 1, 4);
 
+        // Geometri ve Kinematik
+        bool pourFromLeft = mover.position.x <= receiver.position.x;
+        float scale = mover.lossyScale.y > 0.01f ? mover.lossyScale.y : 1.35f;
+
+        // Şişe ağzının local koordinatındaki akış dudağı (sıvının döküldüğü alt kenar)
+        Vector3 localSpout = new Vector3(pourFromLeft ? 0.07f : -0.07f, 1.10f, 0f);
+
+        // Hedef şişenin ağzının hafifçe üstü ve yanı (mesh çakışması olmadan tam dökme konumu)
+        Vector3 mouthTargetWorld = receiver.position + new Vector3(
+            pourFromLeft ? -0.20f * scale : 0.20f * scale,
+            1.28f * scale,
+            -0.06f
+        );
+
+        float initialTilt = pourFromLeft ? -68f : 68f;
+        float deepTilt = pourFromLeft ? -78f : 78f;
+
+        Quaternion initialPourRot = Quaternion.Euler(0, 0, initialTilt);
+        Vector3 initialPourPos = mouthTargetWorld - (initialPourRot * (localSpout * scale));
+
+        // Sıvı miktarına göre doğal süre (1 dilim ~0.50s, 2 dilim ~0.65s)
+        float pourDuration = 0.48f + (takeAmount - 1) * 0.14f;
+
+        // Seviye hesaplamaları
+        float sourceStartFill = this.fillAmount;
+        int sourceRemainingCount = Mathf.Max(0, this.slices.Count - takeAmount);
+        float sourceTargetFill = (sourceRemainingCount <= 0) ? 0f : FILL_LEVELS[Mathf.Clamp(sourceRemainingCount, 1, FILL_LEVELS.Length) - 1];
+
+        float targetStartFill = target.fillAmount;
+        int targetFinalCount = target.slices.Count + takeAmount;
+        float targetTargetFill = FILL_LEVELS[Mathf.Clamp(targetFinalCount, 1, FILL_LEVELS.Length) - 1];
+
+        // Hedef şişe için transfer sırasında render edilecek önizleme renk listesi
+        List<Color> targetPreviewSlices = new List<Color>(target.slices);
+        for (int k = 0; k < takeAmount; k++)
+        {
+            targetPreviewSlices.Add(pourColor);
+        }
+
+        // Kaynak şişenin mevcut renkleri (boşaltma boyunca rengin korunması için)
+        List<Color> sourceActiveSlices = new List<Color>(this.slices);
+
         Sequence seq = DOTween.Sequence();
         seq.SetTarget(mover.gameObject);
 
-        // 1. Şişe hedef şişenin ağzına uçar ve eğilir
-        seq.Append(mover.DOMove(pourPos, 0.28f).SetEase(Ease.OutQuad));
-        seq.Join(mover.DORotateQuaternion(pourRot, 0.28f).SetEase(Ease.OutQuad));
+        // 1. Şişe hedef şişenin ağzına uçar ve ilk dökülme açısına eğilir (0.30s)
+        seq.Append(mover.DOMove(initialPourPos, 0.30f).SetEase(Ease.OutQuad));
+        seq.Join(mover.DORotateQuaternion(initialPourRot, 0.30f).SetEase(Ease.OutQuad));
 
-        // 2. Sıvı transferi
+        // 2. Sıvı transferi ve akıntı animasyonu
         seq.AppendCallback(() =>
         {
             AudioManager.PlayTransfer();
             VibrationManager.TryVibrate();
             GameManager.Instance?.RegisterMatch();
 
-            // Kaynaktan takeAmount kadar en üstteki dilimi alıp hedefin üstüne ekle
+            // Hedef şişeyi yeni renk katmanıyla hazırlar (fillAmount henüz altta)
+            target.ApplyPropertyBlockWithSlices(targetPreviewSlices, targetStartFill);
+
+            // Akıntı efekti oluştur (şişe ağzından hedef sıvı yüzeyine)
+            Vector3 initialTargetInside = new Vector3(0f, Mathf.Max(0.12f, targetStartFill), 0f);
+            LiquidStreamEffect stream = LiquidStreamEffect.CreateStream(
+                mover, localSpout,
+                receiver, initialTargetInside,
+                pourColor, pourDuration + 0.08f);
+
+            // Akıntı ucu hedef şişede yükselen sıvı yüzeyini dinamik takip eder
+            if (stream != null)
+            {
+                stream.dynamicStartPosition = () =>
+                {
+                    return mover != null ? mover.TransformPoint(localSpout) : mouthTargetWorld;
+                };
+
+                stream.dynamicEndPosition = () =>
+                {
+                    if (target != null && receiver != null)
+                    {
+                        float surfaceY = Mathf.Max(0.12f, target.fillAmount * 1.02f);
+                        return receiver.TransformPoint(new Vector3(0f, surfaceY, 0f));
+                    }
+                    return receiver != null ? receiver.position : mouthTargetWorld;
+                };
+            }
+
+            // Dökülen şişenin döküldükçe hafifçe daha da eğilmesi (Spout Pivot Kinematics)
+            float tiltProgress = initialTilt;
+            DOTween.To(() => tiltProgress, a =>
+            {
+                tiltProgress = a;
+                if (mover != null)
+                {
+                    mover.rotation = Quaternion.Euler(0, 0, a);
+                    mover.position = mouthTargetWorld - (mover.rotation * (localSpout * scale));
+                }
+            }, deepTilt, pourDuration).SetTarget(mover.gameObject).SetEase(Ease.InOutSine);
+
+            // Kaynak şişenin sıvısının boşalması
+            DOTween.To(() => this.fillAmount, x =>
+            {
+                this.fillAmount = x;
+                if (this != null)
+                {
+                    this.ApplyPropertyBlockWithSlices(sourceActiveSlices, this.fillAmount);
+                }
+            }, sourceTargetFill, pourDuration)
+            .SetTarget(this.gameObject)
+            .SetEase(Ease.InOutSine);
+
+            // Hedef şişenin sıvısının yükselmesi (sıvının hedefe ulaşması için 0.08s gecikmeyle)
+            float fillDelay = 0.08f;
+            float fillRiseDuration = Mathf.Max(0.15f, pourDuration - fillDelay);
+            DOTween.To(() => target.fillAmount, x =>
+            {
+                target.fillAmount = x;
+                if (target != null)
+                {
+                    target.ApplyPropertyBlockWithSlices(targetPreviewSlices, target.fillAmount);
+                }
+            }, targetTargetFill, fillRiseDuration)
+            .SetTarget(target.gameObject)
+            .SetDelay(fillDelay)
+            .SetEase(Ease.InOutSine);
+        });
+
+        seq.AppendInterval(pourDuration + 0.10f);
+
+        // 3. Şişe eski yerine döner ve doğrulur (0.28s)
+        seq.Append(mover.DOMove(startPos, 0.28f).SetEase(Ease.InOutQuad));
+        seq.Join(mover.DORotateQuaternion(startRot, 0.28f).SetEase(Ease.InOutQuad));
+
+        seq.OnComplete(() =>
+        {
+            this.transferring = false;
+            target.transferring = false;
+
+            mover.localPosition = originalLocalPos;
+            mover.localRotation = originalLocalRot;
+
+            // Gerçek dilim listelerini kalıcı olarak güncelle
             for (int k = 0; k < takeAmount; k++)
             {
                 if (this.slices.Count > 0)
@@ -360,46 +464,11 @@ public class LiquidTransfer : MonoBehaviour
 
             this.currentSlices = this.slices.Count;
             this.liquidColor = this.GetTopColor();
+            this.fillAmount = this.GetTargetFill();
 
             target.currentSlices = target.slices.Count;
             target.liquidColor = target.GetTopColor();
-
-            float myTargetFill = this.GetTargetFill();
-            float targetTargetFill = target.GetTargetFill();
-
-            DOTween.To(() => this.fillAmount, x => this.fillAmount = x, myTargetFill, transferDuration)
-                .SetTarget(this.gameObject)
-                .OnUpdate(() => { if (this != null) this.ApplyPropertyBlock(); });
-
-            DOTween.To(() => target.fillAmount, x => target.fillAmount = x, targetTargetFill, transferDuration)
-                .SetTarget(target.gameObject)
-                .OnUpdate(() => { if (target != null) target.ApplyPropertyBlock(); });
-
-            // Sıvı Akış Efekti — Şişenin tam üstünden (0, targetSpoutY) dosdoğru aşağıya dökülen dik akıntı
-            Vector3 sourceSpout = receiver.position + Vector3.up * targetSpoutY;
-            Vector3 targetInside = receiver.position + Vector3.up * (0.45f * scale);
-            LiquidStreamEffect.CreateStream(sourceSpout, targetInside, pourColor, transferDuration);
-
-            if (EffectsManager.Instance != null)
-            {
-                EffectsManager.Instance.SpawnGlowPulse(target.transform, pourColor);
-                EffectsManager.Instance.SpawnTransferParticles(sourceSpout, targetInside, pourColor, transferDuration);
-            }
-        });
-
-        seq.AppendInterval(transferDuration);
-
-        // 3. Şişe eski yerine döner ve doğrulur
-        seq.Append(mover.DOMove(startPos, 0.25f).SetEase(Ease.InOutQuad));
-        seq.Join(mover.DORotateQuaternion(startRot, 0.25f).SetEase(Ease.InOutQuad));
-
-        seq.OnComplete(() =>
-        {
-            this.transferring = false;
-            target.transferring = false;
-
-            mover.localPosition = originalLocalPos;
-            mover.localRotation = originalLocalRot;
+            target.fillAmount = target.GetTargetFill();
 
             this.UpdateVisuals();
             target.UpdateVisuals();

@@ -22,16 +22,20 @@ public class ApplyCrispGlass
             {
                 glassMat.shader = glassShader;
                 
-                // Mükemmel Dengelenmiş Cam Değerleri (Görünür Hacimli & Zarif Cam)
-                glassMat.SetColor("_Color", new Color(0.75f, 0.88f, 1.0f, 0.18f));   // Görünür buz mavisi-şeffaf gövde (%18 opaklık)
-                glassMat.SetColor("_RimColor", new Color(0.85f, 0.95f, 1.0f, 0.65f)); // Yumuşak, doğal 3D cam kontürü
-                glassMat.SetFloat("_RimPower", 2.3f);                                // Doğal cam kavis yayılımı
-                glassMat.SetColor("_SpecColor", new Color(1.0f, 1.0f, 1.0f, 0.85f)); // Canlı cam parıltı noktası
-                glassMat.SetFloat("_Shininess", 0.70f);                             // Net cam ışıltısı
+                // Şeffaf, Zarif ve Parlamayan Kristal Cam Ayarları (Sıvıyı asla perdelemez veya beyazlatmaz)
+                glassMat.SetColor("_Color", new Color(0.85f, 0.95f, 1.0f, 0.02f));       // Şeffaf kristal cam (%2 opaklık)
+                glassMat.SetColor("_RimColor", new Color(0.75f, 0.90f, 1.0f, 0.20f));   // İnce, zarif dış cam kontürü (parlama yapmaz)
+                glassMat.SetFloat("_RimPower", 4.2f);                                   // Sadece en dış siluet kenarında ince çizgi
+                glassMat.SetColor("_InnerRimColor", new Color(0.3f, 0.7f, 1.0f, 0.04f)); // Sıvıyı etkilemeyen arka cam derinliği
+                glassMat.SetFloat("_InnerRimPower", 4.0f);
+                glassMat.SetColor("_SpecColor", new Color(1.0f, 1.0f, 1.0f, 0.35f));   // Yumuşak noktasal cam parıltısı
+                glassMat.SetFloat("_Shininess", 0.88f);
+                glassMat.SetFloat("_StreakIntensity", 0.0f);                            // Beyaz şeritler kapatıldı (sıvıyı örtmez)
+                glassMat.SetFloat("_StreakPower", 24.0f);
                 
                 EditorUtility.SetDirty(glassMat);
                 AssetDatabase.SaveAssets();
-                Debug.Log("[ApplyCrispGlass] Balanced Crystal Glass settings applied!");
+                Debug.Log("[ApplyCrispGlass] Crystal Clear Glass settings applied!");
             }
         }
     }

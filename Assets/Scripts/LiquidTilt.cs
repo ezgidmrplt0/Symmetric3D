@@ -1,49 +1,44 @@
 using UnityEngine;
 
+/// <summary>
+/// Sıvı kontrolcüsü — Sıvı yüzeyinin her zaman %100 düz ve yatay kalmasını sağlar.
+/// İstenmeyen çalkantı, eğrilik veya dalgalanma animasyonlarını engeller.
+/// </summary>
 public class LiquidTilt : MonoBehaviour
 {
     public Material liquidMat;
-    public float tiltAmount = 0.5f;
-    public float smoothSpeed = 5f;
 
-    private Vector3 lastPos;
-    private float currentTiltX;
-    private float currentTiltZ;
     private Renderer _renderer;
-    private static MaterialPropertyBlock _propBlock;
+    private MaterialPropertyBlock _propBlock;
 
-    void Start()
+    private void Awake()
     {
-        _renderer = GetComponentInChildren<Renderer>();
-        if (_propBlock == null) _propBlock = new MaterialPropertyBlock();
-        lastPos = transform.parent != null ? transform.parent.position : transform.position;
+        _renderer = GetComponent<Renderer>();
+        if (_renderer == null) _renderer = GetComponentInChildren<Renderer>();
+        _propBlock = new MaterialPropertyBlock();
     }
 
-    void Update()
+    private void Start()
     {
-        Vector3 parentPos = transform.parent != null ? transform.parent.position : transform.position;
-        Vector3 velocity = (parentPos - lastPos) / Time.deltaTime;
-        lastPos = parentPos;
+        ResetTilt();
+    }
 
-        float targetTiltX = -velocity.x * tiltAmount;
-        float targetTiltZ = -velocity.z * tiltAmount;
-
-        float nextX = Mathf.Lerp(currentTiltX, targetTiltX, Time.deltaTime * smoothSpeed);
-        float nextZ = Mathf.Lerp(currentTiltZ, targetTiltZ, Time.deltaTime * smoothSpeed);
-
-        // OPTIMIZATION: Only update property block if there's significant change
-        if (Mathf.Abs(nextX - currentTiltX) > 0.001f || Mathf.Abs(nextZ - currentTiltZ) > 0.001f)
+    /// <summary>
+    /// Şişedeki sıvıyı tamamen düz ve yatay konuma sıfırlar.
+    /// </summary>
+    public void ResetTilt()
+    {
+        if (_renderer != null)
         {
-            currentTiltX = nextX;
-            currentTiltZ = nextZ;
-
-            if (_renderer != null)
-            {
-                _renderer.GetPropertyBlock(_propBlock);
-                _propBlock.SetFloat("_TiltX", currentTiltX);
-                _propBlock.SetFloat("_TiltZ", currentTiltZ);
-                _renderer.SetPropertyBlock(_propBlock);
-            }
+            if (_propBlock == null) _propBlock = new MaterialPropertyBlock();
+            _renderer.GetPropertyBlock(_propBlock);
+            _propBlock.SetFloat("_TiltX", 0f);
+            _propBlock.SetFloat("_TiltZ", 0f);
+            _renderer.SetPropertyBlock(_propBlock);
         }
     }
+
+    // Geriye dönük uyumluluk için boş metotlar (sıvıyı eğmez/dalgalandırmaz)
+    public void TriggerPickupWobble(float multiplier = 1f) { }
+    public void TriggerTransferAgitation(float multiplier = 1f) { }
 }
