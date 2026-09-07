@@ -44,13 +44,20 @@ Shader "Custom/LiquidFullControl"
         Cull Off
 
         CGPROGRAM
-        #pragma surface surf Standard alpha:fade fullforwardshadows
+        #pragma surface surf LiquidSelfLit alpha:fade noforwardadd noshadow noambient
 
         struct Input
         {
             float3 worldPos;
             float3 viewDir;
         };
+
+        half4 LightingLiquidSelfLit (SurfaceOutput s, half3 lightDir, half atten)
+        {
+            // Sahne ışıklarından, gölgelerden ve ortam ışığından %100 bağımsız aydınlatma;
+            // Sıvı renkleri sahnedeki ışığın açısından veya şiddetinden etkilenmez, her zaman net kalır.
+            return half4(s.Albedo, s.Alpha);
+        }
 
         fixed4 _LiquidColor;
         fixed4 _Color0;
@@ -78,7 +85,7 @@ Shader "Custom/LiquidFullControl"
         float _WaveHeight;
         float _TopGlossiness;
 
-        void surf (Input IN, inout SurfaceOutputStandard o)
+        void surf (Input IN, inout SurfaceOutput o)
         {
             float3 objPos = mul(unity_WorldToObject, float4(IN.worldPos, 1)).xyz;
 
@@ -89,28 +96,27 @@ Shader "Custom/LiquidFullControl"
 
             if (axis < _FillAmount)
             {
+                // Komşu katmanların renk uyumunu kontrol et (aynı renkte olanlar tek parça görünür)
+                float isSame01 = (max(abs(_Color0.r - _Color1.r), max(abs(_Color0.g - _Color1.g), abs(_Color0.b - _Color1.b))) < 0.18) ? 1.0 : 0.0;
+                float isSame12 = (max(abs(_Color1.r - _Color2.r), max(abs(_Color1.g - _Color2.g), abs(_Color1.b - _Color2.b))) < 0.18) ? 1.0 : 0.0;
+                float isSame23 = (max(abs(_Color2.r - _Color3.r), max(abs(_Color2.g - _Color3.g), abs(_Color2.b - _Color3.b))) < 0.18) ? 1.0 : 0.0;
+
                 // 4 katmandan hangisi olduğunu belirle
                 fixed4 currentSliceColor = _Color0;
-                float sliceBottomY = 0.06;
-                float sliceTopY = _Split0;
 
                 if (axis >= _Split2 && _SliceCount >= 4.0)
                 {
                     currentSliceColor = _Color3;
-                    sliceBottomY = _Split2;
-                    sliceTopY = 0.50;
+                    if (isSame23 > 0.5) currentSliceColor = (isSame12 > 0.5) ? ((isSame01 > 0.5) ? _Color0 : _Color1) : _Color2;
                 }
                 else if (axis >= _Split1 && _SliceCount >= 3.0)
                 {
                     currentSliceColor = _Color2;
-                    sliceBottomY = _Split1;
-                    sliceTopY = _Split2;
+                    if (isSame12 > 0.5) currentSliceColor = (isSame01 > 0.5) ? _Color0 : _Color1;
                 }
                 else if (axis >= _Split0 && _SliceCount >= 2.0)
                 {
-                    currentSliceColor = _Color1;
-                    sliceBottomY = _Split0;
-                    sliceTopY = _Split1;
+                    currentSliceColor = (isSame01 > 0.5) ? _Color0 : _Color1;
                 }
 
                 // Canlı, net ve doygun temel renk (beyazlama veya solukluk yok)
@@ -126,17 +132,22 @@ Shader "Custom/LiquidFullControl"
                     baseColor = lerp(baseColor, frozenTint, freezeFactor);
                 }
 
-                // Katman içi hafif doğal dikey derinlik
-                float sliceNormalizedY = saturate((axis - sliceBottomY) / max(0.01, sliceTopY - sliceBottomY));
-                float shade = lerp(0.92, 1.05, sliceNormalizedY);
+                // Sıvı sütunu boyunca kesintisiz, akıcı dikey ton derinliği
+                // (Katmanlar aynı renkte olduğunda arada hiçbir ton atlaması veya çizgi olmaz, bütün gibi durur)
+                float liquidNormalizedY = saturate((axis - 0.06) / max(0.01, _FillAmount - 0.06));
+                float shade = lerp(0.94, 1.04, liquidNormalizedY);
                 fixed3 finalColor = baseColor * shade;
 
-                // Katmanlar arasındaki ince ayrım çizgisi (beyaz değil, hafif koyu ton)
-                if (_SliceCount > 1.0)
+                // Katmanlar arasındaki ince ayrım çizgisi (YALNIZCA farklı renkteki katmanlar arasında görünür)
+                float hasSplit0 = (_SliceCount >= 2.0 && isSame01 < 0.5) ? 1.0 : 0.0;
+                float hasSplit1 = (_SliceCount >= 3.0 && isSame12 < 0.5) ? 1.0 : 0.0;
+                float hasSplit2 = (_SliceCount >= 4.0 && isSame23 < 0.5) ? 1.0 : 0.0;
+
+                if (hasSplit0 > 0.5 || hasSplit1 > 0.5 || hasSplit2 > 0.5)
                 {
-                    float d0 = (_SliceCount >= 2.0) ? abs(axis - _Split0) : 10.0;
-                    float d1 = (_SliceCount >= 3.0) ? abs(axis - _Split1) : 10.0;
-                    float d2 = (_SliceCount >= 4.0) ? abs(axis - _Split2) : 10.0;
+                    float d0 = (hasSplit0 > 0.5) ? abs(axis - _Split0) : 10.0;
+                    float d1 = (hasSplit1 > 0.5) ? abs(axis - _Split1) : 10.0;
+                    float d2 = (hasSplit2 > 0.5) ? abs(axis - _Split2) : 10.0;
                     float minBoundaryDist = min(d0, min(d1, d2));
                     float boundaryLine = 1.0 - smoothstep(0.001, 0.007, minBoundaryDist);
                     finalColor = lerp(finalColor, finalColor * 0.75, boundaryLine * 0.35);
@@ -145,17 +156,15 @@ Shader "Custom/LiquidFullControl"
                 o.Albedo = finalColor;
                 o.Alpha = 1.0;
 
-                // Kendi renginde canlı ışıldama (Self-Illumination):
-                // Beyaz ışık yerine sıvının KENDİ CANLI RENGİ yayılır.
-                // Böylece karanlık arka planda asla soluk veya çamurlu durmaz, canlı ve doygun görünür!
+                // Donmuş şişe için hafif soğuk ışıma
                 if (freezeFactor > 0.05)
                 {
                     float rim = 1.0 - saturate(dot(normalize(IN.viewDir), o.Normal));
-                    o.Emission = fixed3(0.7, 0.9, 1.0) * pow(rim, 2.5) * 0.3 * freezeFactor + finalColor * 0.5;
+                    o.Emission = fixed3(0.7, 0.9, 1.0) * pow(rim, 2.5) * 0.3 * freezeFactor;
                 }
                 else
                 {
-                    o.Emission = finalColor * _InnerGlowStrength;
+                    o.Emission = float3(0, 0, 0);
                 }
             }
             else
@@ -164,12 +173,8 @@ Shader "Custom/LiquidFullControl"
                 o.Albedo = float3(0,0,0);
                 o.Emission = float3(0,0,0);
             }
-
-            // Sıvı içi yansımanın dış gökyüzü / skybox tarafından beyazlatılıp soldurulmasını önlemek için 0
-            o.Smoothness = 0.0;
-            o.Metallic = 0.0;
         }
         ENDCG
     }
-    FallBack "Diffuse"
+    FallBack Off
 }

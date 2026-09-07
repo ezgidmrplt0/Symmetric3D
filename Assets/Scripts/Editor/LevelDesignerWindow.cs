@@ -17,6 +17,7 @@ public class LevelDesignerWindow : EditorWindow
     // Katlanabilir gelişmiş bölümler (varsayılan kapalı - karmaşayı önler)
     private bool showAdvancedSettings = false;
     private bool showLevelGenerator = false;
+    private bool showSequenceSection = true;
 
     // Hızlı Renk Paleti (Water / Magic Sort standart renkleri)
     public static readonly Color[] QuickColors = new Color[]
@@ -55,6 +56,16 @@ public class LevelDesignerWindow : EditorWindow
         var window = GetWindow<LevelDesignerWindow>("Magic Sort Tasarımcı");
         window.minSize = new Vector2(460, 680);
         window.Show();
+    }
+
+    public static void OpenLevel(LevelData level)
+    {
+        var window = GetWindow<LevelDesignerWindow>("Magic Sort Tasarımcı");
+        window.currentLevel = level;
+        window.selectedBottleIndex = 0;
+        window.minSize = new Vector2(460, 680);
+        window.Show();
+        window.Focus();
     }
 
     private void OnEnable()
@@ -161,7 +172,107 @@ public class LevelDesignerWindow : EditorWindow
         }
 
         EditorGUILayout.EndHorizontal();
+
+        // ── Seviye Sıralaması & Gezinme Şeridi ──
+        DrawSequenceToolbar();
+
         EditorGUILayout.EndVertical();
+    }
+
+    private void DrawSequenceToolbar()
+    {
+        LevelSequenceData seq = LevelSequenceHelper.GetOrCreateSequence();
+        if (seq == null) return;
+
+        int totalCount = seq.levels != null ? seq.levels.Count : 0;
+        int currentIdx = LevelSequenceHelper.GetLevelIndex(seq, currentLevel);
+
+        EditorGUILayout.Space(2);
+        EditorGUILayout.BeginHorizontal();
+
+        // ◀ Önceki Butonu
+        GUI.enabled = currentIdx > 0;
+        if (GUILayout.Button("◀ Önceki", EditorStyles.miniButtonLeft, GUILayout.Width(68), GUILayout.Height(20)))
+        {
+            currentLevel = seq.levels[currentIdx - 1];
+            selectedBottleIndex = 0;
+            GUI.FocusControl(null);
+        }
+        GUI.enabled = true;
+
+        // Seviye Sırası Açılır Menüsü (Hızlı Atlama)
+        if (totalCount > 0 && currentIdx >= 0)
+        {
+            string[] levelNames = new string[totalCount];
+            for (int i = 0; i < totalCount; i++)
+            {
+                string name = seq.levels[i] != null ? seq.levels[i].name : "⚠️ (Eksik)";
+                levelNames[i] = $"#{i + 1:D2}  {name}";
+            }
+
+            int chosenIdx = EditorGUILayout.Popup(currentIdx, levelNames, GUILayout.MinWidth(140), GUILayout.Height(20));
+            if (chosenIdx != currentIdx && chosenIdx >= 0 && chosenIdx < totalCount)
+            {
+                currentLevel = seq.levels[chosenIdx];
+                selectedBottleIndex = 0;
+                GUI.FocusControl(null);
+            }
+        }
+        else if (currentLevel != null)
+        {
+            GUILayout.Label("⚠️ Bu Seviye Sıralamada Yok", EditorStyles.miniLabel, GUILayout.Width(150));
+            if (GUILayout.Button("➕ Sıraya Ekle", EditorStyles.miniButton, GUILayout.Width(85), GUILayout.Height(20)))
+            {
+                LevelSequenceHelper.AddLevel(seq, currentLevel);
+            }
+        }
+        else
+        {
+            GUILayout.Label("Sıralama Boş", EditorStyles.miniLabel);
+        }
+
+        // Sonraki ▶ Butonu
+        GUI.enabled = currentIdx >= 0 && currentIdx < totalCount - 1;
+        if (GUILayout.Button("Sonraki ▶", EditorStyles.miniButtonRight, GUILayout.Width(68), GUILayout.Height(20)))
+        {
+            currentLevel = seq.levels[currentIdx + 1];
+            selectedBottleIndex = 0;
+            GUI.FocusControl(null);
+        }
+        GUI.enabled = true;
+
+        GUILayout.Space(6);
+
+        // Sıra Değiştirme Butonları (▲ Öne Al / ▼ Sonraya Al)
+        GUI.enabled = currentIdx > 0;
+        if (GUILayout.Button(new GUIContent("▲", "Mevcut seviyeyi 1 sıra öne al"), EditorStyles.miniButtonLeft, GUILayout.Width(26), GUILayout.Height(20)))
+        {
+            LevelSequenceHelper.ShiftLevel(seq, currentLevel, -1);
+        }
+        GUI.enabled = currentIdx >= 0 && currentIdx < totalCount - 1;
+        if (GUILayout.Button(new GUIContent("▼", "Mevcut seviyeyi 1 sıra sonraya al"), EditorStyles.miniButtonRight, GUILayout.Width(26), GUILayout.Height(20)))
+        {
+            LevelSequenceHelper.ShiftLevel(seq, currentLevel, 1);
+        }
+        GUI.enabled = true;
+
+        GUILayout.Space(6);
+
+        // Numaraya Göre Sırala
+        if (GUILayout.Button(new GUIContent("🔢 Sırala", "Assets/Levels içindeki tüm seviyeleri numaralarına göre (Level_01, Level_02...) dizer"), EditorStyles.miniButtonLeft, GUILayout.Width(58), GUILayout.Height(20)))
+        {
+            LevelSequenceHelper.SyncAndSortSequence(seq);
+            ShowNotification(new GUIContent("🔢 Seviyeler numaraya göre sıralandı!"));
+        }
+
+        // Klasörle Eşitle
+        if (GUILayout.Button(new GUIContent("🔄 Eşitle", "Klasördeki seviyeleri listeyle eşitler ve silinenleri temizler"), EditorStyles.miniButtonRight, GUILayout.Width(56), GUILayout.Height(20)))
+        {
+            LevelSequenceHelper.SyncAndSortSequence(seq);
+            ShowNotification(new GUIContent("🔄 Seviyeler eşitlendi!"));
+        }
+
+        EditorGUILayout.EndHorizontal();
     }
 
     // ──────────────────────────────────────────────────────────────
@@ -737,6 +848,10 @@ public class LevelDesignerWindow : EditorWindow
     // ──────────────────────────────────────────────────────────────
     private void DrawAdvancedFoldouts()
     {
+        DrawSequenceFlowSection();
+
+        GUILayout.Space(4);
+
         EditorGUILayout.BeginVertical(EditorStyles.helpBox);
         showAdvancedSettings = EditorGUILayout.Foldout(showAdvancedSettings, "⚙️ Gelişmiş Düzen Ayarları (Boyut & Aralıklar)", true);
         if (showAdvancedSettings)
@@ -778,6 +893,181 @@ public class LevelDesignerWindow : EditorWindow
                 Generate25BottleVLevel();
             }
         }
+        EditorGUILayout.EndVertical();
+    }
+
+    private void DrawSequenceFlowSection()
+    {
+        LevelSequenceData seq = LevelSequenceHelper.GetOrCreateSequence();
+        if (seq == null) return;
+
+        int totalCount = seq.levels != null ? seq.levels.Count : 0;
+        int currentStartIdx = PlayerPrefs.GetInt("CurrentLevelIndex", 0);
+
+        EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+        
+        EditorGUILayout.BeginHorizontal();
+        showSequenceSection = EditorGUILayout.Foldout(showSequenceSection, $"📋 Oyun Seviye Sıralaması & Akışı ({totalCount} Seviye)", true, EditorStyles.foldoutHeader);
+        if (GUILayout.Button("🔢 Numaraya Göre Sırala", EditorStyles.miniButton, GUILayout.Width(135), GUILayout.Height(18)))
+        {
+            LevelSequenceHelper.SyncAndSortSequence(seq);
+            ShowNotification(new GUIContent("🔢 Seviyeler numaraya göre dizildi!"));
+        }
+        EditorGUILayout.EndHorizontal();
+
+        if (showSequenceSection)
+        {
+            EditorGUILayout.Space(4);
+
+            if (seq.levels == null || seq.levels.Count == 0)
+            {
+                EditorGUILayout.HelpBox("Sıralamada henüz seviye yok. Aşağıdaki '🔄 Klasörle Eşitle' butonuna basarak Assets/Levels klasöründeki seviyeleri ekleyebilirsiniz.", MessageType.Info);
+            }
+            else
+            {
+                int moveUpIdx = -1;
+                int moveDownIdx = -1;
+                int removeIdx = -1;
+                LevelData targetOpenLevel = null;
+
+                for (int i = 0; i < seq.levels.Count; i++)
+                {
+                    LevelData ld = seq.levels[i];
+                    bool isCurrent = (ld != null && ld == currentLevel);
+                    bool isStartLevel = (currentStartIdx == i);
+
+                    GUIStyle rowBoxStyle = new GUIStyle(EditorStyles.helpBox);
+                    rowBoxStyle.padding = new RectOffset(4, 4, 3, 3);
+                    rowBoxStyle.margin = new RectOffset(0, 0, 1, 1);
+
+                    if (isCurrent)
+                    {
+                        GUI.backgroundColor = new Color(0.25f, 0.75f, 0.45f, 0.5f);
+                    }
+                    else if (isStartLevel)
+                    {
+                        GUI.backgroundColor = new Color(0.2f, 0.5f, 0.8f, 0.35f);
+                    }
+                    else
+                    {
+                        GUI.backgroundColor = Color.white;
+                    }
+
+                    EditorGUILayout.BeginHorizontal(rowBoxStyle);
+                    GUI.backgroundColor = Color.white;
+
+                    // Sıra Numarası Badge
+                    GUILayout.Label($"<b>#{i + 1:D2}</b>", new GUIStyle(EditorStyles.boldLabel) { alignment = TextAnchor.MiddleCenter }, GUILayout.Width(34));
+
+                    // Seviye İsmi ve Durumu
+                    string displayName = ld != null ? ld.name : "⚠️ (Eksik / Silinmiş)";
+                    if (isCurrent) displayName = $"👉 <b>{displayName}</b> <color=#1c8030>(Düzenleniyor)</color>";
+                    if (isStartLevel) displayName += " <color=#007acc>[Play Başlangıcı]</color>";
+
+                    GUIStyle labelStyle = new GUIStyle(EditorStyles.label) { richText = true, alignment = TextAnchor.MiddleLeft };
+                    GUILayout.Label(displayName, labelStyle, GUILayout.MinWidth(120));
+
+                    // Şişe Bilgisi
+                    if (ld != null && ld.pieces != null)
+                    {
+                        GUILayout.Label($"{ld.pieces.Count} Şişe", EditorStyles.miniLabel, GUILayout.Width(50));
+                    }
+
+                    // ▲ / ▼ Butonları
+                    GUI.enabled = i > 0;
+                    if (GUILayout.Button(new GUIContent("▲", "1 sıra öne al"), EditorStyles.miniButtonLeft, GUILayout.Width(24), GUILayout.Height(18)))
+                    {
+                        moveUpIdx = i;
+                    }
+                    GUI.enabled = i < seq.levels.Count - 1;
+                    if (GUILayout.Button(new GUIContent("▼", "1 sıra sonraya al"), EditorStyles.miniButtonRight, GUILayout.Width(24), GUILayout.Height(18)))
+                    {
+                        moveDownIdx = i;
+                    }
+                    GUI.enabled = true;
+
+                    GUILayout.Space(2);
+
+                    // Başlangıç Yap Butonu (Play Modu İçin)
+                    Color prevBg = GUI.backgroundColor;
+                    if (isStartLevel) GUI.backgroundColor = new Color(0.3f, 0.85f, 0.4f);
+                    if (GUILayout.Button(isStartLevel ? "▶ Başlangıç" : "▶ Başlat", EditorStyles.miniButton, GUILayout.Width(70), GUILayout.Height(18)))
+                    {
+                        PlayerPrefs.SetInt("CurrentLevelIndex", i);
+                        PlayerPrefs.Save();
+                        ShowNotification(new GUIContent($"⚡ Play başlangıcı Sıra #{i + 1} ({ld?.name}) yapıldı."));
+                    }
+                    GUI.backgroundColor = prevBg;
+
+                    GUILayout.Space(2);
+
+                    // ✏️ Aç / Tasarla Butonu
+                    if (ld != null)
+                    {
+                        GUI.backgroundColor = isCurrent ? new Color(0.3f, 0.9f, 0.5f) : Color.white;
+                        if (GUILayout.Button(isCurrent ? "✓ Açık" : "✏️ Aç", EditorStyles.miniButton, GUILayout.Width(50), GUILayout.Height(18)))
+                        {
+                            targetOpenLevel = ld;
+                        }
+                        GUI.backgroundColor = Color.white;
+                    }
+
+                    // ✕ Kaldır Butonu
+                    GUI.backgroundColor = new Color(1f, 0.45f, 0.45f);
+                    if (GUILayout.Button("✕", EditorStyles.miniButton, GUILayout.Width(22), GUILayout.Height(18)))
+                    {
+                        removeIdx = i;
+                    }
+                    GUI.backgroundColor = Color.white;
+
+                    EditorGUILayout.EndHorizontal();
+                }
+
+                if (moveUpIdx > 0)
+                {
+                    LevelSequenceHelper.MoveLevel(seq, moveUpIdx, moveUpIdx - 1);
+                }
+                else if (moveDownIdx >= 0 && moveDownIdx < seq.levels.Count - 1)
+                {
+                    LevelSequenceHelper.MoveLevel(seq, moveDownIdx, moveDownIdx + 1);
+                }
+                else if (removeIdx >= 0)
+                {
+                    Undo.RecordObject(seq, "Seviyeyi Sıradan Kaldır");
+                    seq.levels.RemoveAt(removeIdx);
+                    EditorUtility.SetDirty(seq);
+                    AssetDatabase.SaveAssets();
+                }
+                else if (targetOpenLevel != null)
+                {
+                    currentLevel = targetOpenLevel;
+                    selectedBottleIndex = 0;
+                    GUI.FocusControl(null);
+                }
+            }
+
+            EditorGUILayout.Space(4);
+            EditorGUILayout.BeginHorizontal();
+
+            if (currentLevel != null && (seq.levels == null || !seq.levels.Contains(currentLevel)))
+            {
+                GUI.backgroundColor = new Color(0.4f, 0.9f, 0.5f);
+                if (GUILayout.Button($"➕ '{currentLevel.name}' Seviyesini Sıraya Ekle", GUILayout.Height(22)))
+                {
+                    LevelSequenceHelper.AddLevel(seq, currentLevel);
+                }
+                GUI.backgroundColor = Color.white;
+            }
+
+            if (GUILayout.Button("🔄 Klasörle Eşitle ve Temizle", GUILayout.Height(22)))
+            {
+                LevelSequenceHelper.SyncAndSortSequence(seq);
+                ShowNotification(new GUIContent("🔄 Seviyeler eşitlendi!"));
+            }
+
+            EditorGUILayout.EndHorizontal();
+        }
+
         EditorGUILayout.EndVertical();
     }
 
@@ -1182,11 +1472,8 @@ public class LevelDesignerWindow : EditorWindow
         {
             string assetPath = AssetDatabase.GUIDToAssetPath(guid);
             string filename = Path.GetFileNameWithoutExtension(assetPath);
-            if (filename.StartsWith("Level_"))
-            {
-                string numStr = filename.Substring(6);
-                if (int.TryParse(numStr, out int num) && num > maxNum) maxNum = num;
-            }
+            int num = LevelSequenceHelper.ExtractLevelNumber(filename);
+            if (num != int.MaxValue && num > maxNum) maxNum = num;
         }
 
         int nextNum = maxNum + 1;
@@ -1238,7 +1525,10 @@ public class LevelDesignerWindow : EditorWindow
 
         currentLevel = newLevel;
         selectedBottleIndex = 0;
-        AddLevelToSequence(newLevel);
+
+        // Seviyeyi otomatik akış listesine ekle ve numaraya göre sırala
+        LevelSequenceHelper.SyncAndSortSequence();
+        ShowNotification(new GUIContent($"✨ '{defaultName}' oluşturuldu ve sıraya eklendi!"));
     }
 
     private void SaveCurrentLevel()
@@ -1253,7 +1543,8 @@ public class LevelDesignerWindow : EditorWindow
     {
         if (currentLevel == null) return;
         string path = AssetDatabase.GetAssetPath(currentLevel);
-        RemoveLevelFromSequence(currentLevel);
+        LevelSequenceData seq = LevelSequenceHelper.GetOrCreateSequence();
+        LevelSequenceHelper.RemoveLevel(seq, currentLevel);
         AssetDatabase.DeleteAsset(path);
         AssetDatabase.SaveAssets();
         currentLevel = null;
@@ -1262,27 +1553,13 @@ public class LevelDesignerWindow : EditorWindow
 
     private void AddLevelToSequence(LevelData level)
     {
-        LevelSequenceData seq = AssetDatabase.LoadAssetAtPath<LevelSequenceData>("Assets/LevelSequence.asset");
-        if (seq != null)
-        {
-            if (seq.levels == null) seq.levels = new List<LevelData>();
-            if (!seq.levels.Contains(level))
-            {
-                seq.levels.Add(level);
-                EditorUtility.SetDirty(seq);
-                AssetDatabase.SaveAssets();
-            }
-        }
+        LevelSequenceData seq = LevelSequenceHelper.GetOrCreateSequence();
+        LevelSequenceHelper.AddLevel(seq, level);
     }
 
     private void RemoveLevelFromSequence(LevelData level)
     {
-        LevelSequenceData seq = AssetDatabase.LoadAssetAtPath<LevelSequenceData>("Assets/LevelSequence.asset");
-        if (seq != null && seq.levels != null)
-        {
-            seq.levels.Remove(level);
-            EditorUtility.SetDirty(seq);
-            AssetDatabase.SaveAssets();
-        }
+        LevelSequenceData seq = LevelSequenceHelper.GetOrCreateSequence();
+        LevelSequenceHelper.RemoveLevel(seq, level);
     }
 }

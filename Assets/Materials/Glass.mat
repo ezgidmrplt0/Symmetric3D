@@ -73,9 +73,9 @@ Material:
     - _Glossiness: 0.9
     - _GlossyReflections: 1
     - _InnerRimPower: 4
-    - _LightDirX: -0.35
-    - _LightDirY: 0.9
-    - _LightDirZ: -0.4
+    - _LightDirX: 1
+    - _LightDirY: 1
+    - _LightDirZ: 1
     - _Metallic: 0
     - _Mode: 3
     - _OcclusionStrength: 1
@@ -86,9 +86,11 @@ Material:
     - _SpecularHighlights: 1
     - _SrcBlend: 1
     - _StreakIntensity: 0
-    - _StreakOffsetLeft: -0.62
-    - _StreakOffsetRight: 0.68
+    - _StreakOffsetLeft: -0.589
+    - _StreakOffsetRight: 0.52
     - _StreakPower: 24
+    - _StreakWidth: 0.177
+    - _TopRimStrength: 1
     - _Transparency: 0.15
     - _UVSec: 0
     - _ZWrite: 0

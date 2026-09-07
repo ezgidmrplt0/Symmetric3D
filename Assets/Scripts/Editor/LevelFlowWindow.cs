@@ -298,9 +298,27 @@ public class LevelFlowWindow : EditorWindow
     {
         if (sequence.levels == null || sequence.levels.Count == 0)
         {
-            EditorGUILayout.HelpBox("Henüz level eklenmedi. Aşağıdan ekleyin.", MessageType.None);
+            EditorGUILayout.HelpBox("Henüz level eklenmedi. Aşağıdan ekleyin veya Klasörle Eşitle butonuna basın.", MessageType.None);
+            if (GUILayout.Button("🔄 Assets/Levels Klasöründeki Seviyeleri Eşitle & Sırala", GUILayout.Height(28)))
+            {
+                LevelSequenceHelper.SyncAndSortSequence(sequence);
+            }
             return;
         }
+
+        EditorGUILayout.BeginHorizontal();
+        if (GUILayout.Button("🔢 Numaraya Göre Sırala (Level_01, Level_02...)", GUILayout.Height(24)))
+        {
+            LevelSequenceHelper.SyncAndSortSequence(sequence);
+            ShowNotification(new GUIContent("🔢 Seviyeler numaraya göre sıralandı!"));
+        }
+        if (GUILayout.Button("🔄 Klasörle Eşitle", GUILayout.Width(130), GUILayout.Height(24)))
+        {
+            LevelSequenceHelper.SyncAndSortSequence(sequence);
+            ShowNotification(new GUIContent("🔄 Seviyeler eşitlendi!"));
+        }
+        EditorGUILayout.EndHorizontal();
+        GUILayout.Space(4);
 
         int lifetimeProgress = GameManager.Instance != null ? GameManager.Instance.lifetimeProgress : 0;
         int currentStartIdx = PlayerPrefs.GetInt("CurrentLevelIndex", 0);
@@ -308,10 +326,12 @@ public class LevelFlowWindow : EditorWindow
         EditorGUILayout.BeginHorizontal();
         GUILayout.Label("≡",       EditorStyles.boldLabel, GUILayout.Width(20)); // Tutamak başlığı
         GUILayout.Label("#",       EditorStyles.boldLabel, GUILayout.Width(28));
+        GUILayout.Label("Sıra",    EditorStyles.boldLabel, GUILayout.Width(50));
         GUILayout.Label("Ad",      EditorStyles.boldLabel, GUILayout.Width(130));
-        GUILayout.Label("Tür",     EditorStyles.boldLabel, GUILayout.Width(100));
-        GUILayout.Label("Açılma",  EditorStyles.boldLabel, GUILayout.Width(70));
-        GUILayout.Label("Başlat",  EditorStyles.boldLabel, GUILayout.Width(110));
+        GUILayout.Label("Tasarla", EditorStyles.boldLabel, GUILayout.Width(62));
+        GUILayout.Label("Tür",     EditorStyles.boldLabel, GUILayout.Width(90));
+        GUILayout.Label("Açılma",  EditorStyles.boldLabel, GUILayout.Width(65));
+        GUILayout.Label("Başlat",  EditorStyles.boldLabel, GUILayout.Width(105));
         GUILayout.Label("",                                GUILayout.Width(24)); 
         EditorGUILayout.EndHorizontal();
         DrawThinLine();
@@ -366,11 +386,25 @@ public class LevelFlowWindow : EditorWindow
             // Index
             GUILayout.Label((i + 1).ToString(), GUILayout.Width(28));
 
+            // ▲ / ▼ Hızlı Taşıma Butonları
+            GUI.enabled = i > 0;
+            if (GUILayout.Button("▲", EditorStyles.miniButtonLeft, GUILayout.Width(24)))
+            {
+                LevelSequenceHelper.MoveLevel(sequence, i, i - 1);
+            }
+            GUI.enabled = i < sequence.levels.Count - 1;
+            if (GUILayout.Button("▼", EditorStyles.miniButtonRight, GUILayout.Width(24)))
+            {
+                LevelSequenceHelper.MoveLevel(sequence, i, i + 1);
+            }
+            GUI.enabled = true;
+
             if (level == null)
             {
                 GUILayout.Label("⚠️ null", GUILayout.Width(130));
-                GUILayout.Label("—", GUILayout.Width(100));
-                GUILayout.Label("—", GUILayout.Width(70));
+                GUILayout.Label("—", GUILayout.Width(62));
+                GUILayout.Label("—", GUILayout.Width(90));
+                GUILayout.Label("—", GUILayout.Width(65));
             }
             else
             {
@@ -383,7 +417,13 @@ public class LevelFlowWindow : EditorWindow
 
                 GUI.backgroundColor = prev;
 
-                GUILayout.Label(level.levelType.ToString(), GUILayout.Width(100));
+                // ✏️ Tasarla Butonu
+                if (GUILayout.Button("✏️ Tasarla", EditorStyles.miniButton, GUILayout.Width(62)))
+                {
+                    LevelDesignerWindow.OpenLevel(level);
+                }
+
+                GUILayout.Label(level.levelType.ToString(), GUILayout.Width(90));
 
                 int unlockPct = sequence.GetUnlockProgress(level.levelType);
                 bool unlocked = lifetimeProgress >= unlockPct;
@@ -391,7 +431,7 @@ public class LevelFlowWindow : EditorWindow
                 {
                     normal = { textColor = unlocked ? new Color(0.2f, 0.8f, 0.2f) : new Color(0.8f, 0.4f, 0.1f) }
                 };
-                GUILayout.Label(unlockPct == 0 ? "✅ Açık" : unlocked ? $"✅ %{unlockPct}" : $"🔒 %{unlockPct}", s, GUILayout.Width(70));
+                GUILayout.Label(unlockPct == 0 ? "✅ Açık" : unlocked ? $"✅ %{unlockPct}" : $"🔒 %{unlockPct}", s, GUILayout.Width(65));
             }
 
             // ▶ Buradan Başlat Butonu
@@ -400,7 +440,7 @@ public class LevelFlowWindow : EditorWindow
                 GUI.backgroundColor = new Color(0.2f, 0.85f, 0.35f); // Parlak Yeşil
 
             string btnLabel = isStartLevel ? "▶ BAŞLANGIÇ" : "▶ Buradan Başlat";
-            if (GUILayout.Button(btnLabel, EditorStyles.miniButtonMid, GUILayout.Width(110)))
+            if (GUILayout.Button(btnLabel, EditorStyles.miniButtonMid, GUILayout.Width(105)))
             {
                 SetStartingLevel(i);
             }
@@ -486,8 +526,7 @@ public class LevelFlowWindow : EditorWindow
 
         GUILayout.Space(4);
         EditorGUILayout.BeginHorizontal();
-        GUILayout.FlexibleSpace();
-        if (GUILayout.Button("+ Seçerek Ekle", GUILayout.Width(140), GUILayout.Height(26)))
+        if (GUILayout.Button("+ Dosya Seçerek Ekle", GUILayout.Height(26)))
         {
             string path = EditorUtility.OpenFilePanel("LevelData Seç", "Assets", "asset");
             if (!string.IsNullOrEmpty(path))
@@ -496,13 +535,15 @@ public class LevelFlowWindow : EditorWindow
                 LevelData picked = AssetDatabase.LoadAssetAtPath<LevelData>(path);
                 if (picked != null)
                 {
-                    Undo.RecordObject(sequence, "Level Ekle");
-                    sequence.levels.Add(picked);
-                    EditorUtility.SetDirty(sequence);
+                    LevelSequenceHelper.AddLevel(sequence, picked);
                 }
             }
         }
-        GUILayout.FlexibleSpace();
+        if (GUILayout.Button("🔄 Klasördeki Tüm Seviyeleri Ekle & Numaraya Göre Sırala", GUILayout.Height(26)))
+        {
+            LevelSequenceHelper.SyncAndSortSequence(sequence);
+            ShowNotification(new GUIContent("🔄 Tüm seviyeler eşitlendi ve sıralandı!"));
+        }
         EditorGUILayout.EndHorizontal();
     }
 

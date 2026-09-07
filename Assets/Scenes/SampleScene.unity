@@ -483,11 +483,11 @@ MonoBehaviour:
   specialTutorialText: {fileID: 579435840}
   levelTutorials:
   - levelDisplayName: level 1
-    levelAsset: {fileID: 11400000, guid: 512ccf2c2fe1323448bfa872859b8dc3, type: 2}
+    levelAsset: {fileID: 11400000, guid: 7916d2c0bdd642c196ebfc98ecb4b9a3, type: 2}
     levelIndex: 0
     path:
-    - {x: 1, y: 0}
     - {x: 0, y: 0}
+    - {x: 1, y: 0}
     handOffset: {x: 0, y: 0}
     showSpecialPanel: 0
     specialText: 

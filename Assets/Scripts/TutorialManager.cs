@@ -42,6 +42,14 @@ public class TutorialManager : MonoBehaviour
     private int lastTrackedLevelIndex = -1;
     private int _rotationTutorialStep = 0;
 
+    // ── Level 1 Magic Sort (Önce Tıkla, Tıklanınca Sağa Kaydır) ──
+    private enum Level1Step { TapLeft, SlideRight }
+    private Level1Step _level1Step = Level1Step.TapLeft;
+    private bool _isLevel1TutorialActive = false;
+    private DragObject _cachedLeftBottle;
+    private DragObject _cachedRightBottle;
+    private LiquidTransfer _lastSelectedBottle;
+
     private void Awake()
     {
         Instance = this;
@@ -50,7 +58,7 @@ public class TutorialManager : MonoBehaviour
 
     private void Start()
     {
-        Invoke("StartTutorial", 0.5f);
+        Invoke(nameof(StartTutorial), 0.5f);
     }
 
     /// <summary>Bu levelde tutorial eli gösteriliyor mu (analitik için).</summary>
@@ -60,16 +68,31 @@ public class TutorialManager : MonoBehaviour
     {
         if (!Application.isPlaying || handImage == null) return;
 
+        // ── Level 1 Seçim Durumu Canlı Takibi ──
+        if (_isLevel1TutorialActive)
+        {
+            if (LiquidTransfer.SelectedBottle != _lastSelectedBottle)
+            {
+                _lastSelectedBottle = LiquidTransfer.SelectedBottle;
+                if (_lastSelectedBottle != null)
+                {
+                    OnBottleSelected(_lastSelectedBottle);
+                }
+                else
+                {
+                    OnBottleDeselected();
+                }
+            }
+            return;
+        }
+
         GridSpawner spawner = FindObjectOfType<GridSpawner>();
         if (spawner == null || spawner.levels == null) return;
 
-        // Mevcut aktif level datasını al
         LevelData currentLevel = (spawner.currentLevelIndex < spawner.levels.Count) ? spawner.levels[spawner.currentLevelIndex] : null;
 
-        // Level veya Offset değişikliğini canlı yakalamak için
         bool levelChanged = (spawner.currentLevelIndex != lastTrackedLevelIndex);
         
-        // Mevcut levelin tutorial verisini bul (Asset üzerinden veya Index üzerinden eşle)
         LevelTutorial currentTut = default;
         bool hasTut = false;
         foreach (var tut in levelTutorials)
@@ -85,8 +108,8 @@ public class TutorialManager : MonoBehaviour
 
             if (hasTut) lastTrackedOffset = currentTut.handOffset;
 
-            CancelInvoke("StartTutorial");
-            Invoke("StartTutorial", 0.5f);
+            CancelInvoke(nameof(StartTutorial));
+            Invoke(nameof(StartTutorial), 0.5f);
         }
     }
 
@@ -96,7 +119,6 @@ public class TutorialManager : MonoBehaviour
         GridSpawner spawner = FindObjectOfType<GridSpawner>();
         if (spawner == null || spawner.levels == null) return;
 
-        // --- MEVCUT LEVELİN TUTORIAL VERİSİNİ BUL ---
         LevelData currentLevel = (spawner.currentLevelIndex < spawner.levels.Count) ? spawner.levels[spawner.currentLevelIndex] : null;
 
         activeTutorial = default;
@@ -117,7 +139,7 @@ public class TutorialManager : MonoBehaviour
             }
         }
 
-        // --- HARDCODED TUTORIAL: Inspector'da entry olmasa bile çalışır ---
+        // --- HARDCODED TUTORIAL KONTROLÜ ---
         if (!found && currentLevel != null)
         {
             if (spawner.currentLevelIndex == 0 || currentLevel.name == "Level_01")
@@ -147,10 +169,11 @@ public class TutorialManager : MonoBehaviour
             return;
         }
 
-        // --- LEVEL 1 MAGIC SORT TUTORIAL ---
+        // ── LEVEL 1 MAGIC SORT: Önce Tıkla, Tıklanınca Sağa Kaydır ──
         if (spawner.currentLevelIndex == 0 || (currentLevel != null && currentLevel.name == "Level_01"))
         {
-            activeTutorial.path = new Vector2Int[] { new Vector2Int(0, 1), new Vector2Int(1, 0) };
+            StartLevel1MagicSortTutorial();
+            return;
         }
 
         // --- LEVEL 6 ROTATION TUTORIAL ADIMLARI ---
@@ -178,13 +201,199 @@ public class TutorialManager : MonoBehaviour
             activeTutorial.path = new Vector2Int[] { new Vector2Int(0, 0), new Vector2Int(1, 0) };
         }
 
-        // --- ÖZEL PANEL KONTROLÜ (KAPALI) ---
         if (specialTutorialPanel != null) specialTutorialPanel.SetActive(false);
-
         lastTrackedOffset = activeTutorial.handOffset;
 
+        RunGenericPathTutorial(spawner);
+    }
 
-        if (handImage != null && activeTutorial.path.Length > 0)
+    // ──────────────────────────────────────────────────────────────
+    // LEVEL 1: ÖNCE SOLDAN TIKLAT, TIKLANINCA SAĞA KAYDIR
+    // ──────────────────────────────────────────────────────────────
+
+    private void StartLevel1MagicSortTutorial()
+    {
+        _isLevel1TutorialActive = true;
+        _lastSelectedBottle = LiquidTransfer.SelectedBottle;
+
+        FindLevel1Bottles(out _cachedLeftBottle, out _cachedRightBottle);
+
+        if (_cachedLeftBottle == null)
+        {
+            CancelInvoke(nameof(StartLevel1MagicSortTutorial));
+            Invoke(nameof(StartLevel1MagicSortTutorial), 0.2f);
+            return;
+        }
+
+        if (LiquidTransfer.SelectedBottle != null)
+        {
+            PlayLevel1SlideRightAnimation();
+        }
+        else
+        {
+            PlayLevel1TapLeftBottleAnimation();
+        }
+    }
+
+    private void FindLevel1Bottles(out DragObject leftBottle, out DragObject rightBottle)
+    {
+        leftBottle = null;
+        rightBottle = null;
+
+        GridSpawner spawner = FindObjectOfType<GridSpawner>();
+        if (spawner != null)
+        {
+            leftBottle = spawner.GetPieceAt(new Vector2Int(0, 0));
+            rightBottle = spawner.GetPieceAt(new Vector2Int(1, 0));
+        }
+
+        if (leftBottle == null || rightBottle == null)
+        {
+            DragObject[] allBottles = FindObjectsOfType<DragObject>();
+            if (allBottles != null && allBottles.Length >= 2)
+            {
+                System.Array.Sort(allBottles, (a, b) => a.transform.position.x.CompareTo(b.transform.position.x));
+                leftBottle = allBottles[0];
+                rightBottle = allBottles[allBottles.Length - 1];
+            }
+            else if (allBottles != null && allBottles.Length == 1)
+            {
+                leftBottle = allBottles[0];
+            }
+        }
+    }
+
+    private Vector3 GetBottleScreenPos(DragObject bottle)
+    {
+        if (bottle == null) return Vector3.zero;
+        if (cam == null) cam = Camera.main;
+        if (cam == null) return Vector3.zero;
+
+        Vector3 worldPos = bottle.transform.position;
+        Vector3 screenPos = cam.WorldToScreenPoint(worldPos);
+
+        // Parmak ucu şişenin alt yarısına (sıvıya) denk gelecek şekilde ergonomik offset:
+        Vector3 offset = new Vector3(25f, -45f, 0f);
+        if (activeTutorial.handOffset != Vector2.zero)
+        {
+            offset += (Vector3)activeTutorial.handOffset;
+        }
+
+        return screenPos + offset;
+    }
+
+    /// <summary>
+    /// 1. AŞAMA: Soldaki şişeye tıklamayı gösteren animasyon (dokunup bırakma).
+    /// </summary>
+    private void PlayLevel1TapLeftBottleAnimation()
+    {
+        _level1Step = Level1Step.TapLeft;
+        if (handImage == null) return;
+        if (_cachedLeftBottle == null) FindLevel1Bottles(out _cachedLeftBottle, out _cachedRightBottle);
+        if (_cachedLeftBottle == null) return;
+
+        handImage.gameObject.SetActive(true);
+        CanvasGroup cg = handImage.GetComponent<CanvasGroup>();
+        if (cg == null) cg = handImage.gameObject.AddComponent<CanvasGroup>();
+        cg.interactable = false;
+        cg.blocksRaycasts = false;
+        cg.alpha = 0f;
+
+        if (currentSeq != null) currentSeq.Kill();
+        currentSeq = DOTween.Sequence();
+
+        Vector3 baseScale = Vector3.one * 1.6f;
+
+        currentSeq.AppendCallback(() =>
+        {
+            if (_cachedLeftBottle != null)
+                handImage.position = GetBottleScreenPos(_cachedLeftBottle);
+            handImage.localScale = baseScale;
+        });
+
+        currentSeq.Append(cg.DOFade(1f, 0.2f));
+
+        // 1. Tıklama Hareketi (parmak basar ve geri kalkar)
+        currentSeq.Append(handImage.DOScale(baseScale * 0.76f, 0.26f).SetEase(Ease.OutQuad));
+        currentSeq.Append(handImage.DOScale(baseScale, 0.22f).SetEase(Ease.OutBack));
+        currentSeq.AppendInterval(0.35f);
+
+        // 2. Tıklama Hareketi
+        currentSeq.Append(handImage.DOScale(baseScale * 0.76f, 0.26f).SetEase(Ease.OutQuad));
+        currentSeq.Append(handImage.DOScale(baseScale, 0.22f).SetEase(Ease.OutBack));
+        currentSeq.AppendInterval(0.55f);
+
+        currentSeq.SetLoops(-1);
+    }
+
+    /// <summary>
+    /// 2. AŞAMA: Soldaki şişe seçilince/tıklanınca sağdaki şişeye doğru kaydırmayı gösteren animasyon.
+    /// </summary>
+    private void PlayLevel1SlideRightAnimation()
+    {
+        _level1Step = Level1Step.SlideRight;
+        if (handImage == null) return;
+        if (_cachedLeftBottle == null || _cachedRightBottle == null) FindLevel1Bottles(out _cachedLeftBottle, out _cachedRightBottle);
+        if (_cachedLeftBottle == null || _cachedRightBottle == null) return;
+
+        handImage.gameObject.SetActive(true);
+        CanvasGroup cg = handImage.GetComponent<CanvasGroup>();
+        if (cg == null) cg = handImage.gameObject.AddComponent<CanvasGroup>();
+        cg.interactable = false;
+        cg.blocksRaycasts = false;
+        cg.alpha = 0f;
+
+        if (currentSeq != null) currentSeq.Kill();
+        currentSeq = DOTween.Sequence();
+
+        Vector3 baseScale = Vector3.one * 1.6f;
+
+        currentSeq.AppendCallback(() =>
+        {
+            if (_cachedLeftBottle != null)
+                handImage.position = GetBottleScreenPos(_cachedLeftBottle);
+            handImage.localScale = baseScale;
+        });
+
+        currentSeq.Append(cg.DOFade(1f, 0.2f));
+
+        // Şişeyi tutma / dokunma
+        currentSeq.Append(handImage.DOScale(baseScale * 0.82f, 0.22f).SetEase(Ease.OutQuad));
+
+        // Soldan sağdaki şişeye doğru akıcı kaydırma (Slide right!)
+        currentSeq.Append(handImage.DOMove(GetBottleScreenPos(_cachedRightBottle), 0.9f).SetEase(Ease.InOutQuad));
+
+        // Sağda bırakma
+        currentSeq.Append(handImage.DOScale(baseScale, 0.2f).SetEase(Ease.OutQuad));
+        currentSeq.Append(cg.DOFade(0f, 0.22f));
+        currentSeq.AppendInterval(0.35f);
+
+        currentSeq.SetLoops(-1);
+    }
+
+    public void OnBottleSelected(LiquidTransfer bottle)
+    {
+        if (_isLevel1TutorialActive)
+        {
+            PlayLevel1SlideRightAnimation();
+        }
+    }
+
+    public void OnBottleDeselected()
+    {
+        if (_isLevel1TutorialActive)
+        {
+            PlayLevel1TapLeftBottleAnimation();
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────
+    // DİĞER SEVİYELER İÇİN STANDART PATİKA TUTORIAL'I
+    // ──────────────────────────────────────────────────────────────
+
+    private void RunGenericPathTutorial(GridSpawner spawner)
+    {
+        if (handImage != null && activeTutorial.path != null && activeTutorial.path.Length > 0)
         {
             handImage.gameObject.SetActive(true);
             CanvasGroup cg = handImage.GetComponent<CanvasGroup>();
@@ -197,7 +406,6 @@ public class TutorialManager : MonoBehaviour
             if (currentSeq != null) currentSeq.Kill();
             currentSeq = DOTween.Sequence();
             
-            // --- HEDEF POZİSYON HESAPLAMA (Nesne Odaklı) ---
             System.Func<int, Vector3> getPathScreenPos = (idx) => {
                 Vector2Int gp = activeTutorial.path[Mathf.Clamp(idx, 0, activeTutorial.path.Length - 1)];
                 DragObject piece = spawner.GetPieceAt(gp);
@@ -205,33 +413,32 @@ public class TutorialManager : MonoBehaviour
                 return cam.WorldToScreenPoint(worldPos) + (Vector3)activeTutorial.handOffset;
             };
 
+            Vector3 baseScale = Vector3.one * 1.5f;
+
             currentSeq.AppendInterval(0.2f);
             currentSeq.AppendCallback(() => {
                 handImage.position = getPathScreenPos(0);
-                handImage.localScale = Vector3.one; 
+                handImage.localScale = baseScale; 
             });
             
             currentSeq.Append(cg.DOFade(1f, 0.3f));
 
             if (activeTutorial.path.Length == 1)
             {
-                // --- TIKLAMA (TAP) ANİMASYONU ---
-                // El sadece orada durur ve üzerine tıklıyormuş gibi küçülüp büyür.
-                currentSeq.Append(handImage.DOScale(0.8f, 0.4f).SetEase(Ease.InOutSine));
-                currentSeq.Append(handImage.DOScale(1.0f, 0.4f).SetEase(Ease.InOutSine));
+                currentSeq.Append(handImage.DOScale(baseScale * 0.8f, 0.4f).SetEase(Ease.InOutSine));
+                currentSeq.Append(handImage.DOScale(baseScale, 0.4f).SetEase(Ease.InOutSine));
                 currentSeq.AppendInterval(0.3f);
             }
             else
             {
-                // --- SÜRÜKLEME (DRAG) ANİMASYONU ---
-                currentSeq.Append(handImage.DOScale(0.9f, 0.3f).SetEase(Ease.OutBack));
+                currentSeq.Append(handImage.DOScale(baseScale * 0.9f, 0.3f).SetEase(Ease.OutBack));
                 for (int i = 1; i < activeTutorial.path.Length; i++)
                 {
                     int nextIndex = i;
                     currentSeq.Append(handImage.DOMove(getPathScreenPos(nextIndex), durationPerSegment)
                         .SetEase(Ease.InOutSine));
                 }
-                currentSeq.Append(handImage.DOScale(1f, 0.3f));
+                currentSeq.Append(handImage.DOScale(baseScale, 0.3f));
             }
             
             currentSeq.Append(cg.DOFade(0f, 0.3f));
@@ -241,6 +448,7 @@ public class TutorialManager : MonoBehaviour
 
     public void HideTutorial()
     {
+        _isLevel1TutorialActive = false;
         if (currentSeq != null) currentSeq.Kill();
         if (handImage != null)
         {

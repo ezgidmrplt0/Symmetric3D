@@ -2,16 +2,17 @@ using UnityEngine;
 using UnityEditor;
 using System.Collections.Generic;
 
-[InitializeOnLoad]
+/// <summary>
+/// Seviye başlatıcı — Otomatik çalıştırma (InitializeOnLoad) TAMAMEN KALDIRILDI.
+/// Seviyeler artık kod tarafından otomatik üretilmez veya ezilmez;
+/// tüm seviyeler kullanıcı tarafından Level Designer üzerinden elle tasarlanır.
+/// </summary>
 public class LevelInitializer
 {
-    static LevelInitializer()
-    {
-        EditorApplication.delayCall += InitializeStarterLevels;
-    }
-
-    [MenuItem("Magic Sort/Başlangıç Seviyelerini Yeniden Oluştur")]
-    public static void InitializeStarterLevels()
+    // Otomatik çalıştırma (InitializeOnLoad) tamamen kaldırıldı. Seviyeler elle tasarlanacak.
+    // İhtiyaç duyulursa yalnızca menüden manuel çalıştırılabilir:
+    [MenuItem("Magic Sort/Gelişmiş/Varsayılan Seviye Şablonlarını Geri Yükle (İsteğe Bağlı)")]
+    public static void ManualResetStarterLevels()
     {
         string folder = "Assets/Levels";
         if (!AssetDatabase.IsValidFolder(folder))

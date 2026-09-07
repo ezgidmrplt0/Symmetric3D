@@ -241,6 +241,8 @@ public class LiquidTransfer : MonoBehaviour
 
         rootT.DOKill();
         rootT.DOLocalMove(originalLocalPos + Vector3.up * 0.45f, 0.2f).SetEase(Ease.OutBack);
+
+        TutorialManager.Instance?.OnBottleSelected(this);
     }
 
     public void Deselect()
@@ -255,6 +257,8 @@ public class LiquidTransfer : MonoBehaviour
         rootT.DOKill();
         rootT.DOLocalMove(originalLocalPos, 0.2f).SetEase(Ease.OutQuad);
         rootT.DOLocalRotateQuaternion(Quaternion.identity, 0.2f).SetEase(Ease.OutQuad);
+
+        TutorialManager.Instance?.OnBottleDeselected();
     }
 
     public static void ClearSelection()
@@ -262,6 +266,7 @@ public class LiquidTransfer : MonoBehaviour
         if (SelectedBottle != null)
         {
             SelectedBottle.Deselect();
+            TutorialManager.Instance?.OnBottleDeselected();
         }
     }
 
@@ -305,6 +310,8 @@ public class LiquidTransfer : MonoBehaviour
     public void PourInto(LiquidTransfer target, System.Action onComplete = null)
     {
         if (!CanPourInto(target)) return;
+
+        TutorialManager.Instance?.HideTutorial();
 
         transferring = true;
         target.transferring = true;
