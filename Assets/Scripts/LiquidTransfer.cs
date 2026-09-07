@@ -6,36 +6,21 @@ public class LiquidTransfer : MonoBehaviour
 {
     public Material liquidMat;
 
-    [Header("Katmanlı Sıvı (Slices)")]
-    public List<Color> slices = new List<Color>();
-    public int maxSlices = 4;
-    public int currentSlices = 0;
-    [Header("Kapak & Etiket (Dekoratif)")]
-    public BottleCork cork;
-    public BottleLabel label;
     public Color liquidColor = Color.white;
     public float fillAmount = 0f; 
     public float transferDuration = 0.5f;
     public float maxAdjacencyDistance = 1.6f; 
 
-    private MaterialPropertyBlock _propBlock;
+    [Header("Dilim (Slice) Ayarları")]
+    public int currentSlices = 2;
+    public int maxSlices = 4;
+
+    private static MaterialPropertyBlock _propBlock;
     private Renderer[] _renderers;
     private DragObject _parentDrag;
 
     [HideInInspector]
     public bool transferring = false;
-
-    [HideInInspector]
-    public float currentTiltX = 0f;
-
-    // ── Magic Sort Seçim Durumu ──────────────────────────────────
-    public static LiquidTransfer SelectedBottle { get; private set; }
-    private Vector3 originalLocalPos;
-    private Quaternion originalLocalRot;
-    public Vector3 OriginalLocalPos => originalLocalPos;
-    public Quaternion OriginalLocalRot => originalLocalRot;
-    private bool isSelected = false;
-    public bool IsSelected => isSelected;
     
     private bool IsParentDragging()
     {
@@ -51,567 +36,245 @@ public class LiquidTransfer : MonoBehaviour
     {
         if (_propBlock == null) _propBlock = new MaterialPropertyBlock();
         _renderers = GetComponentsInChildren<Renderer>();
-        Transform rootT = transform.parent != null ? transform.parent : transform;
-        rootT.localRotation = Quaternion.identity;
-        transform.localRotation = Quaternion.identity;
-        originalLocalPos = rootT.localPosition;
-        originalLocalRot = Quaternion.identity;
-
-        // Eğer slices boşsa ama inspector'dan currentSlices girildiyse geriye dönük doldur
-        if (slices.Count == 0 && currentSlices > 0)
-        {
-            for (int i = 0; i < Mathf.Min(maxSlices, currentSlices); i++)
-                slices.Add(liquidColor);
-        }
-
-        currentSlices = slices.Count;
-        liquidColor = GetTopColor();
         UpdateVisuals();
-    }
-
-    public void InitializeSlices(List<Color> initSliceColors, Color fallbackColor, int initialCount)
-    {
-        slices.Clear();
-        if (initSliceColors != null && initSliceColors.Count > 0)
-        {
-            for (int i = 0; i < Mathf.Min(maxSlices, initSliceColors.Count); i++)
-                slices.Add(initSliceColors[i]);
-        }
-        else if (initialCount > 0)
-        {
-            for (int i = 0; i < Mathf.Min(maxSlices, initialCount); i++)
-                slices.Add(fallbackColor);
-        }
-
-        currentSlices = slices.Count;
-        liquidColor = GetTopColor();
-        UpdateVisuals();
-    }
-
-    public Color GetTopColor()
-    {
-        if (slices != null && slices.Count > 0)
-            return slices[slices.Count - 1];
-        return liquidColor;
-    }
-
-    public int GetContiguousTopCount()
-    {
-        if (slices == null || slices.Count == 0) return 0;
-        Color top = slices[slices.Count - 1];
-        int count = 1;
-        for (int i = slices.Count - 2; i >= 0; i--)
-        {
-            if (ColorMixData.ColorsMatch(slices[i], top))
-                count++;
-            else
-                break;
-        }
-        return count;
-    }
-
-    public bool IsMonochrome()
-    {
-        if (slices == null || slices.Count == 0) return true;
-        Color first = slices[0];
-        for (int i = 1; i < slices.Count; i++)
-        {
-            if (!ColorMixData.ColorsMatch(slices[i], first))
-                return false;
-        }
-        return true;
-    }
-
-    public bool IsComplete()
-    {
-        return slices != null && slices.Count == maxSlices && IsMonochrome();
-    }
-
-    private static readonly float[] FILL_LEVELS =
-    {
-        0.17f, 0.28f, 0.39f, 0.50f
-    };
-
-    public float GetTargetFill()
-    {
-        int count = slices != null ? slices.Count : currentSlices;
-        if (count <= 0) return 0.0f;
-
-        int idx = Mathf.Clamp(count, 1, FILL_LEVELS.Length) - 1;
-        return FILL_LEVELS[idx];
     }
 
     public void UpdateVisuals()
     {
-        fillAmount = GetTargetFill();
-        ApplyPropertyBlock();
+        if (currentSlices > 0 && currentSlices < 2) currentSlices = 2;
+        float t = (float)currentSlices / maxSlices;
+        float visualT = t + 0.12f * (1f - t); // Az doluysa daha fazla boost, çok doluysa az boost
+        fillAmount = Mathf.Lerp(-0.5f, 0.5f, visualT);
+
+        if (_renderers == null) _renderers = GetComponentsInChildren<Renderer>();
+        if (_propBlock == null) _propBlock = new MaterialPropertyBlock();
+
+        foreach (Renderer r in _renderers)
+        {
+            r.GetPropertyBlock(_propBlock);
+            _propBlock.SetFloat("_FillAmount", fillAmount);
+            _propBlock.SetColor("_LiquidColor", liquidColor);
+            _propBlock.SetColor("_ColorA", liquidColor);
+            r.SetPropertyBlock(_propBlock);
+        }
 
         LiquidTilt tiltCode = GetComponent<LiquidTilt>();
         if (tiltCode != null) tiltCode.liquidMat = liquidMat;
-
-        if (cork == null) cork = GetComponentInChildren<BottleCork>(true);
-        if (cork == null && transform.parent != null) cork = transform.parent.GetComponentInChildren<BottleCork>(true);
-
-        if (label == null) label = GetComponentInChildren<BottleLabel>(true);
-        if (label == null && transform.parent != null) label = transform.parent.GetComponentInChildren<BottleLabel>(true);
-
-        if (IsComplete() && cork != null)
-        {
-            cork.PlayCloseAnimation();
-        }
-
-        if (IsComplete() && label != null)
-        {
-            label.ShowLabel(GetTopColor());
-        }
     }
 
     public void ApplyPropertyBlock()
     {
-        ApplyPropertyBlockWithSlices(this.slices, this.fillAmount, this.currentTiltX);
-    }
-
-    public void ApplyPropertyBlockWithSlices(List<Color> sliceList, float customFill, float tiltX = 0f)
-    {
         if (_renderers == null) _renderers = GetComponentsInChildren<Renderer>();
         if (_propBlock == null) _propBlock = new MaterialPropertyBlock();
 
-        Color c0 = (sliceList != null && sliceList.Count > 0) ? sliceList[0] : Color.clear;
-        Color c1 = (sliceList != null && sliceList.Count > 1) ? sliceList[1] : c0;
-        Color c2 = (sliceList != null && sliceList.Count > 2) ? sliceList[2] : c1;
-        Color c3 = (sliceList != null && sliceList.Count > 3) ? sliceList[3] : c2;
-
-        Color topColor = (sliceList != null && sliceList.Count > 0) ? sliceList[sliceList.Count - 1] : liquidColor;
-        int count = sliceList != null ? sliceList.Count : 0;
-
         foreach (Renderer r in _renderers)
         {
-            if (r == null) continue;
             r.GetPropertyBlock(_propBlock);
-            _propBlock.SetFloat("_FillAmount", customFill);
-            _propBlock.SetFloat("_Mode", 0f); // 0 = Y ekseni
-            _propBlock.SetFloat("_SliceCount", count);
-            _propBlock.SetFloat("_TiltX", tiltX);
-            _propBlock.SetFloat("_TiltZ", 0f);
-
-            // 4 bağımsız katmanın rengi (aşağıdan yukarıya)
-            _propBlock.SetColor("_Color0", c0);
-            _propBlock.SetColor("_Color1", c1);
-            _propBlock.SetColor("_Color2", c2);
-            _propBlock.SetColor("_Color3", c3);
-
-            // Geriye dönük fallback
-            _propBlock.SetColor("_LiquidColor", topColor);
-            _propBlock.SetColor("_ColorA", topColor);
-
-            FrozenBottle fb = GetComponentInParent<FrozenBottle>();
-            _propBlock.SetFloat("_IsFrozen", (fb != null && fb.isFrozen) ? 1f : 0f);
-
+            _propBlock.SetFloat("_FillAmount", fillAmount);
+            _propBlock.SetColor("_LiquidColor", liquidColor);
+            _propBlock.SetColor("_ColorA", liquidColor);
             r.SetPropertyBlock(_propBlock);
         }
     }
 
-    // ── MAGIC SORT SEÇİM (SELECT / DESELECT) ─────────────────────
 
-    public void Select()
+
+    public void CheckSymmetry()
     {
-        if (transferring || (slices != null && slices.Count <= 0)) return;
+        if (this == null || transferring || IsParentDragging()) return;
 
-        FrozenBottle myFb = GetComponentInParent<FrozenBottle>();
-        if (myFb != null && myFb.isFrozen)
+        CheckClassicSymmetry();
+
+        // Eğer bir hamle (transfer) başlamadıysa, oyunun tıkanıp tıkanmadığını kontrol et
+        if (!transferring)
         {
-            myFb.PlayShakeFeedback();
-            return;
-        }
-
-        if (SelectedBottle != null && SelectedBottle != this)
-        {
-            SelectedBottle.Deselect();
-        }
-
-        SelectedBottle = this;
-        isSelected = true;
-
-        Transform rootT = transform.parent != null ? transform.parent : transform;
-        originalLocalPos = rootT.localPosition;
-        originalLocalRot = rootT.localRotation;
-
-        AudioManager.PlayPickup();
-        VibrationManager.TryVibrate();
-
-        rootT.DOKill();
-        rootT.DOLocalMove(originalLocalPos + Vector3.up * 0.45f, 0.2f).SetEase(Ease.OutBack);
-
-        TutorialManager.Instance?.OnBottleSelected(this);
-    }
-
-    public void Deselect()
-    {
-        isSelected = false;
-        if (SelectedBottle == this) SelectedBottle = null;
-
-        this.currentTiltX = 0f;
-        ApplyPropertyBlock();
-
-        Transform rootT = transform.parent != null ? transform.parent : transform;
-        rootT.DOKill();
-        rootT.DOLocalMove(originalLocalPos, 0.2f).SetEase(Ease.OutQuad);
-        rootT.DOLocalRotateQuaternion(Quaternion.identity, 0.2f).SetEase(Ease.OutQuad);
-
-        TutorialManager.Instance?.OnBottleDeselected();
-    }
-
-    public static void ClearSelection()
-    {
-        if (SelectedBottle != null)
-        {
-            SelectedBottle.Deselect();
-            TutorialManager.Instance?.OnBottleDeselected();
+            FindObjectOfType<GridSpawner>()?.CheckForFail();
         }
     }
 
-    // ── KAPASİTE VE UYGUNLUK KONTROLÜ ─────────────────────────────
-
-    public bool CanPourInto(LiquidTransfer target)
+    // ── Classic Mod ──────────────────────────────────────────────
+    void CheckClassicSymmetry()
     {
-        if (target == null || target == this) return false;
-        if (this.transferring || target.transferring) return false;
-        if (this.slices.Count <= 0) return false;
+        if (transferring || currentSlices >= maxSlices) return;
 
-        // Donmuş şişeler sıvı alamaz veya veremez
-        FrozenBottle myFb = GetComponentInParent<FrozenBottle>();
-        if (myFb != null && myFb.isFrozen) return false;
+        LiquidTransfer[] allLiquids = FindObjectsOfType<LiquidTransfer>();
 
-        FrozenBottle targetFb = target.GetComponentInParent<FrozenBottle>();
-        if (targetFb != null && targetFb.isFrozen) return false;
-
-        // Hedef şişe zaten 4 dilimle tamamen doluysa dökülemez
-        if (target.slices.Count >= target.maxSlices) return false;
-
-        // Eğer bu şişe zaten 4/4 tam dolu ve tek renk ise (çözülmüş), bozulmasını önle
-        // RENK UYUMLULUK KONTROLÜ (Water Sort Kuralı):
-        // Hedef şişe ya BOMBOŞ olmalı, ya da en üstteki sıvının rengi dökülen sıvının rengiyle EŞİT olmalı!
-        if (target.slices != null && target.slices.Count > 0)
+        foreach (LiquidTransfer other in allLiquids)
         {
-            Color myTopColor = this.GetTopColor();
-            Color targetTopColor = target.GetTopColor();
+            if (other == this || other == null || other.transferring || other.IsParentDragging() || other.currentSlices <= 0) continue;
 
-            if (!ColorMixData.ColorsMatch(myTopColor, targetTopColor))
+            // Aynı renk, aynı dilim sayısı
+            if (!ColorMixData.ColorsMatch(other.liquidColor, this.liquidColor) ||
+                other.currentSlices != this.currentSlices) continue;
+
+            if (IsAdjacentFaceToFace(other))
             {
-                return false; // Farklı renkler birbirinin üzerine dökülemez!
+                StartTransfer(other);
+                break;
             }
         }
-
-        return true;
     }
 
-    // ── DÖKÜLME VE AKTARIM (POUR INTO) ───────────────────────────
-
-    public void PourInto(LiquidTransfer target, System.Action onComplete = null)
+    // ── Ortak Konum/Yön Kontrolü ────────────────────────────────
+    bool IsAdjacentFaceToFace(LiquidTransfer other)
     {
-        if (!CanPourInto(target)) return;
+        Vector3 myPos = transform.position;
+        Vector3 otherPos = other.transform.position;
 
-        TutorialManager.Instance?.HideTutorial();
+        float dist = Vector3.Distance(myPos, otherPos);
 
-        transferring = true;
-        target.transferring = true;
+        // Mesafe kontrolü — parça dünya boyutuna göre dinamik eşik (gridStep * 1.2)
+        // Shape3D'de gridStep ≈ lossyScale.x / 0.55; sabit maxAdjacencyDistance 3D için fazla büyük
+        float adjDist = transform.lossyScale.x > 0.001f
+            ? (transform.lossyScale.x / 0.55f) * 1.2f
+            : maxAdjacencyDistance;
+        if (dist >= adjDist || dist <= 0.1f) return false;
 
-        isSelected = false;
-        if (SelectedBottle == this) SelectedBottle = null;
+        Vector3 dirToOther = (otherPos - myPos).normalized;
+        Vector3 myFace = transform.up;
+        Vector3 otherFace = other.transform.up;
 
-        Transform mover = transform.parent != null ? transform.parent : transform;
-        Transform receiver = target.transform.parent != null ? target.transform.parent : target.transform;
+        // --- ÇAPRAZ ENGELEME (DIAGONAL PREVENTION) ---
+        float maxAxisOverlap = Mathf.Max(Mathf.Abs(dirToOther.x), Mathf.Max(Mathf.Abs(dirToOther.y), Mathf.Abs(dirToOther.z)));
+        if (maxAxisOverlap < 0.85f) return false;
 
-        Vector3 startPos = mover.position;
-        Quaternion startRot = mover.rotation;
+        // --- AYNA/SİMETRİ KONTROLÜ (FACING EACH OTHER) ---
+        bool dot1 = Vector3.Dot(myFace, dirToOther) > 0.8f;
+        bool dot2 = Vector3.Dot(otherFace, -dirToOther) > 0.8f;
 
-        Color pourColor = this.GetTopColor();
-        int contiguousTop = this.GetContiguousTopCount();
-        int targetSpace = target.maxSlices - target.slices.Count;
-        int takeAmount = Mathf.Clamp(Mathf.Min(targetSpace, contiguousTop), 1, 4);
-
-        // Geometri ve Kinematik
-        bool pourFromLeft = mover.position.x <= receiver.position.x;
-        float scale = mover.lossyScale.y > 0.01f ? mover.lossyScale.y : 1.35f;
-
-        // Şişe ağzının local koordinatındaki akış dudağı (sıvının döküldüğü alt kenar)
-        Vector3 localSpout = new Vector3(pourFromLeft ? 0.07f : -0.07f, 1.10f, 0f);
-
-        // Hedef şişenin ağzının hafifçe üstü ve yanı (mesh çakışması olmadan tam dökme konumu)
-        Vector3 mouthTargetWorld = receiver.position + new Vector3(
-            pourFromLeft ? -0.20f * scale : 0.20f * scale,
-            1.28f * scale,
-            -0.06f
-        );
-
-        float initialTilt = pourFromLeft ? -68f : 68f;
-        float deepTilt = pourFromLeft ? -78f : 78f;
-
-        // Sıvının dökülen şişe içinde yerçekimine/ağza doğru çok hafif ve gerçekçi eğilmesi
-        float initialLiquidTilt = pourFromLeft ? -0.14f : 0.14f;
-        float deepLiquidTilt = pourFromLeft ? -0.17f : 0.17f;
-
-        Quaternion initialPourRot = Quaternion.Euler(0, 0, initialTilt);
-        Vector3 initialPourPos = mouthTargetWorld - (initialPourRot * (localSpout * scale));
-
-        // Sıvı miktarına göre doğal süre (1 dilim ~0.50s, 2 dilim ~0.65s)
-        float pourDuration = 0.48f + (takeAmount - 1) * 0.14f;
-
-        // Seviye hesaplamaları
-        float sourceStartFill = this.fillAmount;
-        int sourceRemainingCount = Mathf.Max(0, this.slices.Count - takeAmount);
-        float sourceTargetFill = (sourceRemainingCount <= 0) ? 0f : FILL_LEVELS[Mathf.Clamp(sourceRemainingCount, 1, FILL_LEVELS.Length) - 1];
-
-        float targetStartFill = target.fillAmount;
-        int targetFinalCount = target.slices.Count + takeAmount;
-        float targetTargetFill = FILL_LEVELS[Mathf.Clamp(targetFinalCount, 1, FILL_LEVELS.Length) - 1];
-
-        // Hedef şişe için transfer sırasında render edilecek önizleme renk listesi
-        List<Color> targetPreviewSlices = new List<Color>(target.slices);
-        for (int k = 0; k < takeAmount; k++)
+        if (dot1 && dot2)
         {
-            targetPreviewSlices.Add(pourColor);
+            return true;
         }
 
-        // Kaynak şişenin mevcut renkleri (boşaltma boyunca rengin korunması için)
-        List<Color> sourceActiveSlices = new List<Color>(this.slices);
+        return false;
+    }
+
+    // ── Classic Transfer ─────────────────────────────────────────
+    public void StartTransfer(LiquidTransfer giver)
+    {
+        transferring = true;
+        giver.transferring = true;
+
+        VibrationManager.TryVibrate();
+        AudioManager.PlayTransfer();
+        FrozenGridCell.NotifyMatchCompleted();
+        GameManager.Instance?.RegisterMatch();
+
+        if (EffectsManager.Instance != null)
+        {
+            EffectsManager.Instance.SpawnGlowPulse(this.transform, this.liquidColor);
+            EffectsManager.Instance.SpawnTransferParticles(
+                giver.transform.position, this.transform.position, liquidColor, transferDuration);
+        }
+
+        int needed = maxSlices - this.currentSlices;
+        int takeAmount = Mathf.Min(needed, giver.currentSlices);
+
+        this.currentSlices += takeAmount;
+        giver.currentSlices -= takeAmount;
+
+        float myTargetFill = Mathf.Lerp(-0.5f, 0.5f, (float)this.currentSlices / maxSlices);
+        float giverTargetFill = Mathf.Lerp(-0.5f, 0.5f, (float)giver.currentSlices / maxSlices);
 
         Sequence seq = DOTween.Sequence();
-        seq.SetTarget(mover.gameObject);
 
-        // 1. Şişe hedef şişenin ağzına uçar ve ilk dökülme açısına eğilir (0.30s)
-        seq.Append(mover.DOMove(initialPourPos, 0.30f).SetEase(Ease.OutQuad));
-        seq.Join(mover.DORotateQuaternion(initialPourRot, 0.30f).SetEase(Ease.OutQuad));
-        seq.Join(DOTween.To(() => this.currentTiltX, x =>
-        {
-            this.currentTiltX = x;
-            if (this != null)
-            {
-                this.ApplyPropertyBlockWithSlices(sourceActiveSlices, this.fillAmount, this.currentTiltX);
-            }
-        }, initialLiquidTilt, 0.30f).SetEase(Ease.OutQuad));
+        seq.Join(DOTween.To(() => giver.fillAmount, x => giver.fillAmount = x, giverTargetFill, transferDuration)
+            .OnUpdate(() => { if (giver != null) giver.ApplyPropertyBlock(); }));
 
-        // 2. Sıvı transferi ve akıntı animasyonu
-        seq.AppendCallback(() =>
-        {
-            AudioManager.PlayTransfer();
-            VibrationManager.TryVibrate();
-            GameManager.Instance?.RegisterMatch();
-
-            // Hedef şişeyi yeni renk katmanıyla hazırlar (dik durduğu için tilt = 0f)
-            target.ApplyPropertyBlockWithSlices(targetPreviewSlices, targetStartFill, 0f);
-
-            // Akıntı efekti oluştur (şişe ağzından hedef sıvı yüzeyine)
-            Vector3 initialTargetInside = new Vector3(0f, Mathf.Max(0.12f, targetStartFill), 0f);
-            LiquidStreamEffect stream = LiquidStreamEffect.CreateStream(
-                mover, localSpout,
-                receiver, initialTargetInside,
-                pourColor, pourDuration + 0.08f);
-
-            // Akıntı ucu hedef şişede yükselen sıvı yüzeyini dinamik takip eder
-            if (stream != null)
-            {
-                stream.dynamicStartPosition = () =>
-                {
-                    return mover != null ? mover.TransformPoint(localSpout) : mouthTargetWorld;
-                };
-
-                stream.dynamicEndPosition = () =>
-                {
-                    if (target != null && receiver != null)
-                    {
-                        float surfaceY = Mathf.Max(0.12f, target.fillAmount * 1.02f);
-                        return receiver.TransformPoint(new Vector3(0f, surfaceY, 0f));
-                    }
-                    return receiver != null ? receiver.position : mouthTargetWorld;
-                };
-            }
-
-            // Dökülen şişenin döküldükçe hafifçe daha da eğilmesi (Spout Pivot Kinematics)
-            float tiltProgress = initialTilt;
-            DOTween.To(() => tiltProgress, a =>
-            {
-                tiltProgress = a;
-                if (mover != null)
-                {
-                    mover.rotation = Quaternion.Euler(0, 0, a);
-                    mover.position = mouthTargetWorld - (mover.rotation * (localSpout * scale));
-                }
-            }, deepTilt, pourDuration).SetTarget(mover.gameObject).SetEase(Ease.InOutSine);
-
-            // Dökülen şişedeki sıvının eğiminin akış süresince hafifçe artması
-            DOTween.To(() => this.currentTiltX, x =>
-            {
-                this.currentTiltX = x;
-                if (this != null)
-                {
-                    this.ApplyPropertyBlockWithSlices(sourceActiveSlices, this.fillAmount, this.currentTiltX);
-                }
-            }, deepLiquidTilt, pourDuration).SetTarget(this.gameObject).SetEase(Ease.InOutSine);
-
-            // Kaynak şişenin sıvısının boşalması
-            DOTween.To(() => this.fillAmount, x =>
-            {
-                this.fillAmount = x;
-                if (this != null)
-                {
-                    this.ApplyPropertyBlockWithSlices(sourceActiveSlices, this.fillAmount, this.currentTiltX);
-                }
-            }, sourceTargetFill, pourDuration)
-            .SetTarget(this.gameObject)
-            .SetEase(Ease.InOutSine);
-
-            // Hedef şişenin sıvısının yükselmesi (dik durduğu için tilt 0f)
-            float fillDelay = 0.08f;
-            float fillRiseDuration = Mathf.Max(0.15f, pourDuration - fillDelay);
-            DOTween.To(() => target.fillAmount, x =>
-            {
-                target.fillAmount = x;
-                if (target != null)
-                {
-                    target.ApplyPropertyBlockWithSlices(targetPreviewSlices, target.fillAmount, 0f);
-                }
-            }, targetTargetFill, fillRiseDuration)
-            .SetTarget(target.gameObject)
-            .SetDelay(fillDelay)
-            .SetEase(Ease.InOutSine);
-        });
-
-        seq.AppendInterval(pourDuration + 0.10f);
-
-        // 3. Şişe eski yerine döner ve doğrulur (0.28s)
-        seq.Append(mover.DOMove(startPos, 0.28f).SetEase(Ease.InOutQuad));
-        seq.Join(mover.DORotateQuaternion(startRot, 0.28f).SetEase(Ease.InOutQuad));
-        seq.Join(DOTween.To(() => this.currentTiltX, x =>
-        {
-            this.currentTiltX = x;
-            if (this != null)
-            {
-                this.ApplyPropertyBlockWithSlices(this.slices, this.fillAmount, this.currentTiltX);
-            }
-        }, 0f, 0.28f).SetEase(Ease.InOutQuad));
+        seq.Join(DOTween.To(() => this.fillAmount, x => this.fillAmount = x, myTargetFill, transferDuration)
+            .OnUpdate(() => { if (this != null) this.ApplyPropertyBlock(); }));
 
         seq.OnComplete(() =>
         {
-            this.transferring = false;
-            target.transferring = false;
-            this.currentTiltX = 0f;
-            target.currentTiltX = 0f;
-
-            mover.localPosition = originalLocalPos;
-            mover.localRotation = originalLocalRot;
-
-            // Gerçek dilim listelerini kalıcı olarak güncelle
-            for (int k = 0; k < takeAmount; k++)
+            if (giver != null)
             {
-                if (this.slices.Count > 0)
-                    this.slices.RemoveAt(this.slices.Count - 1);
-                target.slices.Add(pourColor);
-            }
-
-            this.currentSlices = this.slices.Count;
-            this.liquidColor = this.GetTopColor();
-            this.fillAmount = this.GetTargetFill();
-
-            target.currentSlices = target.slices.Count;
-            target.liquidColor = target.GetTopColor();
-            target.fillAmount = target.GetTargetFill();
-
-            this.UpdateVisuals();
-            target.UpdateVisuals();
-
-            // Hedef tamamlandıysa (tam dolduysa ve tek renkse) tıpa (kapağı) kapat, kutlama partikülü at ve donmuş şişe sayacını azalt
-            if (target.IsComplete())
-            {
-                BottleCork corkComp = target.cork;
-                if (corkComp == null) corkComp = target.GetComponentInChildren<BottleCork>(true);
-                if (corkComp == null && target.transform.parent != null) corkComp = target.transform.parent.GetComponentInChildren<BottleCork>(true);
-
-                if (corkComp != null)
+                if (giver.currentSlices <= 0)
                 {
-                    corkComp.PlayCloseAnimation();
+                    if (giver.transform.parent != null)
+                        giver.transform.parent.DOScale(0, 0.2f).OnComplete(() =>
+                        {
+                            giver.transferring = false;
+                            Destroy(giver.transform.parent.gameObject);
+                            CheckLevelComplete();
+                        });
                 }
-
-                BottleLabel labelComp = target.label;
-                if (labelComp == null) labelComp = target.GetComponentInChildren<BottleLabel>(true);
-                if (labelComp == null && target.transform.parent != null) labelComp = target.transform.parent.GetComponentInChildren<BottleLabel>(true);
-
-                if (labelComp != null)
+                else
                 {
-                    labelComp.ShowLabel(target.GetTopColor());
-                }
-
-                FrozenBottle.NotifyBottleCompleted();
-
-                if (EffectsManager.Instance != null)
-                {
-                    EffectsManager.Instance.SpawnSnapParticles(target.transform.position, target.GetTopColor());
-                    EffectsManager.Instance.SpawnSplash(target.transform.position, target.GetTopColor());
+                    giver.transferring = false;
                 }
             }
 
-            CheckLevelComplete();
-            onComplete?.Invoke();
+            if (this != null)
+            {
+                if (this.currentSlices >= maxSlices)
+                {
+                    if (EffectsManager.Instance != null)
+                    {
+                        EffectsManager.Instance.SpawnSnapParticles(this.transform.position, this.liquidColor);
+                        EffectsManager.Instance.SpawnSplash(this.transform.position, this.liquidColor);
+                    }
+
+                    if (this.transform.parent != null)
+                        this.transform.parent.DOScale(0, 0.2f).OnComplete(() =>
+                        {
+                            this.transferring = false;
+                            Destroy(this.transform.parent.gameObject);
+                            CheckLevelComplete();
+                        });
+                }
+                else
+                {
+                    this.transferring = false;
+                }
+            }
         });
     }
 
-    // ── ESKİ ÇAĞRILAR İÇİN UYUMLULUK STUB'LARI ──────────────────
-    public void CheckSymmetry()
+    void CheckLevelComplete()
     {
-        CheckLevelComplete();
-    }
-
-    public void StartTransfer(LiquidTransfer giver)
-    {
-        if (giver != null && giver.CanPourInto(this))
-        {
-            giver.PourInto(this);
-        }
-    }
-
-    // ── BÖLÜM BİTİŞ KONTROLÜ ─────────────────────────────────────
-    public void CheckLevelComplete()
-    {
+        // Sahnede hâlâ DragObject var mı? (Destroy 1 frame sonra gerçekleşir, o yüzden kısa delay)
         DOVirtual.DelayedCall(0.15f, () =>
         {
-            LiquidTransfer[] allLiquids = FindObjectsOfType<LiquidTransfer>();
-            bool anyTransferring = false;
-            bool hasIncompleteBottles = false;
-            int totalCompletedBottles = 0;
-
-            foreach (var lt in allLiquids)
+            // Sadece aktif, yok edilmeyen ve geçerli dilime sahip objeleri say
+            DragObject[] allObjects = FindObjectsOfType<DragObject>();
+            List<DragObject> remaining = new List<DragObject>();
+            foreach(var obj in allObjects)
             {
-                if (lt == null || !lt.gameObject.activeInHierarchy) continue;
-                if (lt.transferring) anyTransferring = true;
+                if (obj == null || !obj.gameObject.activeInHierarchy) continue;
+                if (obj.transform.localScale.x <= 0.05f) continue;
 
-                if (lt.slices.Count > 0)
+                LiquidTransfer lt = obj.GetComponentInChildren<LiquidTransfer>();
+                if(lt != null && !lt.transferring && lt.currentSlices > 0 && lt.currentSlices < lt.maxSlices)
                 {
-                    // Şişe tamamen dolu (4/4) VE tek renk mi?
-                    if (lt.IsComplete())
-                    {
-                        totalCompletedBottles++;
-                    }
-                    else
-                    {
-                        hasIncompleteBottles = true;
-                    }
+                    remaining.Add(obj);
                 }
             }
 
-            if (anyTransferring) return;
-
-            // Tüm sıvılar tek renkli ve tam dolu şişelerde toplandıysa
-            if (!hasIncompleteBottles && totalCompletedBottles > 0)
+            if (remaining.Count == 0)
             {
-                if (GameManager.Instance != null && !GameManager.Instance.IsLevelCompleting)
+                // Eğer gerçekten hiç parça kalmadıysa (transferring olanlar dahil hepsi bittiyse)
+                LiquidTransfer[] allLiquids = FindObjectsOfType<LiquidTransfer>();
+                bool anyTransferring = false;
+                foreach(var l in allLiquids)
                 {
-                    GameManager.Instance.LevelComplete();
+                    if (l != null && l.gameObject != null && l.gameObject.activeInHierarchy && l.transferring)
+                        anyTransferring = true;
+                }
+
+                if (!anyTransferring)
+                {
+                    if (GameManager.Instance != null)
+                        GameManager.Instance.LevelComplete();
                     return;
                 }
             }
-
-            // Hamle kalıp kalmadığını kontrol et
-            FindObjectOfType<GridSpawner>()?.CheckForFail();
+            
+            // Hâlâ parça varsa hamle kalıp kalmadığını kontrol et
+            if (remaining.Count > 0)
+            {
+                FindObjectOfType<GridSpawner>()?.CheckForFail();
+            }
         });
     }
 }

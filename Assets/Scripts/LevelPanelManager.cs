@@ -46,7 +46,6 @@ public class LevelPanelManager : MonoBehaviour
 
     [Header("Reward Preview")]
     public Sprite giftSprite;
-    public Sprite victorySprite;
     public Image nextMechanicPreviewImage;
     public Sprite shufflePreviewSprite;
     public TMP_Text nextMechanicLabel;
@@ -270,54 +269,119 @@ public class LevelPanelManager : MonoBehaviour
             nextLevelButton.interactable = true;
         }
 
-        // Eski mekanik kilit ve progress bar görsellerini kapat
-        if (newMechanicUnlockBanner != null) newMechanicUnlockBanner.SetActive(false);
+        // Elementleri aktif et
         if (progressBarImage != null) progressBarImage.gameObject.SetActive(false);
-        if (progressText != null) progressText.gameObject.SetActive(false);
-        if (previewBgImage != null) previewBgImage.gameObject.SetActive(false);
+        if (progressText != null) progressText.gameObject.SetActive(true);
 
-        if (nextMechanicLabel != null)
+        // Yeni hediye/ödül kilit açılması var mı (%100 ulaşıldı mı?)
+        LevelData.LevelType unlockedType = LevelData.LevelType.Classic;
+        bool hasNewUnlock = GameManager.Instance.hitProgressHundred &&
+                           GameManager.Instance.GetTypeForProgress(out unlockedType);
+
+        if (hasNewUnlock)
         {
-            nextMechanicLabel.gameObject.SetActive(true);
-            nextMechanicLabel.text = "LEVEL COMPLETED!";
+            // %100 ULAŞILDI: Tek panelde Ödül Açıldı bilgisini göster
+            if (newMechanicUnlockBanner != null)
+            {
+                newMechanicUnlockBanner.SetActive(true);
+                newMechanicUnlockBanner.transform.localScale = Vector3.zero;
+                newMechanicUnlockBanner.transform.DOScale(1f, 0.4f).SetEase(Ease.OutBack).SetUpdate(true);
+            }
+
+            if (nextMechanicLabel != null)
+            {
+                nextMechanicLabel.gameObject.SetActive(true);
+                nextMechanicLabel.text = "REWARD UNLOCKED!";
+            }
+
+            Sprite unlockSprite = GetIconForType(unlockedType, out float unlockScale);
+            if (nextMechanicPreviewImage != null)
+            {
+                if (unlockSprite != null)
+                {
+                    SetupPreviewFillSupport(unlockScale);
+
+                    if (previewBgImage != null)
+                    {
+                        previewBgImage.sprite = unlockSprite;
+                        previewBgImage.gameObject.SetActive(true);
+                    }
+
+                    nextMechanicPreviewImage.sprite   = unlockSprite;
+                    nextMechanicPreviewImage.material = null;
+                    nextMechanicPreviewImage.gameObject.SetActive(true);
+                }
+                else
+                {
+                    nextMechanicPreviewImage.gameObject.SetActive(false);
+                }
+            }
+        }
+        else
+        {
+            // ARA SEVİYELER (%20, %40, %60, %80):
+            if (newMechanicUnlockBanner != null) newMechanicUnlockBanner.SetActive(false);
+            UpdateNextMechanicPreview();
         }
 
-        // Eski küre/mekanik ikonları yerine şık zafer ikonu (Altın Yıldız / İksir) göster
-        if (nextMechanicPreviewImage != null)
-        {
-            Sprite vSprite = victorySprite != null ? victorySprite : giftSprite;
-#if UNITY_EDITOR
-            if (vSprite == null)
-            {
-                vSprite = UnityEditor.AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Violet Theme Ui/Colored Icons/Star.png");
-                if (vSprite == null)
-                    vSprite = UnityEditor.AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Violet Theme Ui/Colored Icons/Potion Violet.png");
-            }
-#endif
-            if (vSprite != null)
-            {
-                nextMechanicPreviewImage.sprite = vSprite;
-                nextMechanicPreviewImage.material = null;
-                nextMechanicPreviewImage.type = Image.Type.Simple;
-                nextMechanicPreviewImage.color = Color.white;
-                nextMechanicPreviewImage.rectTransform.sizeDelta = new Vector2(260f, 260f);
-                nextMechanicPreviewImage.gameObject.SetActive(true);
-                nextMechanicPreviewImage.transform.localScale = Vector3.one;
-                nextMechanicPreviewImage.transform.DOPunchScale(Vector3.one * 0.15f, 0.6f, 4, 0.5f).SetUpdate(true);
-            }
-            else
-            {
-                nextMechanicPreviewImage.gameObject.SetActive(false);
-            }
-        }
+        // Progress bar ve Görsel Silüet Dolum animasyonu (%20, %40, %60, %80, %100)
+        float startFill = GameManager.Instance.previousTotalProgress / 100f;
+        float endFill = GameManager.Instance.hitProgressHundred ? 1f : (GameManager.Instance.totalProgress / 100f);
 
-        // Her bölüm bitişinde neşeli kutlama konfetilerini patlat
-        Trigger100PercentConfetti();
+        SetFill(startFill);
+        DOTween.To(() => currentFill, x => SetFill(x), endFill, barAnimDuration)
+            .SetEase(Ease.OutCubic)
+            .SetUpdate(true)
+            .OnComplete(() =>
+            {
+                if (GameManager.Instance != null && GameManager.Instance.hitProgressHundred)
+                {
+                    Trigger100PercentConfetti();
+                }
+            });
     }
 
     Sprite GetIconForType(LevelData.LevelType type, out float scaleMultiplier)
     {
         scaleMultiplier = 1.0f;
+
+        // Classic = Gift/Reward (mekanik değil)
+        if (type == LevelData.LevelType.Classic)
+        {
+            if (giftSprite != null) return giftSprite;
+            Sprite loaded = Resources.Load<Sprite>("Gift");
+            if (loaded != null) { giftSprite = loaded; return loaded; }
+#if UNITY_EDITOR
+            Sprite editorGift = UnityEditor.AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Violet Theme Ui/Colored Icons/Gift.png");
+            if (editorGift != null) { giftSprite = editorGift; return editorGift; }
+#endif
+            return null;
+        }
+
+        // mechanicIcons listesinden type'a göre ikon bul
+        foreach (var item in mechanicIcons)
+        {
+            if (item.icon != null && item.levelType == type)
+            {
+                scaleMultiplier = item.scaleMultiplier > 0 ? item.scaleMultiplier : 1.15f;
+                return item.icon;
+            }
+        }
+
+        // Editor fallback
+#if UNITY_EDITOR
+        string fallbackPath = null;
+        if (type == LevelData.LevelType.Rotation) fallbackPath = "Assets/Images/Rotation.png";
+        else if (type == LevelData.LevelType.Linked) fallbackPath = "Assets/Images/Linked(1).png";
+        else if (type == LevelData.LevelType.Frozen) fallbackPath = "Assets/Images/Frozen.png";
+
+        if (fallbackPath != null)
+        {
+            Sprite editorSprite = UnityEditor.AssetDatabase.LoadAssetAtPath<Sprite>(fallbackPath);
+            if (editorSprite != null) { scaleMultiplier = 1.15f; return editorSprite; }
+        }
+#endif
+
         if (giftSprite != null) return giftSprite;
         return null;
     }
@@ -454,7 +518,48 @@ public class LevelPanelManager : MonoBehaviour
 
     void UpdateNextMechanicPreview()
     {
-        HideMechanicPreview();
+        if (nextMechanicPreviewImage == null) return;
+
+        LevelData.LevelType nextType = LevelData.LevelType.Rotation;
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.GetNextMechanicToUnlock(out nextType);
+        }
+
+        Sprite previewSprite = GetIconForType(nextType, out float previewScale);
+
+        if (previewSprite != null)
+        {
+            SetupPreviewFillSupport(previewScale);
+
+            if (nextMechanicLabel != null)
+            {
+                nextMechanicLabel.text = (nextType == LevelData.LevelType.Classic) ? "NEXT REWARD" : "NEXT MECHANIC";
+                nextMechanicLabel.gameObject.SetActive(true);
+            }
+
+            if (previewBgImage != null)
+            {
+                previewBgImage.sprite = previewSprite;
+                previewBgImage.type = Image.Type.Simple;
+                previewBgImage.color = new Color(0.12f, 0.12f, 0.12f, 0.95f);
+                previewBgImage.gameObject.SetActive(true);
+            }
+
+            nextMechanicPreviewImage.sprite   = previewSprite;
+            nextMechanicPreviewImage.material = null;
+            nextMechanicPreviewImage.type     = Image.Type.Filled;
+            nextMechanicPreviewImage.fillMethod = Image.FillMethod.Vertical;
+            nextMechanicPreviewImage.fillOrigin = (int)Image.OriginVertical.Bottom;
+            nextMechanicPreviewImage.color    = Color.white;
+            nextMechanicPreviewImage.gameObject.SetActive(true);
+        }
+        else
+        {
+            // İkon bulunamadıysa paneli temizle — aksi halde bir önceki levelden
+            // kalan yazı ve boş kutu ekranda asılı kalıyor.
+            HideMechanicPreview();
+        }
     }
 
     void HideMechanicPreview()

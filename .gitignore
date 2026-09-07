@@ -78,4 +78,3 @@ crashlytics-build.properties
 Assets/Firebase/Plugins/x86_64/FirebaseCppApp*.bundle
 Assets/Firebase/Plugins/x86_64/FirebaseCppApp*.so
 
-mono_crash.mem.*

@@ -1,8 +1,9 @@
 using UnityEngine;
+using System.Collections.Generic;
 
 /// <summary>
-/// Temel renk tanımları ve toleranslı renk karşılaştırması.
-/// Not: Magic Sort mekaniğinde renkler karışmaz, şişe içinde katman katman durur.
+/// Renk karıştırma tarifleri. A + B = C şeklinde tanımlanır.
+/// Yeni tarif eklemek için sadece Recipes listesine satır ekle.
 /// </summary>
 public static class ColorMixData
 {

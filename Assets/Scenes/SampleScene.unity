@@ -294,10 +294,6 @@ MonoBehaviour:
   lifetimeProgress: 0
   newMechanicUnlocked: 0
   hitProgressHundred: 0
-  movesMade: 0
-  rotationsUsed: 0
-  matchesMade: 0
-  attemptNumber: 1
 --- !u!4 &83771858
 Transform:
   m_ObjectHideFlags: 0
@@ -341,9 +337,17 @@ MonoBehaviour:
   unlockLevelNameText: {fileID: 2034655371}
   unlockRewardImage: {fileID: 1006199567}
   unlockOkButton: {fileID: 439255492}
-  mechanicIcons: []
+  mechanicIcons:
+  - levelType: 2
+    icon: {fileID: 21300000, guid: 396669be54af49c0497e18635bf1f6c9, type: 3}
+    scaleMultiplier: 0
+  - levelType: 4
+    icon: {fileID: 21300000, guid: 160009535c62e9044a833021d0af455a, type: 3}
+    scaleMultiplier: 0
+  - levelType: 8
+    icon: {fileID: 21300000, guid: 376571159fa6156be9838bdf779b01e8, type: 3}
+    scaleMultiplier: 0
   giftSprite: {fileID: 0}
-  victorySprite: {fileID: 5199979006384268662, guid: 174cd13a4c04d4944a6e414d9e3987f4, type: 3}
   nextMechanicPreviewImage: {fileID: 1787539203}
   shufflePreviewSprite: {fileID: 21300000, guid: dbaaa5d7211bf3558b78cd348b4a2436, type: 3}
   nextMechanicLabel: {fileID: 1539384557}
@@ -483,11 +487,11 @@ MonoBehaviour:
   specialTutorialText: {fileID: 579435840}
   levelTutorials:
   - levelDisplayName: level 1
-    levelAsset: {fileID: 11400000, guid: 7916d2c0bdd642c196ebfc98ecb4b9a3, type: 2}
+    levelAsset: {fileID: 11400000, guid: 512ccf2c2fe1323448bfa872859b8dc3, type: 2}
     levelIndex: 0
     path:
-    - {x: 0, y: 0}
     - {x: 1, y: 0}
+    - {x: 0, y: 0}
     handOffset: {x: 0, y: 0}
     showSpecialPanel: 0
     specialText: 
@@ -2860,8 +2864,8 @@ Transform:
   m_GameObject: {fileID: 1318699516}
   serializedVersion: 2
   m_LocalRotation: {x: 0.7071068, y: -0, z: -0, w: 0.7071068}
-  m_LocalPosition: {x: 0, y: 0, z: 15}
-  m_LocalScale: {x: 20, y: 1, z: 40}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 28.4265, y: 0.18951008, z: 28.4265}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
@@ -3664,14 +3668,13 @@ MonoBehaviour:
   objectOffset: 0.3
   frameSegmentPrefab: {fileID: 8705812165778106834, guid: 27a9482575df76f6095aaf58024fda5b, type: 3}
   shapeCornerPrefab: {fileID: 0}
-  backgroundPlatePrefab: {fileID: 5705869208705355488, guid: 47033a6ff949909428cc5889fa136aab, type: 3}
+  backgroundPlatePrefab: {fileID: 5607704547805368945, guid: c3e229a9c7edd294c840d7268bc203de, type: 3}
   mainCamera: {fileID: 963194227}
   frameThickness: 0.2
   framePadding: 0.1
   cameraPadding: 1
   cameraZoomFactor: 0.75
   cameraVerticalOffset: 0.5
-  cameraPitchAngle: 20
   uiTopMarginNormalized: 0.12
   shapeZOffset: 5
   levelText: {fileID: 1595179919}

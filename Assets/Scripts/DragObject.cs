@@ -55,13 +55,12 @@ public partial class DragObject : MonoBehaviour
     public int linkId = 0;
     private bool hasPlayedPickupSound = false;
 
-    [Header("Donuk (Frozen) Durumu — Devre Dışı")]
-    [HideInInspector]
+    [Header("Donuk (Frozen) Durumu")]
     public bool isFrozen = false;
 
     public void SetFrozen(bool frozen)
     {
-        isFrozen = false;
+        isFrozen = frozen;
     }
 
     // ──────────────────────────────────────────────────────────────
@@ -73,14 +72,23 @@ public partial class DragObject : MonoBehaviour
         cam = Camera.main;
         activeSpawner = FindObjectOfType<GridSpawner>();
         targetRotZ = transform.localEulerAngles.z;
-        canRotate = false; // Magic Sort modunda rotasyon kapalı
+
+        if (canRotate && linkId == 0 && activeSpawner != null &&
+            activeSpawner.CurrentLevelType.HasFlag(LevelData.LevelType.Rotation))
+        {
+            CreateRotateIcon();
+        }
     }
 
     public void OnUnlinked()
     {
         enabled = true;
         linkId = 0;
-        canRotate = false;
+        if (canRotate && rotateIcon == null && activeSpawner != null &&
+            activeSpawner.CurrentLevelType.HasFlag(LevelData.LevelType.Rotation))
+        {
+            CreateRotateIcon();
+        }
     }
 
     void CreateRotateIcon()
@@ -153,61 +161,17 @@ public partial class DragObject : MonoBehaviour
 
             if (hit.transform == transform || hit.transform.IsChildOf(transform))
             {
+                // Parça donuk (kilitli) ise hareket ettirilemez!
+                if (isFrozen)
+                {
+                    EffectsManager.Instance?.ShakeTransform(transform);
+                    VibrationManager.TryVibrate();
+                    return;
+                }
+
                 // Transfer animasyonu devam ediyorsa hiçbir şey yapma (tween'i öldürme!)
                 LiquidTransfer transfer = GetComponentInChildren<LiquidTransfer>();
                 if (transfer != null && transfer.transferring) return;
-
-                // ── MAGIC SORT ETKİLEŞİMİ (DOKUN-SEÇ & DÖK) ──────────
-                if (LiquidTransfer.SelectedBottle != null)
-                {
-                    // 1. Aynı şişeye tıklandıysa: Seçimi kaldır
-                    if (LiquidTransfer.SelectedBottle == transfer)
-                    {
-                        transfer.Deselect();
-                        return;
-                    }
-
-                    // 2. Başka bir şişeye tıklandıysa: Dökme kontrolü
-                    if (LiquidTransfer.SelectedBottle.CanPourInto(transfer))
-                    {
-                        LiquidTransfer source = LiquidTransfer.SelectedBottle;
-                        source.PourInto(transfer);
-                        GameManager.Instance?.RegisterMove();
-                        TutorialManager.Instance?.HideTutorial();
-                        return;
-                    }
-                    else
-                    {
-                        // Dökülemiyorsa ama tıklanan şişede sıvı varsa seçimi bu yeni şişeye geçir
-                        if (transfer != null && transfer.currentSlices > 0)
-                        {
-                            transfer.Select();
-                            return;
-                        }
-                        else
-                        {
-                            // Geçersiz hedef (dolu veya uyumsuz)
-                            EffectsManager.Instance?.ShakeTransform(transform);
-                            VibrationManager.TryVibrate();
-                            return;
-                        }
-                    }
-                }
-                else
-                {
-                    // Henüz hiçbir şişe seçili değilken tıklandıysa
-                    if (transfer != null && transfer.currentSlices > 0)
-                    {
-                        transfer.Select();
-                        return;
-                    }
-                    else
-                    {
-                        // Boş şişe kaynak olarak seçilemez
-                        EffectsManager.Instance?.ShakeTransform(transform);
-                        return;
-                    }
-                }
 
                 activeTouchIndex = touchIndex;
                 DOTween.Kill(transform);
@@ -234,9 +198,21 @@ public partial class DragObject : MonoBehaviour
                 wrapCooldown = 0.2f;
 
                 cachedWorldSize     = transform.lossyScale.x;
-                cachedLocalRotZ     = targetRotZ;
+                cachedLocalRotZ     = targetRotZ; // tween mid-değil, hedef rotasyon kullan
                 cachedWorldRotation = transform.rotation;
                 cachedLocalScale    = transform.localScale;
+                transform.SetParent(null, true);
+
+                // PERFORMANCE OPTIMIZATION: Cache all objects and grid cells once at the start of drag
+                cachedDragObjects = FindObjectsOfType<DragObject>();
+                var gridObjs = GameObject.FindGameObjectsWithTag("Grid");
+                cachedGridCells = new Transform[gridObjs.Length];
+                cachedGridCellPositions = new Vector3[gridObjs.Length];
+                for (int i = 0; i < gridObjs.Length; i++)
+                {
+                    cachedGridCells[i] = gridObjs[i].transform;
+                    cachedGridCellPositions[i] = gridObjs[i].transform.position;
+                }
 
                 dragPlane = new Plane(Vector3.forward, transform.position);
                 Ray grabRay = cam.ScreenPointToRay(screenPos);
@@ -244,6 +220,9 @@ public partial class DragObject : MonoBehaviour
                     worldGrabOffset = transform.position - grabRay.GetPoint(grabEnter);
                 else
                     worldGrabOffset = Vector3.zero;
+
+                if (EffectsManager.Instance != null)
+                    dragGlowInstance = EffectsManager.Instance.CreateDragGlow(transform);
 
                 if (TutorialManager.Instance != null) TutorialManager.Instance.HideTutorial();
             }
@@ -272,12 +251,17 @@ public partial class DragObject : MonoBehaviour
             desiredPos.z = transform.position.z;
         }
 
-        // Sürüklenen obje parmağı takip eder
-        transform.position = desiredPos;
+        // Use cached array instead of FindObjectsOfType
+        DragObject[] allObjects = cachedDragObjects ?? FindObjectsOfType<DragObject>();
+
+        if (IsShape3DMode())
+            DragShape3D(screenPos, desiredPos, allObjects);
+        else
+            DragFlat2D(screenPos, desiredPos, allObjects);
     }
 
     // ──────────────────────────────────────────────────────────────
-    // BIRAKMA — Magic Sort Hedef Kontrolü
+    // BIRAKMA — moda göre yönlendir
     // ──────────────────────────────────────────────────────────────
 
     void Drop(Vector3 finalScreenPos)
@@ -289,50 +273,104 @@ public partial class DragObject : MonoBehaviour
             EffectsManager.Instance.DestroyDragGlow(dragGlowInstance);
         dragGlowInstance = null;
 
-        float screenDist = Vector2.Distance(finalScreenPos, startScreenPos);
+        GridSpawner spawner = FindObjectOfType<GridSpawner>();
 
-        // Kısa dokunuş (TAP): Zaten TryPick içinde seçildi / döküldü
-        if (screenDist < 35f)
+        // TAP KONTROLÜ — Rotation modunda kısa dokunuş = 90° döndür
+        float screenDist = Vector2.Distance(finalScreenPos, startScreenPos);
+        float tapDuration = Time.time - startTime;
+        if (screenDist < 50f && tapDuration < 0.5f && !IsShape3DMode() && canRotate && linkId == 0 &&
+            spawner != null && spawner.CurrentLevelType.HasFlag(LevelData.LevelType.Rotation))
         {
+            if (startParent != null) transform.SetParent(startParent, true);
+            transform.localPosition = startLocalPos;
+            targetRotZ = cachedLocalRotZ + 90f;
+            AudioManager.PlayRotate();
+            GameManager.Instance?.RegisterRotation();
+            transform.DOKill();
+            transform.DOLocalRotate(new Vector3(0, 0, targetRotZ), 0.3f)
+                .SetEase(Ease.OutBack)
+                .OnComplete(() =>
+                {
+                    TutorialManager.Instance?.OnPieceRotated(this);
+                    LiquidTransfer lt = GetComponentInChildren<LiquidTransfer>();
+                    if (lt != null) lt.CheckSymmetry();
+                });
             return;
         }
 
-        // SÜRÜKLEME (DRAG) BİTTİ: Bırakılan yerin altındaki en yakın şişeyi bul
-        LiquidTransfer myTransfer = GetComponentInChildren<LiquidTransfer>();
-        DragObject[] allObjects = FindObjectsOfType<DragObject>();
-        DragObject closestTarget = null;
-        float minDist = float.MaxValue;
+        // En yakın grid hücresini bul — objenin gerçek pozisyonuna göre (mouse değil)
+        Transform targetGrid = null;
+        float minGridDist = float.MaxValue;
 
-        foreach (var obj in allObjects)
+        // Use cached cells
+        Transform[] cellsToCheck = cachedGridCells;
+        if (cellsToCheck == null)
         {
-            if (obj == null || obj == this) continue;
-            float d = Vector3.Distance(transform.position, obj.transform.position);
-            if (d < minDist)
+            var gridObjs = GameObject.FindGameObjectsWithTag("Grid");
+            cellsToCheck = new Transform[gridObjs.Length];
+            for (int i = 0; i < gridObjs.Length; i++) cellsToCheck[i] = gridObjs[i].transform;
+        }
+
+        foreach (Transform cellT in cellsToCheck)
+        {
+            if (cellT == null || !cellT.gameObject.activeInHierarchy) continue;
+            float d = Vector3.Distance(transform.position, cellT.position);
+            if (d < minGridDist)
             {
-                minDist = d;
-                closestTarget = obj;
+                minGridDist = d;
+                targetGrid = cellT;
             }
         }
 
-        // Eğer yakın bir şişenin üstüne bırakıldıysa ve dökülebiliyorsa
-        if (closestTarget != null && minDist < 1.5f)
+        if (targetGrid == null)
         {
-            LiquidTransfer targetTransfer = closestTarget.GetComponentInChildren<LiquidTransfer>();
-            if (myTransfer != null && myTransfer.CanPourInto(targetTransfer))
+            ReturnToStart();
+            return;
+        }
+
+
+        // Engelli veya Donuk hücre kontrolü
+        if (targetGrid.name.Contains("Blocked"))
+        {
+            ReturnToStart();
+            return;
+        }
+
+        FrozenGridCell frozenCell = targetGrid.GetComponent<FrozenGridCell>() ?? targetGrid.GetComponentInChildren<FrozenGridCell>();
+        if (frozenCell != null && !frozenCell.isDefrosted)
+        {
+            ReturnToStart();
+            return;
+        }
+
+        // Doluluk kontrolü
+        float fullThreshold = cachedWorldSize > 0.001f ? cachedWorldSize * 0.9f : 0.4f;
+        DragObject[] all = cachedDragObjects ?? FindObjectsOfType<DragObject>();
+        foreach (var o in all)
+        {
+            if (o == null || o == this) continue;
+            float d = Vector3.Distance(o.transform.position, targetGrid.position);
+            if (d < fullThreshold)
             {
                 ReturnToStart();
-                myTransfer.PourInto(targetTransfer);
-                GameManager.Instance?.RegisterMove();
-                TutorialManager.Instance?.HideTutorial();
                 return;
             }
         }
 
-        // Geçersiz bir yere bırakıldıysa başlangıç yerine dön
-        ReturnToStart();
-        if (myTransfer != null && myTransfer.IsSelected)
+        // Clear cache
+        cachedDragObjects = null;
+        cachedGridCells = null;
+        cachedGridCellPositions = null;
+
+        GameManager.Instance?.RegisterMove();
+
+        if (IsShape3DMode())
         {
-            myTransfer.Deselect();
+            DropShape3D(targetGrid, spawner);
+        }
+        else
+        {
+            DropFlat2D(targetGrid, spawner);
         }
     }
 
@@ -342,17 +380,17 @@ public partial class DragObject : MonoBehaviour
 
     void ReturnToStart()
     {
-        LiquidTransfer lt = GetComponentInChildren<LiquidTransfer>();
-        Vector3 targetPos = (lt != null && lt.OriginalLocalPos != Vector3.zero) ? lt.OriginalLocalPos : startLocalPos;
-        Quaternion targetRot = (lt != null) ? lt.OriginalLocalRot : transform.localRotation;
-
         if (startParent != null)
         {
             transform.SetParent(startParent, true);
+            transform.DOLocalMove(startLocalPos, 0.4f).SetEase(Ease.OutBack)
+                .OnComplete(() => EffectsManager.Instance?.ShakeTransform(transform));
         }
-        transform.DOKill();
-        transform.DOLocalMove(targetPos, 0.25f).SetEase(Ease.OutQuad);
-        transform.DOLocalRotateQuaternion(targetRot, 0.25f).SetEase(Ease.OutQuad);
+        else
+        {
+            transform.DOMove(startPosition, 0.4f).SetEase(Ease.OutBack)
+                .OnComplete(() => EffectsManager.Instance?.ShakeTransform(transform));
+        }
     }
 
     // ──────────────────────────────────────────────────────────────

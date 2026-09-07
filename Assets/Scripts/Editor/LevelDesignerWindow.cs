@@ -3,1468 +3,565 @@ using UnityEditor;
 using System.Collections.Generic;
 using System.IO;
 
-/// <summary>
-/// Magic Sort — Modern, Kullanıcı Dostu Seviye Tasarımcısı.
-/// Temiz görsel telefon önizlemesi, tek tıkla katman boyama,
-/// otomatik çözülebilirlik kontrolü ve pratik seviye yönetimi.
-/// </summary>
 public class LevelDesignerWindow : EditorWindow
 {
     private LevelData currentLevel;
-    private int selectedBottleIndex = 0;
+    private int gridX = 3;
+    private int gridY = 3;
+
+    // Brush settings
+    private Color brushColor = new Color(0.8f, 0.1f, 0.1f);
+    private int brushSlices = 1;
+    private float brushRotationZ = 0f;
+    private int brushLinkId = 0;
+    private bool brushCanRotate = false;
+
+    private bool isGridEditMode = false;
+    private bool isFrozenEditMode = false;
+    private int frozenRequiredMatches = 3;
+    private bool brushIsFrozen = false;
+    private int brushFrozenCount = 3;
+    private int currentFaceIndex = 0;
     private Vector2 scrollPos;
 
-    // Katlanabilir gelişmiş bölümler (varsayılan kapalı - karmaşayı önler)
-    private bool showAdvancedSettings = false;
-    private bool showLevelGenerator = false;
-    private bool showSequenceSection = true;
-
-    // Hızlı Renk Paleti (Water / Magic Sort standart renkleri)
-    public static readonly Color[] QuickColors = new Color[]
-    {
-        new Color(0.92f, 0.22f, 0.22f), // Kırmızı
-        new Color(0.18f, 0.52f, 0.95f), // Mavi
-        new Color(0.22f, 0.78f, 0.35f), // Yeşil
-        new Color(0.95f, 0.82f, 0.15f), // Sarı
-        new Color(0.68f, 0.26f, 0.92f), // Mor
-        new Color(0.95f, 0.55f, 0.15f), // Turuncu
-        new Color(0.20f, 0.82f, 0.88f), // Turkuaz
-        new Color(0.95f, 0.35f, 0.65f), // Pembe
-    };
-
-    public static readonly string[] QuickColorNames = new string[]
-    {
-        "Kırmızı", "Mavi", "Yeşil", "Sarı", "Mor", "Turuncu", "Turkuaz", "Pembe"
-    };
-
-    // Otomatik seviye üretici ayarları
-    private int genColorCount = 4;
-    private int genEmptyCount = 2;
-
-    // Sürükle-Bırak & Kopyala Panosu
-    private int dragSourceBottleIndex = -1;
-    private int hoverTargetBottleIndex = -1;
-    private bool isSlotDragging = false;
-    private Vector2 dragStartMousePos;
-    private static LevelData.PieceData clipboardPiece = null;
-    private readonly List<Rect> currentBottleRects = new List<Rect>();
-
-    [MenuItem("Magic Sort/Level Tasarımcısı")]
     [MenuItem("Symmetric3D/Level Tasarımcısı")]
     public static void ShowWindow()
     {
-        var window = GetWindow<LevelDesignerWindow>("Magic Sort Tasarımcı");
-        window.minSize = new Vector2(460, 680);
-        window.Show();
+        GetWindow<LevelDesignerWindow>("Level Tasarımcısı");
     }
 
-    public static void OpenLevel(LevelData level)
+    void OnGUI()
     {
-        var window = GetWindow<LevelDesignerWindow>("Magic Sort Tasarımcı");
-        window.currentLevel = level;
-        window.selectedBottleIndex = 0;
-        window.minSize = new Vector2(460, 680);
-        window.Show();
-        window.Focus();
-    }
-
-    private void OnEnable()
-    {
-        if (currentLevel == null)
+        // --- KLAVYE KISAYOLLARI (YÖN TUŞLARI) ---
+        Event eCurrent = Event.current;
+        if (eCurrent.type == EventType.KeyDown)
         {
-            LoadFirstAvailableLevel();
-        }
-    }
-
-    private void LoadFirstAvailableLevel()
-    {
-        string folder = "Assets/Levels";
-        if (AssetDatabase.IsValidFolder(folder))
-        {
-            string[] guids = AssetDatabase.FindAssets("t:LevelData", new[] { folder });
-            if (guids.Length > 0)
+            float newRot = brushRotationZ;
+            bool changed = true;
+            switch (eCurrent.keyCode)
             {
-                string path = AssetDatabase.GUIDToAssetPath(guids[0]);
-                currentLevel = AssetDatabase.LoadAssetAtPath<LevelData>(path);
+                case KeyCode.UpArrow:    newRot = 180;  break;
+                case KeyCode.RightArrow: newRot = 90;  break;
+                case KeyCode.DownArrow:  newRot = 0;   break;
+                case KeyCode.LeftArrow:  newRot = -90; break;
+                default: changed = false; break;
+            }
+            if (changed)
+            {
+                brushRotationZ = newRot;
+                Repaint(); // UI'ı hemen güncelle
             }
         }
-    }
 
-    private void OnGUI()
-    {
-        HandleKeyboardShortcuts();
+        // ── Başlık ──────────────────────────────────────────────
+        GUIStyle titleStyle = new GUIStyle(EditorStyles.boldLabel);
+        titleStyle.fontSize = 14;
+        GUILayout.Label("🎮 Symmetric3D — Level Tasarımcısı", titleStyle);
+        GUILayout.Space(4);
 
-        scrollPos = EditorGUILayout.BeginScrollView(scrollPos);
-
-        DrawTopBar();
+        // ── 🚀 Hızlı Level Yönetim & Oluşturma Paneli ────────────────
+        DrawQuickLevelPanel();
         GUILayout.Space(6);
 
         if (currentLevel == null)
         {
-            EditorGUILayout.HelpBox("Düzenlemek için bir Level seçin veya '➕ Yeni Seviye' butonuna basın.", MessageType.Info);
-            if (GUILayout.Button("⚡ Hemen İlk Seviyeyi Oluştur", GUILayout.Height(36)))
-            {
-                CreateNewLevel();
-            }
-            EditorGUILayout.EndScrollView();
+            EditorGUILayout.HelpBox("Çizim yapmak için yukarıdaki '⚡ Hızlı Level Oluştur' butonuna basın veya bir Level Data seçin.", MessageType.Info);
             return;
         }
 
-        DrawLevelHeaderCard();
-        GUILayout.Space(8);
+        scrollPos = EditorGUILayout.BeginScrollView(scrollPos);
 
-        DrawVisualCanvas();
+        // ── 1. BÖLÜM: Level Bilgileri ────────────────────────────
+        DrawSectionHeader("📋 Level Bilgileri");
+
+        EditorGUI.BeginChangeCheck();
+
+        // Otomatik isim sekronizasyonu (Dosya adı = Seviye Adı)
+        if (currentLevel.levelDisplayName != currentLevel.name)
+        {
+            Undo.RecordObject(currentLevel, "Seviye Adı Güncelle");
+            currentLevel.levelDisplayName = currentLevel.name;
+            EditorUtility.SetDirty(currentLevel);
+        }
+
+        EditorGUILayout.LabelField("Seviye Adı", currentLevel.name);
+        LevelData.LevelType newType = (LevelData.LevelType)EditorGUILayout.EnumFlagsField("Level Türü", currentLevel.levelType);
+
+        if (EditorGUI.EndChangeCheck())
+        {
+            Undo.RecordObject(currentLevel, "Level Bilgisi Değiştir");
+            currentLevel.levelType = newType;
+            EditorUtility.SetDirty(currentLevel);
+        }
+
+        if (currentLevel.levelType.HasFlag(LevelData.LevelType.Classic))
+            EditorGUILayout.HelpBox("Classic — Kaydır ve eşleştir.  |  Açılma: Her zaman açık", MessageType.None);
+
+        if (currentLevel.levelType.HasFlag(LevelData.LevelType.Rotation))
+            EditorGUILayout.HelpBox("Rotation — Parçalar tıklandığında 90 derece döner. Sürükleme de aktiftir.", MessageType.None);
+
+        if (currentLevel.levelType.HasFlag(LevelData.LevelType.Linked))
+            EditorGUILayout.HelpBox("Linked — Aynı 'Bağlantı Grubu'na sahip objeler birbirine yapışır ve çoklu blok mantığıyla (2'li, 3'lü vb.) grup halinde hareket ederler.", MessageType.None);
+
         GUILayout.Space(6);
 
-        DrawSolvabilityStatusBar();
-        GUILayout.Space(8);
+        // ── 2. BÖLÜM: Grid Boyutu ve Shape ────────────────────────────────
+        DrawSectionHeader("📐 Grid Boyutu ve Shape Modu");
 
-        DrawSelectedBottleEditor();
-        GUILayout.Space(8);
+        EditorGUI.BeginChangeCheck();
+        LevelData.BoardMode newMode = (LevelData.BoardMode)EditorGUILayout.EnumPopup("Board Mode", currentLevel.boardMode);
+        if (EditorGUI.EndChangeCheck())
+        {
+            Undo.RecordObject(currentLevel, "Board Mode Değiştir");
+            currentLevel.boardMode = newMode;
+            EditorUtility.SetDirty(currentLevel);
+        }
 
-        DrawAdvancedFoldouts();
-        GUILayout.Space(14);
+        GUILayout.Space(4);
+
+        if (currentLevel.boardMode == LevelData.BoardMode.Shape3D)
+        {
+            EditorGUI.BeginChangeCheck();
+            GameObject newPrefab = (GameObject)EditorGUILayout.ObjectField("Shape Prefab", currentLevel.shapePrefab, typeof(GameObject), false);
+            if (EditorGUI.EndChangeCheck())
+            {
+                Undo.RecordObject(currentLevel, "Shape Prefab Değiştir");
+                currentLevel.shapePrefab = newPrefab;
+                currentLevel.SyncShapeFacesFromPrefab();
+                EditorUtility.SetDirty(currentLevel);
+            }
+
+            if (currentLevel.shapePrefab != null)
+            {
+                if (GUILayout.Button("🔄 Prefab'dan Yüzeyleri Senkronize Et"))
+                {
+                    Undo.RecordObject(currentLevel, "Sync Faces");
+                    currentLevel.SyncShapeFacesFromPrefab();
+                }
+
+                if (currentLevel.shapeFaces.Count > 0)
+                {
+                    string[] faceNames = new string[currentLevel.shapeFaces.Count];
+                    for (int i = 0; i < faceNames.Length; i++) faceNames[i] = currentLevel.shapeFaces[i].faceId;
+
+                    currentFaceIndex = GUILayout.Toolbar(currentFaceIndex, faceNames, GUILayout.Height(30));
+                    GUILayout.Space(4);
+
+                    if (currentFaceIndex >= currentLevel.shapeFaces.Count) currentFaceIndex = 0;
+
+                    LevelData.FaceLayoutData activeFace = currentLevel.shapeFaces[currentFaceIndex];
+                    
+                    EditorGUI.BeginChangeCheck();
+                    bool faceActive = EditorGUILayout.Toggle("Yüzey Aktif mi?", activeFace.isActive);
+                    ShapeFaceMarker.FaceSurfaceType surfaceType = (ShapeFaceMarker.FaceSurfaceType)EditorGUILayout.EnumPopup("Yüzey Tipi", activeFace.surfaceType);
+                    if (EditorGUI.EndChangeCheck())
+                    {
+                        Undo.RecordObject(currentLevel, "Yüzey Ayarlarını Değiştir");
+                        activeFace.isActive = faceActive;
+                        activeFace.surfaceType = surfaceType;
+                        EditorUtility.SetDirty(currentLevel);
+                    }
+
+                    if (activeFace.isActive)
+                    {
+                        EditorGUI.BeginChangeCheck();
+                        gridX = EditorGUILayout.IntSlider("Genişlik (X)", activeFace.gridX, 1, 10);
+                        gridY = EditorGUILayout.IntSlider("Yükseklik (Y)", activeFace.gridY, 1, 10);
+                        if (EditorGUI.EndChangeCheck())
+                        {
+                            Undo.RecordObject(currentLevel, "Yüzey Grid Boyutu Değiştir");
+                            activeFace.gridX = gridX;
+                            activeFace.gridY = gridY;
+                            EditorUtility.SetDirty(currentLevel);
+                        }
+                    }
+                    else
+                    {
+                        EditorGUILayout.HelpBox("Bu yüzey pasif durumda. Parça eklenemez.", MessageType.Warning);
+                        EditorGUILayout.EndScrollView();
+                        return;
+                    }
+                }
+                else
+                {
+                    EditorGUILayout.HelpBox("Prefab üzerinde yüzey bulunamadı. ShapeDefinition eklediğinizden emin olun.", MessageType.Warning);
+                }
+            }
+            else
+            {
+                EditorGUILayout.HelpBox("Lütfen bir Shape Prefab atayın.", MessageType.Info);
+            }
+        }
+        else
+        {
+            EditorGUI.BeginChangeCheck();
+            gridX = EditorGUILayout.IntSlider("Genişlik (X)", currentLevel.gridX, 1, 10);
+            gridY = EditorGUILayout.IntSlider("Yükseklik (Y)", currentLevel.gridY, 1, 10);
+            if (EditorGUI.EndChangeCheck())
+            {
+                Undo.RecordObject(currentLevel, "Grid Boyutu Değiştir");
+                currentLevel.gridX = gridX;
+                currentLevel.gridY = gridY;
+                EditorUtility.SetDirty(currentLevel);
+            }
+        }
+
+        GUILayout.Space(6);
+
+        // ── 3. BÖLÜM: Grid & Donukluk Şekillendirme ────────────────────────────
+        DrawSectionHeader("🧱 Grid & ❄️ Donukluk Şekillendirme");
+        
+        EditorGUILayout.BeginHorizontal();
+        Color oldGuiColor = GUI.backgroundColor;
+        GUI.backgroundColor = isGridEditMode ? Color.green : Color.white;
+        if (GUILayout.Button(isGridEditMode ? "✅ Grid Düzenleme: AÇIK" : "⬛ Grid Düzenleme: KAPALI", GUILayout.Height(30)))
+        {
+            isGridEditMode = !isGridEditMode;
+            if (isGridEditMode) isFrozenEditMode = false;
+        }
+
+        GUI.backgroundColor = isFrozenEditMode ? new Color(0.35f, 0.85f, 1f) : Color.white;
+        if (GUILayout.Button(isFrozenEditMode ? "❄️ Donuk Grid Modu: AÇIK" : "❄️ Donuk Grid Modu: KAPALI", GUILayout.Height(30)))
+        {
+            isFrozenEditMode = !isFrozenEditMode;
+            if (isFrozenEditMode) isGridEditMode = false;
+        }
+        GUI.backgroundColor = oldGuiColor;
+        EditorGUILayout.EndHorizontal();
+        
+        if (isGridEditMode)
+        {
+            EditorGUILayout.HelpBox("Grid Düzenleme Modu: Grid üzerindeki hücrelere tıklayarak onları aktif/pasif yapabilirsiniz.", MessageType.Info);
+        }
+        else if (isFrozenEditMode)
+        {
+            EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+            EditorGUILayout.LabelField("❄️ Donukluk Çözülme Sayacı (Eşleştirme Sayısı)", EditorStyles.boldLabel);
+            
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.PrefixLabel("Hızlı Seç:");
+            int[] countPresets = { 1, 2, 3, 4, 5, 6, 8, 10 };
+            foreach (int cnt in countPresets)
+            {
+                Color pCol = GUI.backgroundColor;
+                if (frozenRequiredMatches == cnt) GUI.backgroundColor = new Color(0.35f, 0.9f, 1f);
+                if (GUILayout.Button(cnt.ToString(), GUILayout.Width(28), GUILayout.Height(22)))
+                {
+                    frozenRequiredMatches = cnt;
+                }
+                GUI.backgroundColor = pCol;
+            }
+            EditorGUILayout.EndHorizontal();
+
+            frozenRequiredMatches = EditorGUILayout.IntSlider("Gereken Eşleştirme (Açılma Sayacı)", frozenRequiredMatches, 1, 20);
+            EditorGUILayout.HelpBox($"❄️ Seçili Sayaç: {frozenRequiredMatches} Eşleştirme\n• Harita hücresine Sol Tık = Donuk yap ({frozenRequiredMatches} eşleştirme)\n• Harita hücresine Sağ Tık = Donukluğu kaldır.", MessageType.Info);
+            EditorGUILayout.EndVertical();
+        }
+
+        GUILayout.Space(6);
+
+        // ── 4. BÖLÜM: Fırça Ayarları ─────────────────────────────
+        DrawSectionHeader("🖌️ Fırça (Brush) Ayarları");
+
+        // Renk Presetleri
+        GUILayout.Label("Hızlı Renk Seç:", EditorStyles.miniLabel);
+        EditorGUILayout.BeginHorizontal();
+
+        DrawColorPreset("🔵 Mavi",    ColorMixData.Mavi);
+        DrawColorPreset("🔴 Kırmızı", ColorMixData.Kirmizi);
+        DrawColorPreset("🟡 Sarı",    ColorMixData.Sari);
+        DrawColorPreset("🟣 Mor",     ColorMixData.Mor);
+        DrawColorPreset("🟠 Turuncu", ColorMixData.Turuncu);
+        DrawColorPreset("🟢 Yeşil",   ColorMixData.Yesil);
+
+        EditorGUILayout.EndHorizontal();
+        EditorGUILayout.BeginHorizontal();
+
+        DrawColorPreset("🩵 Açık Mavi",   ColorMixData.AcikMavi);
+        DrawColorPreset("🩷 Pembe",        ColorMixData.Pembe);
+        DrawColorPreset("⚫ Siyah",        ColorMixData.Siyah);
+        DrawColorPreset("🔻 K.Kırmızı",   ColorMixData.KoyuKirm);
+        DrawColorPreset("🌿 K.Yeşil",     ColorMixData.KoyuYesil);
+        DrawColorPreset("🔮 K.Mor",       ColorMixData.KoyuMor);
+
+        EditorGUILayout.EndHorizontal();
+        GUILayout.Space(4);
+
+        brushColor = EditorGUILayout.ColorField("Renk (manuel)", brushColor);
+
+        // --- Dinamik Slice Seçimi (Butonlar ile) ---
+        GUILayout.Space(2);
+        EditorGUILayout.BeginHorizontal();
+        EditorGUILayout.PrefixLabel("Dilim (Slices)");
+        
+        int[] availableSlices = GetAvailableSlices(currentLevel.levelType);
+        
+        // Fırça dilimi şu anki modda yoksa, ilk geçerli olana çek
+        if (System.Array.IndexOf(availableSlices, brushSlices) == -1)
+            brushSlices = availableSlices[0];
+
+        string[] sliceLabels = new string[availableSlices.Length];
+        for (int i = 0; i < availableSlices.Length; i++)
+        {
+            sliceLabels[i] = availableSlices[i] switch
+            {
+                1 => "Çeyrek (1/4)",
+                2 => "Yarım (2/4)",
+                4 => "Tam (4/4)",
+                _ => availableSlices[i] + "/4"
+            };
+        }
+
+        int currentSliceIndex = System.Array.IndexOf(availableSlices, brushSlices);
+        if (currentSliceIndex == -1) currentSliceIndex = 0;
+
+        int newSliceIndex = GUILayout.Toolbar(currentSliceIndex, sliceLabels, GUILayout.Height(25));
+        if (newSliceIndex != currentSliceIndex)
+            brushSlices = availableSlices[newSliceIndex];
+
+        EditorGUILayout.EndHorizontal();
+        GUILayout.Space(2);
+
+        string[] rotOptions = { "Yukarı (180°)", "Sağa (90°)", "Aşağı (0°)", "Sola (-90°)" };
+        int[] rotValues = { 180, 90, 0, -90 };
+        int currentRotIndex = System.Array.IndexOf(rotValues, (int)brushRotationZ);
+        if (currentRotIndex < 0) currentRotIndex = 0;
+        currentRotIndex = EditorGUILayout.Popup("Baktığı Yön", currentRotIndex, rotOptions);
+        brushRotationZ = rotValues[currentRotIndex];
+        
+        if (currentLevel.levelType.HasFlag(LevelData.LevelType.Linked))
+        {
+            GUILayout.Space(2);
+            bool useLink = brushLinkId > 0;
+            EditorGUI.BeginChangeCheck();
+            useLink = EditorGUILayout.Toggle("Grup Yap (Link)", useLink);
+            if (EditorGUI.EndChangeCheck())
+            {
+                brushLinkId = useLink ? 1 : 0;
+            }
+
+            if (useLink)
+            {
+                brushLinkId = EditorGUILayout.IntSlider("Link ID", brushLinkId, 1, 9);
+                EditorGUILayout.HelpBox($"Link {brushLinkId} seçili. Aynı ID'ye sahip parçalar grup olarak hareket ederler.", MessageType.Info);
+            }
+            else
+            {
+                brushLinkId = 0;
+                EditorGUILayout.HelpBox("Bağımsız parça (Grup yok). Link özelliği kapalı olduğu için bu parça tekil hareket eder.", MessageType.None);
+            }
+        }
+        else
+        {
+            brushLinkId = 0; // Linked modunda değilse sıfırla
+        }
+
+        // Rotation: döndürülebilir mi?
+        if (currentLevel.levelType.HasFlag(LevelData.LevelType.Rotation))
+        {
+            GUILayout.Space(4);
+            brushCanRotate = EditorGUILayout.Toggle("Döndürülebilir?", brushCanRotate);
+        }
+        else
+        {
+            brushCanRotate = false;
+        }
+
+        // ❄️ Donuk Olarak Yerleştir Seçeneği
+        GUILayout.Space(4);
+        EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+        brushIsFrozen = EditorGUILayout.Toggle("❄️ Bu Parçayı Donuk Olarak Yerleştir", brushIsFrozen);
+        if (brushIsFrozen)
+        {
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.PrefixLabel("   └ Hızlı Sayaç:");
+            int[] bPresets = { 1, 2, 3, 4, 5, 6 };
+            foreach (int bcnt in bPresets)
+            {
+                Color bCol = GUI.backgroundColor;
+                if (brushFrozenCount == bcnt) GUI.backgroundColor = new Color(0.35f, 0.9f, 1f);
+                if (GUILayout.Button(bcnt.ToString(), GUILayout.Width(28), GUILayout.Height(20)))
+                {
+                    brushFrozenCount = bcnt;
+                }
+                GUI.backgroundColor = bCol;
+            }
+            EditorGUILayout.EndHorizontal();
+
+            brushFrozenCount = EditorGUILayout.IntSlider("   └ Gereken Eşleştirme Sayacı", brushFrozenCount, 1, 20);
+        }
+        EditorGUILayout.EndVertical();
+
+        GUILayout.Space(6);
+
+        // ── 5. BÖLÜM: Harita / Grid ──────────────────────────────
+        DrawSectionHeader("🗺️ Harita");
+
+        EditorGUILayout.BeginHorizontal();
+        EditorGUILayout.HelpBox("Sol Tık = Boya/Yerleştir     Sağ Tık = Sil", MessageType.None);
+        EditorGUILayout.EndHorizontal();
+
+        GUILayout.Space(4);
+        DrawGrid();
+        DrawFrozenCellsList();
+
+        GUILayout.Space(10);
+
+        // ── Alt butonlar ─────────────────────────────────────────
+        EditorGUILayout.BeginHorizontal();
+        if (GUILayout.Button("🗑️ Tüm Parçaları Temizle", GUILayout.Height(32)))
+        {
+            if (EditorUtility.DisplayDialog("Emin misin?", "Tüm parçalar silinecek.", "Sil", "İptal"))
+            {
+                Undo.RecordObject(currentLevel, "Tümünü Temizle");
+                currentLevel.pieces.Clear();
+                EditorUtility.SetDirty(currentLevel);
+            }
+        }
+        if (GUILayout.Button("💾 Kaydet", GUILayout.Height(32)))
+        {
+            SaveCurrentLevel();
+        }
+
+        Color prevColor = GUI.backgroundColor;
+        GUI.backgroundColor = new Color(0.2f, 0.7f, 0.9f); // Mavi aksanlı Seri Kaydet & Yeniye Geç
+        if (GUILayout.Button("⚡ Kaydet & Hızlı Yeni Level'a Geç", GUILayout.Height(32)))
+        {
+            SaveCurrentLevel();
+            CreateQuickNewLevel(duplicateCurrent: false);
+        }
+        GUI.backgroundColor = prevColor;
+
+        EditorGUILayout.EndHorizontal();
 
         EditorGUILayout.EndScrollView();
     }
 
-    // ──────────────────────────────────────────────────────────────
-    // 1. ÜST YÖNETİM BARI
-    // ──────────────────────────────────────────────────────────────
-    private void DrawTopBar()
+    // ─── HIZLI LEVEL OLUŞTURMA & YÖNETİMİ ─────────────────────────
+
+    private void DrawQuickLevelPanel()
     {
+        DrawSectionHeader("✨ Level Yönetimi & Hızlı Oluşturma");
+
         EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+
+        // Satır 1: Önceki | Level Objesi Seçici | Sonraki
         EditorGUILayout.BeginHorizontal();
-
-        LevelData newSelected = (LevelData)EditorGUILayout.ObjectField("Aktif Seviye", currentLevel, typeof(LevelData), false);
-        if (newSelected != currentLevel)
+        if (GUILayout.Button("◀ Önceki", GUILayout.Width(75), GUILayout.Height(24)))
         {
-            currentLevel = newSelected;
-            selectedBottleIndex = 0;
-            GUI.FocusControl(null);
+            NavigateLevel(-1);
         }
-
-        GUI.backgroundColor = new Color(0.4f, 0.9f, 0.5f);
-        if (GUILayout.Button("➕ Yeni", GUILayout.Width(65), GUILayout.Height(22)))
-        {
-            CreateNewLevel();
-        }
-        GUI.backgroundColor = Color.white;
-
-        if (currentLevel != null)
-        {
-            GUI.backgroundColor = new Color(0.4f, 0.8f, 1.0f);
-            if (GUILayout.Button("💾 Kaydet", GUILayout.Width(70), GUILayout.Height(22)))
-            {
-                SaveCurrentLevel();
-            }
-            GUI.backgroundColor = Color.white;
-
-            GUI.backgroundColor = new Color(1.0f, 0.55f, 0.55f);
-            if (GUILayout.Button("🗑️ Sil", GUILayout.Width(50), GUILayout.Height(22)))
-            {
-                if (EditorUtility.DisplayDialog("Seviyeyi Sil", $"'{currentLevel.name}' silinecek. Emin misiniz?", "Evet, Sil", "İptal"))
-                {
-                    DeleteCurrentLevel();
-                }
-            }
-            GUI.backgroundColor = Color.white;
-        }
-
-        EditorGUILayout.EndHorizontal();
-
-        // ── Seviye Sıralaması & Gezinme Şeridi ──
-        DrawSequenceToolbar();
-
-        EditorGUILayout.EndVertical();
-    }
-
-    private void DrawSequenceToolbar()
-    {
-        LevelSequenceData seq = LevelSequenceHelper.GetOrCreateSequence();
-        if (seq == null) return;
-
-        int totalCount = seq.levels != null ? seq.levels.Count : 0;
-        int currentIdx = LevelSequenceHelper.GetLevelIndex(seq, currentLevel);
-
-        EditorGUILayout.Space(2);
-        EditorGUILayout.BeginHorizontal();
-
-        // ◀ Önceki Butonu
-        GUI.enabled = currentIdx > 0;
-        if (GUILayout.Button("◀ Önceki", EditorStyles.miniButtonLeft, GUILayout.Width(68), GUILayout.Height(20)))
-        {
-            currentLevel = seq.levels[currentIdx - 1];
-            selectedBottleIndex = 0;
-            GUI.FocusControl(null);
-        }
-        GUI.enabled = true;
-
-        // Seviye Sırası Açılır Menüsü (Hızlı Atlama)
-        if (totalCount > 0 && currentIdx >= 0)
-        {
-            string[] levelNames = new string[totalCount];
-            for (int i = 0; i < totalCount; i++)
-            {
-                string name = seq.levels[i] != null ? seq.levels[i].name : "⚠️ (Eksik)";
-                levelNames[i] = $"#{i + 1:D2}  {name}";
-            }
-
-            int chosenIdx = EditorGUILayout.Popup(currentIdx, levelNames, GUILayout.MinWidth(140), GUILayout.Height(20));
-            if (chosenIdx != currentIdx && chosenIdx >= 0 && chosenIdx < totalCount)
-            {
-                currentLevel = seq.levels[chosenIdx];
-                selectedBottleIndex = 0;
-                GUI.FocusControl(null);
-            }
-        }
-        else if (currentLevel != null)
-        {
-            GUILayout.Label("⚠️ Bu Seviye Sıralamada Yok", EditorStyles.miniLabel, GUILayout.Width(150));
-            if (GUILayout.Button("➕ Sıraya Ekle", EditorStyles.miniButton, GUILayout.Width(85), GUILayout.Height(20)))
-            {
-                LevelSequenceHelper.AddLevel(seq, currentLevel);
-            }
-        }
-        else
-        {
-            GUILayout.Label("Sıralama Boş", EditorStyles.miniLabel);
-        }
-
-        // Sonraki ▶ Butonu
-        GUI.enabled = currentIdx >= 0 && currentIdx < totalCount - 1;
-        if (GUILayout.Button("Sonraki ▶", EditorStyles.miniButtonRight, GUILayout.Width(68), GUILayout.Height(20)))
-        {
-            currentLevel = seq.levels[currentIdx + 1];
-            selectedBottleIndex = 0;
-            GUI.FocusControl(null);
-        }
-        GUI.enabled = true;
-
-        GUILayout.Space(6);
-
-        // Sıra Değiştirme Butonları (▲ Öne Al / ▼ Sonraya Al)
-        GUI.enabled = currentIdx > 0;
-        if (GUILayout.Button(new GUIContent("▲", "Mevcut seviyeyi 1 sıra öne al"), EditorStyles.miniButtonLeft, GUILayout.Width(26), GUILayout.Height(20)))
-        {
-            LevelSequenceHelper.ShiftLevel(seq, currentLevel, -1);
-        }
-        GUI.enabled = currentIdx >= 0 && currentIdx < totalCount - 1;
-        if (GUILayout.Button(new GUIContent("▼", "Mevcut seviyeyi 1 sıra sonraya al"), EditorStyles.miniButtonRight, GUILayout.Width(26), GUILayout.Height(20)))
-        {
-            LevelSequenceHelper.ShiftLevel(seq, currentLevel, 1);
-        }
-        GUI.enabled = true;
-
-        GUILayout.Space(6);
-
-        // Numaraya Göre Sırala
-        if (GUILayout.Button(new GUIContent("🔢 Sırala", "Assets/Levels içindeki tüm seviyeleri numaralarına göre (Level_01, Level_02...) dizer"), EditorStyles.miniButtonLeft, GUILayout.Width(58), GUILayout.Height(20)))
-        {
-            LevelSequenceHelper.SyncAndSortSequence(seq);
-            ShowNotification(new GUIContent("🔢 Seviyeler numaraya göre sıralandı!"));
-        }
-
-        // Klasörle Eşitle
-        if (GUILayout.Button(new GUIContent("🔄 Eşitle", "Klasördeki seviyeleri listeyle eşitler ve silinenleri temizler"), EditorStyles.miniButtonRight, GUILayout.Width(56), GUILayout.Height(20)))
-        {
-            LevelSequenceHelper.SyncAndSortSequence(seq);
-            ShowNotification(new GUIContent("🔄 Seviyeler eşitlendi!"));
-        }
-
-        EditorGUILayout.EndHorizontal();
-    }
-
-    // ──────────────────────────────────────────────────────────────
-    // 2. TEMEL SEVİYE BİLGİLERİ (Kompakt ve Temiz)
-    // ──────────────────────────────────────────────────────────────
-    private void DrawLevelHeaderCard()
-    {
-        EditorGUILayout.BeginVertical(EditorStyles.helpBox);
 
         EditorGUI.BeginChangeCheck();
-
-        // 1. Satır: Seviye Adı ve Süre Limiti
-        EditorGUILayout.BeginHorizontal();
-        EditorGUILayout.LabelField("Seviye Adı:", GUILayout.Width(75));
-        string newName = EditorGUILayout.TextField(currentLevel.levelDisplayName);
-
-        GUILayout.Space(12);
-        EditorGUILayout.LabelField("Süre (sn):", GUILayout.Width(60));
-        float newTime = EditorGUILayout.FloatField(currentLevel.timeLimit, GUILayout.Width(55));
-        EditorGUILayout.EndHorizontal();
-
-        GUILayout.Space(4);
-
-        // 2. Satır: Şişe Sayısı Arttır/Azalt & Dizilim Modu
-        EditorGUILayout.BeginHorizontal();
-        int currentCount = currentLevel.pieces != null ? currentLevel.pieces.Count : 0;
-        EditorGUILayout.LabelField("Şişe Sayısı:", GUILayout.Width(75));
-
-        GUI.enabled = currentCount > 2;
-        if (GUILayout.Button("➖", GUILayout.Width(28), GUILayout.Height(20)))
+        currentLevel = (LevelData)EditorGUILayout.ObjectField(currentLevel, typeof(LevelData), false, GUILayout.Height(24));
+        if (EditorGUI.EndChangeCheck() && currentLevel != null)
         {
-            EnsureBottleCount(Mathf.Max(2, currentCount - 1));
-        }
-        GUI.enabled = true;
-
-        GUILayout.Label($"<b>{currentCount}</b> Şişe", new GUIStyle(EditorStyles.boldLabel) { alignment = TextAnchor.MiddleCenter }, GUILayout.Width(60));
-
-        if (GUILayout.Button("➕", GUILayout.Width(28), GUILayout.Height(20)))
-        {
-            EnsureBottleCount(currentCount + 1);
-        }
-
-        GUILayout.Space(14);
-        EditorGUILayout.LabelField("Dizilim:", GUILayout.Width(50));
-        currentLevel.flatLayoutMode = (LevelData.FlatLayoutMode)EditorGUILayout.EnumPopup(currentLevel.flatLayoutMode);
-        EditorGUILayout.EndHorizontal();
-
-        if (EditorGUI.EndChangeCheck())
-        {
-            Undo.RecordObject(currentLevel, "Seviye Bilgilerini Değiştir");
-            currentLevel.levelDisplayName = newName;
-            currentLevel.timeLimit = newTime;
-            EditorUtility.SetDirty(currentLevel);
-        }
-
-        EditorGUILayout.EndVertical();
-    }
-
-    private void EnsureBottleCount(int targetCount)
-    {
-        if (currentLevel.pieces == null) currentLevel.pieces = new List<LevelData.PieceData>();
-
-        while (currentLevel.pieces.Count < targetCount)
-        {
-            int idx = currentLevel.pieces.Count;
-            Color defaultColor = QuickColors[idx % QuickColors.Length];
-            currentLevel.pieces.Add(new LevelData.PieceData
+            if (currentLevel.boardMode == LevelData.BoardMode.Flat2D)
             {
-                gridPosition = new Vector2Int(idx, 0),
-                liquidColor = defaultColor,
-                currentSlices = 0,
-                rotationZ = 0f,
-                canRotate = false
-            });
-        }
-
-        while (currentLevel.pieces.Count > targetCount)
-        {
-            currentLevel.pieces.RemoveAt(currentLevel.pieces.Count - 1);
-        }
-
-        if (selectedBottleIndex >= currentLevel.pieces.Count)
-        {
-            selectedBottleIndex = Mathf.Max(0, currentLevel.pieces.Count - 1);
-        }
-        EditorUtility.SetDirty(currentLevel);
-    }
-
-    // ──────────────────────────────────────────────────────────────
-    // 3. GÖRSEL TELEFON KANVASI (Gerçekçi Şişeler & Sezgisel Raf Düzeni)
-    // ──────────────────────────────────────────────────────────────
-    private void DrawVisualCanvas()
-    {
-        EditorGUILayout.BeginVertical(EditorStyles.helpBox);
-
-        int totalBottles = currentLevel.pieces != null ? currentLevel.pieces.Count : 0;
-        if (totalBottles == 0)
-        {
-            EditorGUILayout.HelpBox("Henüz şişe yok. Yukarıdan '➕' butonuna basarak şişe ekleyin.", MessageType.Warning);
-            EditorGUILayout.EndVertical();
-            return;
-        }
-
-        // Kanvas boyutu
-        float canvasWidth = 330f;
-        float canvasHeight = 410f;
-        Rect canvasRect = GUILayoutUtility.GetRect(canvasWidth, canvasHeight, GUILayout.ExpandWidth(true));
-
-        float drawX = canvasRect.x + (canvasRect.width - canvasWidth) / 2f;
-        Rect phoneRect = new Rect(drawX, canvasRect.y, canvasWidth, canvasHeight);
-
-        // Arka plan görseli
-        Texture2D bgTex = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Images/arkaplan.jpeg");
-        if (bgTex != null)
-        {
-            GUI.DrawTexture(phoneRect, bgTex, ScaleMode.ScaleAndCrop);
-            EditorGUI.DrawRect(phoneRect, new Color(0.02f, 0.03f, 0.08f, 0.35f));
-        }
-        else
-        {
-            EditorGUI.DrawRect(phoneRect, new Color(0.10f, 0.12f, 0.18f));
-        }
-
-        Handles.color = new Color(0.40f, 0.50f, 0.70f, 0.8f);
-        Handles.DrawWireCube(phoneRect.center, new Vector3(phoneRect.size.x, phoneRect.size.y, 0f));
-
-        Vector2 center = phoneRect.center;
-        Event currentEvent = Event.current;
-
-        // Şişe boyutları
-        float bWidth = (totalBottles <= 6) ? 44f : ((totalBottles <= 10) ? 38f : 32f);
-        float bHeight = bWidth * 1.55f;
-
-        // 1. Şişe Pozisyonlarını Hesapla (Doğal Raf Dağılımı)
-        currentBottleRects.Clear();
-        bool isStaggered = (currentLevel.flatLayoutMode == LevelData.FlatLayoutMode.StaggeredV && totalBottles >= 20);
-
-        if (isStaggered)
-        {
-            for (int i = 0; i < totalBottles; i++)
-            {
-                Vector3 relPos = GridSpawner.GetStaggeredVPosition(i, totalBottles, 42f, 68f);
-                Vector2 bCenter = center + new Vector2(relPos.x, -relPos.y);
-                currentBottleRects.Add(new Rect(bCenter.x - bWidth / 2f, bCenter.y - bHeight / 2f, bWidth, bHeight));
+                gridX = currentLevel.gridX;
+                gridY = currentLevel.gridY;
             }
         }
-        else
+
+        if (GUILayout.Button("Sonraki ▶", GUILayout.Width(75), GUILayout.Height(24)))
         {
-            // Dengeli Raf Dağılımı: 1, 2 veya 3 rafa ortalayarak yerleştirir
-            int rowCount = 1;
-            if (totalBottles >= 9) rowCount = 3;
-            else if (totalBottles >= 4) rowCount = 2;
+            NavigateLevel(1);
+        }
 
-            int[] rowCapacities = new int[rowCount];
-            int baseC = totalBottles / rowCount;
-            int rem = totalBottles % rowCount;
-            for (int r = 0; r < rowCount; r++)
-                rowCapacities[r] = baseC + (r < rem ? 1 : 0);
-
-            float rowSpacingY = (rowCount == 1) ? 0f : ((rowCount == 2) ? 130f : 100f);
-            int bottleIdx = 0;
-
-            for (int r = 0; r < rowCount; r++)
+        Color prevColor = GUI.backgroundColor;
+        GUI.backgroundColor = new Color(0.2f, 0.85f, 0.35f);
+        if (GUILayout.Button("▶ Buradan Başlat", GUILayout.Width(130), GUILayout.Height(24)))
+        {
+            if (currentLevel != null)
             {
-                int countInThisRow = rowCapacities[r];
-                float rowY = center.y + (r - (rowCount - 1) * 0.5f) * rowSpacingY;
-                float spacingX = Mathf.Min(65f, (canvasWidth - 40f) / Mathf.Max(1, countInThisRow));
-
-                for (int c = 0; c < countInThisRow; c++)
+                string[] sequenceGuids = AssetDatabase.FindAssets("t:LevelSequenceData");
+                int foundIndex = -1;
+                if (sequenceGuids.Length > 0)
                 {
-                    if (bottleIdx >= totalBottles) break;
-                    float posX = center.x + (c - (countInThisRow - 1) * 0.5f) * spacingX;
-                    currentBottleRects.Add(new Rect(posX - bWidth / 2f, rowY - bHeight / 2f, bWidth, bHeight));
-                    bottleIdx++;
+                    string seqPath = AssetDatabase.GUIDToAssetPath(sequenceGuids[0]);
+                    LevelSequenceData sequence = AssetDatabase.LoadAssetAtPath<LevelSequenceData>(seqPath);
+                    if (sequence != null && sequence.levels != null)
+                    {
+                        foundIndex = sequence.levels.IndexOf(currentLevel);
+                    }
                 }
-            }
-        }
 
-        // Sürükleme hedef tespiti
-        hoverTargetBottleIndex = -1;
-        if (isSlotDragging && dragSourceBottleIndex >= 0)
-        {
-            for (int j = 0; j < currentBottleRects.Count; j++)
-            {
-                if (j != dragSourceBottleIndex && currentBottleRects[j].Contains(currentEvent.mousePosition))
+                if (foundIndex >= 0)
                 {
-                    hoverTargetBottleIndex = j;
-                    break;
+                    PlayerPrefs.SetInt("CurrentLevelIndex", foundIndex);
+                    PlayerPrefs.Save();
                 }
-            }
-        }
 
-        // 2. Şişeleri Çiz (Zarif Şişe Silueti & Katmanlar)
-        for (int i = 0; i < totalBottles; i++)
-        {
-            if (i >= currentBottleRects.Count) break;
-            Rect bRect = currentBottleRects[i];
-            var piece = currentLevel.pieces[i];
-            bool isSelected = (i == selectedBottleIndex);
-            bool isDragSource = (isSlotDragging && i == dragSourceBottleIndex);
-            bool isHoverTarget = (isSlotDragging && i == hoverTargetBottleIndex);
-
-            // Şişe Boynu (Neck)
-            float neckW = bWidth * 0.38f;
-            float neckH = 10f;
-            Rect neckRect = new Rect(bRect.center.x - neckW / 2f, bRect.y, neckW, neckH);
-            EditorGUI.DrawRect(neckRect, new Color(0.40f, 0.55f, 0.70f, 0.45f));
-            Handles.color = new Color(0.60f, 0.75f, 0.90f, 0.75f);
-            Handles.DrawWireCube(neckRect.center, new Vector3(neckW, neckH, 0f));
-
-            // Şişe Gövdesi (Body)
-            Rect bodyRect = new Rect(bRect.x, bRect.y + neckH, bWidth, bHeight - neckH);
-            EditorGUI.DrawRect(bodyRect, isDragSource ? new Color(0.12f, 0.15f, 0.22f, 0.4f) : new Color(0.12f, 0.16f, 0.24f, 0.85f));
-
-            // Sıvı Katmanları (Aşağıdan Yukarıya 4 Dilim Yuvası)
-            int sliceCount = (piece.sliceColors != null && piece.sliceColors.Count > 0) ? piece.sliceColors.Count : piece.currentSlices;
-            float slotH = (bodyRect.height - 4f) / 4f;
-
-            for (int s = 0; s < 4; s++)
-            {
-                float slotY = (bodyRect.y + bodyRect.height - 2f) - ((s + 1) * slotH);
-                Rect slotRect = new Rect(bodyRect.x + 2f, slotY, bodyRect.width - 4f, slotH - 1f);
-
-                if (s < sliceCount)
+                if (!Application.isPlaying)
                 {
-                    Color sCol = (piece.sliceColors != null && s < piece.sliceColors.Count) ? piece.sliceColors[s] : piece.liquidColor;
-                    float alpha = isDragSource ? 0.45f : 1.0f;
-                    EditorGUI.DrawRect(slotRect, new Color(sCol.r, sCol.g, sCol.b, alpha));
+                    EditorApplication.isPlaying = true;
                 }
                 else
                 {
-                    // Boş katman yuvası
-                    EditorGUI.DrawRect(slotRect, new Color(0.20f, 0.26f, 0.35f, 0.25f));
-                }
-            }
-
-            // Çerçeve Vurguları (Seçili / Hedef / Normal)
-            if (isHoverTarget)
-            {
-                Handles.color = new Color(0.25f, 1.0f, 0.5f, 1.0f);
-                Handles.DrawWireCube(bodyRect.center, new Vector3(bodyRect.width + 5f, bodyRect.height + 5f, 0f));
-            }
-            else if (isSelected)
-            {
-                Handles.color = new Color(1.0f, 0.85f, 0.2f, 1.0f);
-                Handles.DrawWireCube(bodyRect.center, new Vector3(bodyRect.width + 4f, bodyRect.height + 4f, 0f));
-                Handles.DrawWireCube(bodyRect.center, new Vector3(bodyRect.width + 2f, bodyRect.height + 2f, 0f));
-            }
-            else
-            {
-                Handles.color = new Color(0.50f, 0.65f, 0.80f, 0.70f);
-                Handles.DrawWireCube(bodyRect.center, new Vector3(bodyRect.width, bodyRect.height, 0f));
-            }
-
-            // Şişe Numarası (#1, #2)
-            GUIStyle numStyle = new GUIStyle(EditorStyles.miniBoldLabel)
-            {
-                alignment = TextAnchor.MiddleCenter,
-                normal = { textColor = isSelected ? new Color(1.0f, 0.88f, 0.25f) : Color.white },
-                fontSize = 10
-            };
-            GUI.Label(new Rect(bRect.x - 4, bRect.y - 17, bWidth + 8, 16), $"#{i + 1}", numStyle);
-
-            // Buzlu Şişe Rozeti
-            if (piece.isFrozen)
-            {
-                EditorGUI.DrawRect(bodyRect, new Color(0.45f, 0.85f, 1.0f, 0.35f));
-                Rect iceBadge = new Rect(bodyRect.center.x - 16, bodyRect.center.y - 11, 32, 22);
-                EditorGUI.DrawRect(iceBadge, new Color(0.05f, 0.15f, 0.30f, 0.95f));
-                Handles.color = new Color(0.40f, 0.90f, 1.0f);
-                Handles.DrawWireCube(iceBadge.center, new Vector3(iceBadge.width, iceBadge.height, 0f));
-                GUIStyle iceTxt = new GUIStyle(EditorStyles.boldLabel)
-                {
-                    alignment = TextAnchor.MiddleCenter,
-                    fontSize = 10,
-                    normal = { textColor = Color.cyan }
-                };
-                GUI.Label(iceBadge, $"❄️{piece.requiredMatches}", iceTxt);
-            }
-        }
-
-        // 3. Sürüklenen Hayalet Şişe
-        if (isSlotDragging && dragSourceBottleIndex >= 0 && dragSourceBottleIndex < totalBottles)
-        {
-            Vector2 mousePos = currentEvent.mousePosition;
-            Rect ghostRect = new Rect(mousePos.x + 10f, mousePos.y - 25f, 32f, 50f);
-            EditorGUI.DrawRect(ghostRect, new Color(0.10f, 0.15f, 0.25f, 0.92f));
-            Handles.color = new Color(0.3f, 1.0f, 0.5f, 1.0f);
-            Handles.DrawWireCube(ghostRect.center, new Vector3(ghostRect.width, ghostRect.height, 0f));
-
-            var srcP = currentLevel.pieces[dragSourceBottleIndex];
-            int sCount = (srcP.sliceColors != null && srcP.sliceColors.Count > 0) ? srcP.sliceColors.Count : srcP.currentSlices;
-            float gSlotH = (ghostRect.height - 4f) / 4f;
-            for (int s = 0; s < sCount; s++)
-            {
-                Color sc = (srcP.sliceColors != null && s < srcP.sliceColors.Count) ? srcP.sliceColors[s] : srcP.liquidColor;
-                float sy = (ghostRect.y + ghostRect.height - 2f) - ((s + 1) * gSlotH);
-                EditorGUI.DrawRect(new Rect(ghostRect.x + 2f, sy, ghostRect.width - 4f, gSlotH - 1f), sc);
-            }
-
-            GUI.Label(new Rect(ghostRect.x - 20, ghostRect.y - 16, 72, 16), $"⇄ Taşı", EditorStyles.boldLabel);
-        }
-
-        // 4. Fare Olayları (Tıklama, Sürükleme, Bırakma)
-        if (currentEvent.type == EventType.MouseDown)
-        {
-            for (int i = 0; i < currentBottleRects.Count; i++)
-            {
-                if (currentBottleRects[i].Contains(currentEvent.mousePosition))
-                {
-                    selectedBottleIndex = i;
-                    if (currentEvent.button == 0)
-                    {
-                        dragSourceBottleIndex = i;
-                        isSlotDragging = true;
-                        dragStartMousePos = currentEvent.mousePosition;
-                        currentEvent.Use();
-                        Repaint();
-                        break;
-                    }
-                    else if (currentEvent.button == 1)
-                    {
-                        ShowBottleContextMenu(i);
-                        currentEvent.Use();
-                        break;
-                    }
+                    GameManager.Instance?.ResetLevelState();
+                    FindObjectOfType<GridSpawner>()?.SpawnCurrentLevel();
                 }
             }
         }
-        else if (currentEvent.type == EventType.MouseDrag && isSlotDragging)
-        {
-            currentEvent.Use();
-            Repaint();
-        }
-        else if (currentEvent.type == EventType.MouseUp && isSlotDragging)
-        {
-            int targetIdx = -1;
-            for (int j = 0; j < currentBottleRects.Count; j++)
-            {
-                if (j != dragSourceBottleIndex && currentBottleRects[j].Contains(currentEvent.mousePosition))
-                {
-                    targetIdx = j;
-                    break;
-                }
-            }
-
-            if (targetIdx >= 0 && dragSourceBottleIndex >= 0 && dragSourceBottleIndex < totalBottles)
-            {
-                Undo.RecordObject(currentLevel, "Şişeleri Değiştir");
-                SwapPieceContent(currentLevel.pieces[dragSourceBottleIndex], currentLevel.pieces[targetIdx]);
-                selectedBottleIndex = targetIdx;
-                EditorUtility.SetDirty(currentLevel);
-                ShowNotification(new GUIContent($"⇄ #{dragSourceBottleIndex + 1} ile #{targetIdx + 1} Yer Değiştirildi"));
-            }
-
-            isSlotDragging = false;
-            dragSourceBottleIndex = -1;
-            hoverTargetBottleIndex = -1;
-            currentEvent.Use();
-            Repaint();
-        }
-
-        EditorGUILayout.HelpBox("💡 İpucu: Şişelere tıklayarak seçebilir, sürükleyerek yerlerini değiştirebilir veya sağ tıklayabilirsiniz.", MessageType.None);
-        EditorGUILayout.EndVertical();
-    }
-
-    // ──────────────────────────────────────────────────────────────
-    // 4. ÇÖZÜLEBİLİRLİK & DENGELİLİK DURUM ÇUBUĞU
-    // ──────────────────────────────────────────────────────────────
-    private void DrawSolvabilityStatusBar()
-    {
-        if (currentLevel.pieces == null || currentLevel.pieces.Count == 0) return;
-
-        Dictionary<Color, int> colorSlices = new Dictionary<Color, int>();
-        int emptyBottleCount = 0;
-
-        foreach (var p in currentLevel.pieces)
-        {
-            int count = (p.sliceColors != null && p.sliceColors.Count > 0) ? p.sliceColors.Count : p.currentSlices;
-            if (count <= 0)
-            {
-                emptyBottleCount++;
-                continue;
-            }
-
-            if (p.sliceColors != null && p.sliceColors.Count > 0)
-            {
-                foreach (var sc in p.sliceColors)
-                    AddColorCount(colorSlices, sc, 1);
-            }
-            else
-            {
-                AddColorCount(colorSlices, p.liquidColor, count);
-            }
-        }
-
-        bool hasError = false;
-        List<string> errorMessages = new List<string>();
-
-        foreach (var kvp in colorSlices)
-        {
-            if (kvp.Value % 4 != 0)
-            {
-                hasError = true;
-                string colName = GetColorName(kvp.Key);
-                errorMessages.Add($"{colName}: {kvp.Value} dilim (4'ün katı olmalı)");
-            }
-        }
-
-        if (emptyBottleCount == 0)
-        {
-            hasError = true;
-            errorMessages.Add("Hiç boş şişe yok (en az 1 olmalı)");
-        }
-
-        EditorGUILayout.BeginVertical(EditorStyles.helpBox);
-        if (!hasError && colorSlices.Count > 0)
-        {
-            GUI.color = new Color(0.85f, 1.0f, 0.88f);
-            EditorGUILayout.HelpBox($"✅ Seviye Çözülebilir! ({colorSlices.Count} renk tam 4'lü tamamlanıyor, {emptyBottleCount} boş şişe mevcut)", MessageType.Info);
-            GUI.color = Color.white;
-        }
-        else if (hasError)
-        {
-            GUI.color = new Color(1.0f, 0.92f, 0.82f);
-            EditorGUILayout.HelpBox($"⚠️ Seviye Uyarısı: {string.Join(" • ", errorMessages)}", MessageType.Warning);
-            GUI.color = Color.white;
-        }
-        EditorGUILayout.EndVertical();
-    }
-
-    // ──────────────────────────────────────────────────────────────
-    // 5. SEÇİLİ ŞİŞE EDİTÖRÜ (Hızlı, 1-Tıkla Renk Boyama)
-    // ──────────────────────────────────────────────────────────────
-    private void DrawSelectedBottleEditor()
-    {
-        if (currentLevel.pieces == null || currentLevel.pieces.Count == 0) return;
-        if (selectedBottleIndex < 0 || selectedBottleIndex >= currentLevel.pieces.Count)
-            selectedBottleIndex = 0;
-
-        var piece = currentLevel.pieces[selectedBottleIndex];
-
-        EditorGUILayout.BeginVertical(EditorStyles.helpBox);
-
-        // Başlık ve Şişe İşlem Butonları
-        EditorGUILayout.BeginHorizontal();
-        EditorGUILayout.LabelField($"🧪 Seçili Şişe: #{selectedBottleIndex + 1}", EditorStyles.boldLabel, GUILayout.Width(130));
-
-        if (GUILayout.Button(new GUIContent("📋 Kopyala", "Ctrl+C"), GUILayout.Height(20))) CopyBottle(selectedBottleIndex);
-        GUI.enabled = clipboardPiece != null;
-        if (GUILayout.Button(new GUIContent("📥 Yapıştır", "Ctrl+V"), GUILayout.Height(20))) PasteBottle(selectedBottleIndex);
-        GUI.enabled = true;
-        if (GUILayout.Button(new GUIContent("🗑️ Boşalt", "Del"), GUILayout.Height(20))) ClearBottleContent(selectedBottleIndex);
-
-        bool isFrozen = piece.isFrozen;
-        GUI.backgroundColor = isFrozen ? new Color(0.6f, 0.9f, 1f) : Color.white;
-        if (GUILayout.Button(isFrozen ? "❄️ Buzu Çöz" : "❄️ Buzla", GUILayout.Height(20))) ToggleFrozen(selectedBottleIndex);
-        GUI.backgroundColor = Color.white;
-
-        if (GUILayout.Button("❌ Sil", GUILayout.Height(20), GUILayout.Width(45))) DeleteBottleSlot(selectedBottleIndex);
+        GUI.backgroundColor = prevColor;
 
         EditorGUILayout.EndHorizontal();
 
-        GUILayout.Space(6);
+        GUILayout.Space(4);
+
+        // Satır 2: ⚡ Hızlı Level Oluştur (Level_XX) | 📋 Kopyala (Çoğalt) | 📁 Manuel Oluştur
+        EditorGUILayout.BeginHorizontal();
+
+        string nextLevelName = GetNextLevelDefaultName();
+
+        Color oldColor = GUI.backgroundColor;
+        GUI.backgroundColor = new Color(0.3f, 0.8f, 0.4f); // Yeşil dikkat çekici hızlı buton
+        if (GUILayout.Button($"⚡ Hızlı Level Oluştur ({nextLevelName})", GUILayout.Height(32)))
+        {
+            CreateQuickNewLevel(duplicateCurrent: false);
+        }
+        GUI.backgroundColor = oldColor;
+
+        if (GUILayout.Button("📋 Level'ı Çoğalt (Duplicate)", GUILayout.Height(32)))
+        {
+            if (currentLevel != null)
+            {
+                CreateQuickNewLevel(duplicateCurrent: true);
+            }
+            else
+            {
+                ShowNotification(new GUIContent("Kopyalanacak bir level seçili değil!"));
+            }
+        }
+
+        if (GUILayout.Button("📁 Manuel Oluştur...", GUILayout.Height(32)))
+        {
+            CreateNewLevel();
+        }
+
+        EditorGUILayout.EndHorizontal();
+
+        GUILayout.Space(2);
+
+        // Satır 3: Otomatik Sequence Ekleme Seçeneği
+        bool autoAdd = EditorPrefs.GetBool("LevelDesigner_AutoAddSequence", true);
         EditorGUI.BeginChangeCheck();
-
-        if (piece.sliceColors == null) piece.sliceColors = new List<Color>();
-        while (piece.sliceColors.Count < piece.currentSlices) piece.sliceColors.Add(piece.liquidColor);
-        while (piece.sliceColors.Count > piece.currentSlices) piece.sliceColors.RemoveAt(piece.sliceColors.Count - 1);
-
-        int sliceCount = piece.sliceColors.Count;
-
-        // Doluluk Seçimi (5 Temiz Buton)
-        EditorGUILayout.BeginHorizontal();
-        EditorGUILayout.LabelField("Doluluk:", GUILayout.Width(65));
-        for (int s = 0; s <= 4; s++)
-        {
-            bool isCurrent = (sliceCount == s);
-            GUI.backgroundColor = isCurrent ? new Color(0.35f, 0.85f, 1.0f) : Color.white;
-            string label = (s == 0) ? "0 (Boş)" : $"{s} Dilim" + (s == 4 ? " (Tam)" : "");
-            if (GUILayout.Button(label, GUILayout.Height(24)))
-            {
-                sliceCount = s;
-                piece.currentSlices = s;
-                while (piece.sliceColors.Count < s) piece.sliceColors.Add(piece.liquidColor);
-                while (piece.sliceColors.Count > s) piece.sliceColors.RemoveAt(piece.sliceColors.Count - 1);
-            }
-        }
-        GUI.backgroundColor = Color.white;
-        EditorGUILayout.EndHorizontal();
-
-        GUILayout.Space(6);
-
-        // Katman Renkleri (Tek tıkla renk çipleri)
-        if (sliceCount > 0)
-        {
-            EditorGUILayout.LabelField("Katman Renkleri (Hızlı Renk Seçimi):", EditorStyles.boldLabel);
-
-            // Yukarıdan aşağıya çiz (en üst katman en üstte görünsün)
-            for (int s = piece.sliceColors.Count - 1; s >= 0; s--)
-            {
-                EditorGUILayout.BeginHorizontal();
-                string layerLabel = $"Katman {s + 1}" + (s == piece.sliceColors.Count - 1 ? " (Üst)" : (s == 0 ? " (Alt)" : ""));
-                EditorGUILayout.LabelField(layerLabel, GUILayout.Width(90));
-
-                // Mevcut renk kutusu
-                Rect colPreview = EditorGUILayout.GetControlRect(false, 20, GUILayout.Width(24));
-                EditorGUI.DrawRect(colPreview, piece.sliceColors[s]);
-                Handles.color = Color.white;
-                Handles.DrawWireCube(colPreview.center, new Vector3(colPreview.width, colPreview.height, 0f));
-
-                // 8 Hızlı Renk Çipi Butonu (1 Tıkla Boya!)
-                for (int c = 0; c < QuickColors.Length; c++)
-                {
-                    GUI.backgroundColor = QuickColors[c];
-                    if (GUILayout.Button("", GUILayout.Width(20), GUILayout.Height(20)))
-                    {
-                        piece.sliceColors[s] = QuickColors[c];
-                        GUI.changed = true;
-                    }
-                }
-                GUI.backgroundColor = Color.white;
-
-                // İsteğe bağlı özel renk seçici
-                piece.sliceColors[s] = EditorGUILayout.ColorField(GUIContent.none, piece.sliceColors[s], false, false, false, GUILayout.Width(45));
-
-                EditorGUILayout.EndHorizontal();
-            }
-
-            piece.liquidColor = piece.sliceColors[piece.sliceColors.Count - 1];
-
-            GUILayout.Space(4);
-
-            // Tüm Şişeyi Tek Renkle Doldur
-            EditorGUILayout.BeginHorizontal();
-            EditorGUILayout.LabelField("Tüm Şişeyi Boya:", GUILayout.Width(110));
-            for (int c = 0; c < QuickColors.Length; c++)
-            {
-                GUI.backgroundColor = QuickColors[c];
-                if (GUILayout.Button("", GUILayout.Width(22), GUILayout.Height(20)))
-                {
-                    Color chosen = QuickColors[c];
-                    for (int s = 0; s < piece.sliceColors.Count; s++) piece.sliceColors[s] = chosen;
-                    piece.liquidColor = chosen;
-                    GUI.changed = true;
-                }
-            }
-            GUI.backgroundColor = Color.white;
-            EditorGUILayout.EndHorizontal();
-        }
-
-        // Buzlu Cam Ayarı
-        if (piece.isFrozen)
-        {
-            GUILayout.Space(4);
-            EditorGUILayout.BeginHorizontal();
-            EditorGUILayout.LabelField("❄️ Buz Erime Sayacı:", GUILayout.Width(130));
-            piece.requiredMatches = EditorGUILayout.IntSlider(piece.requiredMatches, 1, 4);
-            EditorGUILayout.EndHorizontal();
-        }
-
+        autoAdd = EditorGUILayout.ToggleLeft("Yeni level oluşturulduğunda otomatik LevelSequence listesine ekle", autoAdd);
         if (EditorGUI.EndChangeCheck())
         {
-            Undo.RecordObject(currentLevel, "Şişe Özelliklerini Değiştir");
-            EditorUtility.SetDirty(currentLevel);
+            EditorPrefs.SetBool("LevelDesigner_AutoAddSequence", autoAdd);
         }
 
         EditorGUILayout.EndVertical();
     }
 
-    // ──────────────────────────────────────────────────────────────
-    // 6. GELİŞMİŞ AYARLAR VE ARAÇLAR (Katlanabilir / Foldout)
-    // ──────────────────────────────────────────────────────────────
-    private void DrawAdvancedFoldouts()
-    {
-        DrawSequenceFlowSection();
-
-        GUILayout.Space(4);
-
-        EditorGUILayout.BeginVertical(EditorStyles.helpBox);
-        showAdvancedSettings = EditorGUILayout.Foldout(showAdvancedSettings, "⚙️ Gelişmiş Düzen Ayarları (Boyut & Aralıklar)", true);
-        if (showAdvancedSettings)
-        {
-            EditorGUI.BeginChangeCheck();
-            currentLevel.bottleScale = EditorGUILayout.Slider("Şişe Boyut Çarpanı", currentLevel.bottleScale > 0.1f ? currentLevel.bottleScale : 1.0f, 0.6f, 2.0f);
-            currentLevel.customSpacingX = EditorGUILayout.Slider("Yatay Aralık (Spacing X)", currentLevel.customSpacingX > 0.1f ? currentLevel.customSpacingX : 1.85f, 0.8f, 3.2f);
-            currentLevel.customSpacingY = EditorGUILayout.Slider("Dikey Aralık (Spacing Y)", currentLevel.customSpacingY > 0.1f ? currentLevel.customSpacingY : 2.6f, 1.0f, 4.0f);
-
-            if (EditorGUI.EndChangeCheck())
-            {
-                Undo.RecordObject(currentLevel, "Gelişmiş Ayarları Değiştir");
-                EditorUtility.SetDirty(currentLevel);
-            }
-        }
-        EditorGUILayout.EndVertical();
-
-        GUILayout.Space(4);
-
-        EditorGUILayout.BeginVertical(EditorStyles.helpBox);
-        showLevelGenerator = EditorGUILayout.Foldout(showLevelGenerator, "🎲 Otomatik Seviye Üretici", true);
-        if (showLevelGenerator)
-        {
-            EditorGUILayout.LabelField("Seçtiğiniz renk sayısına göre garantili çözülebilir dengeli bölüm üretir:", EditorStyles.miniLabel);
-
-            genColorCount = EditorGUILayout.IntSlider("Renk Sayısı", genColorCount, 2, QuickColors.Length);
-            genEmptyCount = EditorGUILayout.IntSlider("Boş Şişe Sayısı", genEmptyCount, 1, 3);
-
-            int totalGenBottles = genColorCount + genEmptyCount;
-            EditorGUILayout.LabelField($"Oluşturulacak Şişe: {totalGenBottles} ({genColorCount} Dolu + {genEmptyCount} Boş)");
-
-            if (GUILayout.Button("✨ Rastgele Dengeli Seviye Üret", GUILayout.Height(28)))
-            {
-                GenerateSolvableLevel();
-            }
-
-            if (GUILayout.Button("🎯 25 Şişeli Kademeli V Düzeni Üret", GUILayout.Height(24)))
-            {
-                Generate25BottleVLevel();
-            }
-        }
-        EditorGUILayout.EndVertical();
-    }
-
-    private void DrawSequenceFlowSection()
-    {
-        LevelSequenceData seq = LevelSequenceHelper.GetOrCreateSequence();
-        if (seq == null) return;
-
-        int totalCount = seq.levels != null ? seq.levels.Count : 0;
-        int currentStartIdx = PlayerPrefs.GetInt("CurrentLevelIndex", 0);
-
-        EditorGUILayout.BeginVertical(EditorStyles.helpBox);
-        
-        EditorGUILayout.BeginHorizontal();
-        showSequenceSection = EditorGUILayout.Foldout(showSequenceSection, $"📋 Oyun Seviye Sıralaması & Akışı ({totalCount} Seviye)", true, EditorStyles.foldoutHeader);
-        if (GUILayout.Button("🔢 Numaraya Göre Sırala", EditorStyles.miniButton, GUILayout.Width(135), GUILayout.Height(18)))
-        {
-            LevelSequenceHelper.SyncAndSortSequence(seq);
-            ShowNotification(new GUIContent("🔢 Seviyeler numaraya göre dizildi!"));
-        }
-        EditorGUILayout.EndHorizontal();
-
-        if (showSequenceSection)
-        {
-            EditorGUILayout.Space(4);
-
-            if (seq.levels == null || seq.levels.Count == 0)
-            {
-                EditorGUILayout.HelpBox("Sıralamada henüz seviye yok. Aşağıdaki '🔄 Klasörle Eşitle' butonuna basarak Assets/Levels klasöründeki seviyeleri ekleyebilirsiniz.", MessageType.Info);
-            }
-            else
-            {
-                int moveUpIdx = -1;
-                int moveDownIdx = -1;
-                int removeIdx = -1;
-                LevelData targetOpenLevel = null;
-
-                for (int i = 0; i < seq.levels.Count; i++)
-                {
-                    LevelData ld = seq.levels[i];
-                    bool isCurrent = (ld != null && ld == currentLevel);
-                    bool isStartLevel = (currentStartIdx == i);
-
-                    GUIStyle rowBoxStyle = new GUIStyle(EditorStyles.helpBox);
-                    rowBoxStyle.padding = new RectOffset(4, 4, 3, 3);
-                    rowBoxStyle.margin = new RectOffset(0, 0, 1, 1);
-
-                    if (isCurrent)
-                    {
-                        GUI.backgroundColor = new Color(0.25f, 0.75f, 0.45f, 0.5f);
-                    }
-                    else if (isStartLevel)
-                    {
-                        GUI.backgroundColor = new Color(0.2f, 0.5f, 0.8f, 0.35f);
-                    }
-                    else
-                    {
-                        GUI.backgroundColor = Color.white;
-                    }
-
-                    EditorGUILayout.BeginHorizontal(rowBoxStyle);
-                    GUI.backgroundColor = Color.white;
-
-                    // Sıra Numarası Badge
-                    GUILayout.Label($"<b>#{i + 1:D2}</b>", new GUIStyle(EditorStyles.boldLabel) { alignment = TextAnchor.MiddleCenter }, GUILayout.Width(34));
-
-                    // Seviye İsmi ve Durumu
-                    string displayName = ld != null ? ld.name : "⚠️ (Eksik / Silinmiş)";
-                    if (isCurrent) displayName = $"👉 <b>{displayName}</b> <color=#1c8030>(Düzenleniyor)</color>";
-                    if (isStartLevel) displayName += " <color=#007acc>[Play Başlangıcı]</color>";
-
-                    GUIStyle labelStyle = new GUIStyle(EditorStyles.label) { richText = true, alignment = TextAnchor.MiddleLeft };
-                    GUILayout.Label(displayName, labelStyle, GUILayout.MinWidth(120));
-
-                    // Şişe Bilgisi
-                    if (ld != null && ld.pieces != null)
-                    {
-                        GUILayout.Label($"{ld.pieces.Count} Şişe", EditorStyles.miniLabel, GUILayout.Width(50));
-                    }
-
-                    // ▲ / ▼ Butonları
-                    GUI.enabled = i > 0;
-                    if (GUILayout.Button(new GUIContent("▲", "1 sıra öne al"), EditorStyles.miniButtonLeft, GUILayout.Width(24), GUILayout.Height(18)))
-                    {
-                        moveUpIdx = i;
-                    }
-                    GUI.enabled = i < seq.levels.Count - 1;
-                    if (GUILayout.Button(new GUIContent("▼", "1 sıra sonraya al"), EditorStyles.miniButtonRight, GUILayout.Width(24), GUILayout.Height(18)))
-                    {
-                        moveDownIdx = i;
-                    }
-                    GUI.enabled = true;
-
-                    GUILayout.Space(2);
-
-                    // Başlangıç Yap Butonu (Play Modu İçin)
-                    Color prevBg = GUI.backgroundColor;
-                    if (isStartLevel) GUI.backgroundColor = new Color(0.3f, 0.85f, 0.4f);
-                    if (GUILayout.Button(isStartLevel ? "▶ Başlangıç" : "▶ Başlat", EditorStyles.miniButton, GUILayout.Width(70), GUILayout.Height(18)))
-                    {
-                        PlayerPrefs.SetInt("CurrentLevelIndex", i);
-                        PlayerPrefs.Save();
-                        ShowNotification(new GUIContent($"⚡ Play başlangıcı Sıra #{i + 1} ({ld?.name}) yapıldı."));
-                    }
-                    GUI.backgroundColor = prevBg;
-
-                    GUILayout.Space(2);
-
-                    // ✏️ Aç / Tasarla Butonu
-                    if (ld != null)
-                    {
-                        GUI.backgroundColor = isCurrent ? new Color(0.3f, 0.9f, 0.5f) : Color.white;
-                        if (GUILayout.Button(isCurrent ? "✓ Açık" : "✏️ Aç", EditorStyles.miniButton, GUILayout.Width(50), GUILayout.Height(18)))
-                        {
-                            targetOpenLevel = ld;
-                        }
-                        GUI.backgroundColor = Color.white;
-                    }
-
-                    // ✕ Kaldır Butonu
-                    GUI.backgroundColor = new Color(1f, 0.45f, 0.45f);
-                    if (GUILayout.Button("✕", EditorStyles.miniButton, GUILayout.Width(22), GUILayout.Height(18)))
-                    {
-                        removeIdx = i;
-                    }
-                    GUI.backgroundColor = Color.white;
-
-                    EditorGUILayout.EndHorizontal();
-                }
-
-                if (moveUpIdx > 0)
-                {
-                    LevelSequenceHelper.MoveLevel(seq, moveUpIdx, moveUpIdx - 1);
-                }
-                else if (moveDownIdx >= 0 && moveDownIdx < seq.levels.Count - 1)
-                {
-                    LevelSequenceHelper.MoveLevel(seq, moveDownIdx, moveDownIdx + 1);
-                }
-                else if (removeIdx >= 0)
-                {
-                    Undo.RecordObject(seq, "Seviyeyi Sıradan Kaldır");
-                    seq.levels.RemoveAt(removeIdx);
-                    EditorUtility.SetDirty(seq);
-                    AssetDatabase.SaveAssets();
-                }
-                else if (targetOpenLevel != null)
-                {
-                    currentLevel = targetOpenLevel;
-                    selectedBottleIndex = 0;
-                    GUI.FocusControl(null);
-                }
-            }
-
-            EditorGUILayout.Space(4);
-            EditorGUILayout.BeginHorizontal();
-
-            if (currentLevel != null && (seq.levels == null || !seq.levels.Contains(currentLevel)))
-            {
-                GUI.backgroundColor = new Color(0.4f, 0.9f, 0.5f);
-                if (GUILayout.Button($"➕ '{currentLevel.name}' Seviyesini Sıraya Ekle", GUILayout.Height(22)))
-                {
-                    LevelSequenceHelper.AddLevel(seq, currentLevel);
-                }
-                GUI.backgroundColor = Color.white;
-            }
-
-            if (GUILayout.Button("🔄 Klasörle Eşitle ve Temizle", GUILayout.Height(22)))
-            {
-                LevelSequenceHelper.SyncAndSortSequence(seq);
-                ShowNotification(new GUIContent("🔄 Seviyeler eşitlendi!"));
-            }
-
-            EditorGUILayout.EndHorizontal();
-        }
-
-        EditorGUILayout.EndVertical();
-    }
-
-    // ──────────────────────────────────────────────────────────────
-    // 7. YARDIMCI VE PANO METODLARI
-    // ──────────────────────────────────────────────────────────────
-    private void HandleKeyboardShortcuts()
-    {
-        Event e = Event.current;
-        if (e == null || currentLevel == null || currentLevel.pieces == null || currentLevel.pieces.Count == 0) return;
-
-        if (e.type == EventType.KeyDown)
-        {
-            if (e.keyCode == KeyCode.Delete || e.keyCode == KeyCode.Backspace)
-            {
-                if (e.shift) DeleteBottleSlot(selectedBottleIndex);
-                else ClearBottleContent(selectedBottleIndex);
-                e.Use();
-                Repaint();
-            }
-            else if (e.control || e.command)
-            {
-                if (e.keyCode == KeyCode.C) { CopyBottle(selectedBottleIndex); e.Use(); Repaint(); }
-                else if (e.keyCode == KeyCode.V) { PasteBottle(selectedBottleIndex); e.Use(); Repaint(); }
-                else if (e.keyCode == KeyCode.D) { DuplicateBottle(selectedBottleIndex); e.Use(); Repaint(); }
-            }
-            else if (e.keyCode == KeyCode.RightArrow || e.keyCode == KeyCode.DownArrow)
-            {
-                selectedBottleIndex = (selectedBottleIndex + 1) % currentLevel.pieces.Count;
-                e.Use();
-                Repaint();
-            }
-            else if (e.keyCode == KeyCode.LeftArrow || e.keyCode == KeyCode.UpArrow)
-            {
-                selectedBottleIndex = (selectedBottleIndex - 1 + currentLevel.pieces.Count) % currentLevel.pieces.Count;
-                e.Use();
-                Repaint();
-            }
-        }
-    }
-
-    private void ShowBottleContextMenu(int index)
-    {
-        if (currentLevel == null || currentLevel.pieces == null || index < 0 || index >= currentLevel.pieces.Count) return;
-
-        var piece = currentLevel.pieces[index];
-        GenericMenu menu = new GenericMenu();
-
-        menu.AddItem(new GUIContent($"🗑️ Şişeyi Boşalt [Del]"), false, () => ClearBottleContent(index));
-        menu.AddSeparator("");
-        menu.AddItem(new GUIContent("📋 Kopyala (Ctrl+C)"), false, () => CopyBottle(index));
-
-        if (clipboardPiece != null) menu.AddItem(new GUIContent("📥 Yapıştır (Ctrl+V)"), false, () => PasteBottle(index));
-        else menu.AddDisabledItem(new GUIContent("📥 Yapıştır (Pano Boş)"));
-
-        menu.AddItem(new GUIContent("✨ Çoğalt (Ctrl+D)"), false, () => DuplicateBottle(index));
-        menu.AddSeparator("");
-        menu.AddItem(new GUIContent(piece.isFrozen ? "❄️ Buz Kilidini Kaldır" : "❄️ Buzlu Şişe Yap"), piece.isFrozen, () => ToggleFrozen(index));
-        menu.AddSeparator("");
-
-        for (int c = 0; c < QuickColors.Length; c++)
-        {
-            Color col = QuickColors[c];
-            string cName = QuickColorNames[c];
-            menu.AddItem(new GUIContent($"🎨 Tek Renkle Doldur/{cName}"), false, () => FillBottleWithColor(index, col));
-        }
-
-        menu.AddSeparator("");
-        menu.AddItem(new GUIContent("❌ Bu Şişeyi Sil"), false, () => DeleteBottleSlot(index));
-
-        menu.ShowAsContext();
-    }
-
-    private void CopyPieceContent(LevelData.PieceData source, LevelData.PieceData target)
-    {
-        target.currentSlices = source.currentSlices;
-        target.liquidColor = source.liquidColor;
-        target.isFrozen = source.isFrozen;
-        target.requiredMatches = source.requiredMatches;
-        target.rotationZ = source.rotationZ;
-        target.linkId = source.linkId;
-        target.canRotate = source.canRotate;
-        target.sliceColors = (source.sliceColors != null) ? new List<Color>(source.sliceColors) : new List<Color>();
-    }
-
-    private void SwapPieceContent(LevelData.PieceData a, LevelData.PieceData b)
-    {
-        int tempSlices = a.currentSlices;
-        Color tempColor = a.liquidColor;
-        bool tempFrozen = a.isFrozen;
-        int tempMatches = a.requiredMatches;
-        List<Color> tempSlicesList = (a.sliceColors != null) ? new List<Color>(a.sliceColors) : new List<Color>();
-
-        a.currentSlices = b.currentSlices;
-        a.liquidColor = b.liquidColor;
-        a.isFrozen = b.isFrozen;
-        a.requiredMatches = b.requiredMatches;
-        a.sliceColors = (b.sliceColors != null) ? new List<Color>(b.sliceColors) : new List<Color>();
-
-        b.currentSlices = tempSlices;
-        b.liquidColor = tempColor;
-        b.isFrozen = tempFrozen;
-        b.requiredMatches = tempMatches;
-        b.sliceColors = tempSlicesList;
-    }
-
-    private void CopyBottle(int index)
-    {
-        if (currentLevel == null || currentLevel.pieces == null || index < 0 || index >= currentLevel.pieces.Count) return;
-        var src = currentLevel.pieces[index];
-        clipboardPiece = new LevelData.PieceData
-        {
-            currentSlices = src.currentSlices,
-            liquidColor = src.liquidColor,
-            isFrozen = src.isFrozen,
-            requiredMatches = src.requiredMatches,
-            sliceColors = (src.sliceColors != null) ? new List<Color>(src.sliceColors) : new List<Color>()
-        };
-        ShowNotification(new GUIContent($"📋 #{index + 1} Kopyalandı"));
-    }
-
-    private void PasteBottle(int index)
-    {
-        if (clipboardPiece == null || currentLevel == null || currentLevel.pieces == null || index < 0 || index >= currentLevel.pieces.Count) return;
-        Undo.RecordObject(currentLevel, "Şişe Yapıştır");
-        CopyPieceContent(clipboardPiece, currentLevel.pieces[index]);
-        EditorUtility.SetDirty(currentLevel);
-        ShowNotification(new GUIContent($"📥 #{index + 1} Yapıştırıldı"));
-    }
-
-    private void DuplicateBottle(int index)
-    {
-        if (currentLevel == null || currentLevel.pieces == null || index < 0 || index >= currentLevel.pieces.Count) return;
-        var src = currentLevel.pieces[index];
-
-        int targetIndex = -1;
-        for (int i = 0; i < currentLevel.pieces.Count; i++)
-        {
-            var p = currentLevel.pieces[i];
-            int sc = (p.sliceColors != null && p.sliceColors.Count > 0) ? p.sliceColors.Count : p.currentSlices;
-            if (sc == 0 && i != index) { targetIndex = i; break; }
-        }
-
-        if (targetIndex == -1)
-        {
-            targetIndex = currentLevel.pieces.Count;
-            InsertBottleSlot(targetIndex);
-        }
-
-        Undo.RecordObject(currentLevel, "Şişeyi Çoğalt");
-        CopyPieceContent(src, currentLevel.pieces[targetIndex]);
-        selectedBottleIndex = targetIndex;
-        EditorUtility.SetDirty(currentLevel);
-        ShowNotification(new GUIContent($"✨ #{index + 1} -> #{targetIndex + 1} Çoğaltıldı"));
-    }
-
-    private void ClearBottleContent(int index)
-    {
-        if (currentLevel == null || currentLevel.pieces == null || index < 0 || index >= currentLevel.pieces.Count) return;
-        Undo.RecordObject(currentLevel, "Şişeyi Boşalt");
-        var p = currentLevel.pieces[index];
-        p.currentSlices = 0;
-        if (p.sliceColors != null) p.sliceColors.Clear();
-        p.liquidColor = Color.white;
-        p.isFrozen = false;
-        EditorUtility.SetDirty(currentLevel);
-        ShowNotification(new GUIContent($"🗑️ #{index + 1} Boşaltıldı"));
-    }
-
-    private void DeleteBottleSlot(int index)
-    {
-        if (currentLevel == null || currentLevel.pieces == null || index < 0 || index >= currentLevel.pieces.Count) return;
-        if (currentLevel.pieces.Count <= 2)
-        {
-            ShowNotification(new GUIContent("⚠️ En az 2 şişe bulunmalıdır!"));
-            return;
-        }
-
-        Undo.RecordObject(currentLevel, "Şişeyi Sil");
-        currentLevel.pieces.RemoveAt(index);
-        if (selectedBottleIndex >= currentLevel.pieces.Count)
-        {
-            selectedBottleIndex = Mathf.Max(0, currentLevel.pieces.Count - 1);
-        }
-        EditorUtility.SetDirty(currentLevel);
-        ShowNotification(new GUIContent($"❌ #{index + 1} Silindi"));
-    }
-
-    private void InsertBottleSlot(int index)
-    {
-        if (currentLevel == null) return;
-        if (currentLevel.pieces == null) currentLevel.pieces = new List<LevelData.PieceData>();
-
-        index = Mathf.Clamp(index, 0, currentLevel.pieces.Count);
-        Undo.RecordObject(currentLevel, "Yeni Şişe Ekle");
-
-        var newPiece = new LevelData.PieceData
-        {
-            gridPosition = new Vector2Int(index, 0),
-            liquidColor = Color.white,
-            currentSlices = 0,
-            sliceColors = new List<Color>(),
-            rotationZ = 0f,
-            canRotate = false
-        };
-
-        if (index >= currentLevel.pieces.Count) currentLevel.pieces.Add(newPiece);
-        else currentLevel.pieces.Insert(index, newPiece);
-
-        selectedBottleIndex = index;
-        EditorUtility.SetDirty(currentLevel);
-    }
-
-    private void ToggleFrozen(int index)
-    {
-        if (currentLevel == null || currentLevel.pieces == null || index < 0 || index >= currentLevel.pieces.Count) return;
-        Undo.RecordObject(currentLevel, "Buzlu Cam Durumu");
-        var p = currentLevel.pieces[index];
-        p.isFrozen = !p.isFrozen;
-        if (p.isFrozen && p.requiredMatches <= 0) p.requiredMatches = 2;
-        EditorUtility.SetDirty(currentLevel);
-        ShowNotification(new GUIContent(p.isFrozen ? $"❄️ #{index + 1} Buzlandı" : $"💧 #{index + 1} Çözüldü"));
-    }
-
-    private void FillBottleWithColor(int index, Color color)
-    {
-        if (currentLevel == null || currentLevel.pieces == null || index < 0 || index >= currentLevel.pieces.Count) return;
-        Undo.RecordObject(currentLevel, "Şişeyi Renkle Doldur");
-        var p = currentLevel.pieces[index];
-        p.currentSlices = 4;
-        p.liquidColor = color;
-        p.sliceColors = new List<Color> { color, color, color, color };
-        EditorUtility.SetDirty(currentLevel);
-        ShowNotification(new GUIContent($"🎨 #{index + 1} Dolduruldu"));
-    }
-
-    private void AddColorCount(Dictionary<Color, int> dict, Color col, int amount)
-    {
-        Color matchedKey = col;
-        bool found = false;
-        foreach (var k in dict.Keys)
-        {
-            if (ColorsMatch(k, col)) { matchedKey = k; found = true; break; }
-        }
-        if (!found) dict[matchedKey] = 0;
-        dict[matchedKey] += amount;
-    }
-
-    private bool ColorsMatch(Color a, Color b)
-    {
-        return Mathf.Abs(a.r - b.r) < 0.06f &&
-               Mathf.Abs(a.g - b.g) < 0.06f &&
-               Mathf.Abs(a.b - b.b) < 0.06f;
-    }
-
-    private string GetColorName(Color col)
-    {
-        for (int i = 0; i < QuickColors.Length; i++)
-        {
-            if (ColorsMatch(QuickColors[i], col)) return QuickColorNames[i];
-        }
-        return "Özel Renk";
-    }
-
-    // ──────────────────────────────────────────────────────────────
-    // 8. OTOMATİK SEVİYE ÜRETİMİ
-    // ──────────────────────────────────────────────────────────────
-    private void GenerateSolvableLevel()
-    {
-        if (currentLevel == null) return;
-        Undo.RecordObject(currentLevel, "Otomatik Seviye Üret");
-
-        int totalBottles = genColorCount + genEmptyCount;
-        currentLevel.pieces = new List<LevelData.PieceData>();
-        currentLevel.flatLayoutMode = LevelData.FlatLayoutMode.AutoFlow;
-
-        List<Color> slicePool = new List<Color>();
-        for (int c = 0; c < genColorCount; c++)
-        {
-            Color col = QuickColors[c % QuickColors.Length];
-            for (int s = 0; s < 4; s++) slicePool.Add(col);
-        }
-
-        // Karıştır
-        for (int i = 0; i < slicePool.Count; i++)
-        {
-            int rnd = Random.Range(i, slicePool.Count);
-            Color temp = slicePool[i];
-            slicePool[i] = slicePool[rnd];
-            slicePool[rnd] = temp;
-        }
-
-        int poolIndex = 0;
-        for (int b = 0; b < genColorCount; b++)
-        {
-            List<Color> bottleSlices = new List<Color>();
-            for (int s = 0; s < 4; s++) bottleSlices.Add(slicePool[poolIndex++]);
-
-            currentLevel.pieces.Add(new LevelData.PieceData
-            {
-                gridPosition = new Vector2Int(b, 0),
-                liquidColor = bottleSlices[bottleSlices.Count - 1],
-                currentSlices = 4,
-                sliceColors = bottleSlices,
-                rotationZ = 0f,
-                canRotate = false
-            });
-        }
-
-        for (int e = 0; e < genEmptyCount; e++)
-        {
-            currentLevel.pieces.Add(new LevelData.PieceData
-            {
-                gridPosition = new Vector2Int(genColorCount + e, 0),
-                liquidColor = Color.white,
-                currentSlices = 0,
-                sliceColors = new List<Color>(),
-                rotationZ = 0f,
-                canRotate = false
-            });
-        }
-
-        selectedBottleIndex = 0;
-        EditorUtility.SetDirty(currentLevel);
-        SaveCurrentLevel();
-    }
-
-    private void Generate25BottleVLevel()
-    {
-        if (currentLevel == null) return;
-        Undo.RecordObject(currentLevel, "25 Şişeli V Seviyesi Üret");
-        currentLevel.flatLayoutMode = LevelData.FlatLayoutMode.StaggeredV;
-        currentLevel.customSpacingX = 1.22f;
-        currentLevel.customSpacingY = 1.95f;
-        currentLevel.pieces = new List<LevelData.PieceData>();
-
-        HashSet<int> emptySlots = new HashSet<int> { 3, 10, 16, 24 };
-        List<Color> slicePool = new List<Color>();
-        int colorCount = Mathf.Min(7, QuickColors.Length);
-        for (int c = 0; c < colorCount; c++)
-        {
-            Color col = QuickColors[c];
-            for (int s = 0; s < 12; s++) slicePool.Add(col);
-        }
-
-        for (int i = 0; i < slicePool.Count; i++)
-        {
-            int rnd = Random.Range(i, slicePool.Count);
-            Color temp = slicePool[i];
-            slicePool[i] = slicePool[rnd];
-            slicePool[rnd] = temp;
-        }
-
-        int sliceIdx = 0;
-        for (int slot = 0; slot < 25; slot++)
-        {
-            if (emptySlots.Contains(slot))
-            {
-                currentLevel.pieces.Add(new LevelData.PieceData
-                {
-                    gridPosition = new Vector2Int(slot, 0),
-                    liquidColor = Color.white,
-                    currentSlices = 0,
-                    sliceColors = new List<Color>(),
-                    rotationZ = 0f,
-                    canRotate = false
-                });
-            }
-            else
-            {
-                List<Color> bottleSlices = new List<Color>();
-                for (int s = 0; s < 4; s++) bottleSlices.Add(slicePool[sliceIdx++]);
-
-                currentLevel.pieces.Add(new LevelData.PieceData
-                {
-                    gridPosition = new Vector2Int(slot, 0),
-                    liquidColor = bottleSlices[bottleSlices.Count - 1],
-                    currentSlices = 4,
-                    sliceColors = bottleSlices,
-                    rotationZ = 0f,
-                    canRotate = false
-                });
-            }
-        }
-
-        selectedBottleIndex = 0;
-        EditorUtility.SetDirty(currentLevel);
-        SaveCurrentLevel();
-    }
-
-    // ──────────────────────────────────────────────────────────────
-    // 9. DOSYA YÖNETİMİ
-    // ──────────────────────────────────────────────────────────────
-    private void CreateNewLevel()
+    private void CreateQuickNewLevel(bool duplicateCurrent)
     {
         string folder = "Assets/Levels";
-        if (!AssetDatabase.IsValidFolder(folder)) AssetDatabase.CreateFolder("Assets", "Levels");
+        if (!AssetDatabase.IsValidFolder(folder))
+        {
+            AssetDatabase.CreateFolder("Assets", "Levels");
+        }
 
         int maxNum = 0;
         string[] guids = AssetDatabase.FindAssets("t:LevelData", new[] { folder });
@@ -1472,94 +569,548 @@ public class LevelDesignerWindow : EditorWindow
         {
             string assetPath = AssetDatabase.GUIDToAssetPath(guid);
             string filename = Path.GetFileNameWithoutExtension(assetPath);
-            int num = LevelSequenceHelper.ExtractLevelNumber(filename);
-            if (num != int.MaxValue && num > maxNum) maxNum = num;
+            if (filename.StartsWith("Level_"))
+            {
+                string numStr = filename.Substring(6);
+                if (int.TryParse(numStr, out int num))
+                {
+                    if (num > maxNum) maxNum = num;
+                }
+            }
         }
 
         int nextNum = maxNum + 1;
         string defaultName = $"Level_{nextNum:D2}";
         string targetPath = $"{folder}/{defaultName}.asset";
 
+        // Güvenlik: Aynı isimde dosya varsa benzersiz path bulana kadar arttır
+        int safetyIndex = nextNum;
         while (File.Exists(targetPath))
         {
-            nextNum++;
-            defaultName = $"Level_{nextNum:D2}";
+            safetyIndex++;
+            defaultName = $"Level_{safetyIndex:D2}";
             targetPath = $"{folder}/{defaultName}.asset";
         }
 
         LevelData newLevel = ScriptableObject.CreateInstance<LevelData>();
         newLevel.name = defaultName;
         newLevel.levelDisplayName = defaultName;
-        newLevel.timeLimit = 120f;
-        newLevel.boardMode = LevelData.BoardMode.Flat2D;
-        newLevel.flatLayoutMode = LevelData.FlatLayoutMode.AutoFlow;
-        newLevel.pieces = new List<LevelData.PieceData>();
 
-        for (int i = 0; i < 4; i++)
+        if (duplicateCurrent && currentLevel != null)
         {
-            newLevel.pieces.Add(new LevelData.PieceData
+            newLevel.levelType = currentLevel.levelType;
+            newLevel.timeLimit = currentLevel.timeLimit;
+            newLevel.boardMode = currentLevel.boardMode;
+            newLevel.gridX = currentLevel.gridX;
+            newLevel.gridY = currentLevel.gridY;
+            newLevel.shapePrefab = currentLevel.shapePrefab;
+
+            newLevel.customGridPositions = new List<Vector2Int>(currentLevel.customGridPositions);
+
+            newLevel.shapeFaces = new List<LevelData.FaceLayoutData>();
+            foreach (var f in currentLevel.shapeFaces)
             {
-                gridPosition = new Vector2Int(i, 0),
-                liquidColor = QuickColors[i],
-                currentSlices = 4,
-                sliceColors = new List<Color> { QuickColors[i], QuickColors[i], QuickColors[i], QuickColors[i] },
-                rotationZ = 0f,
-                canRotate = false
-            });
+                newLevel.shapeFaces.Add(new LevelData.FaceLayoutData
+                {
+                    faceId = f.faceId,
+                    surfaceType = f.surfaceType,
+                    isActive = f.isActive,
+                    gridX = f.gridX,
+                    gridY = f.gridY,
+                    customGridPositions = new List<Vector2Int>(f.customGridPositions)
+                });
+            }
+
+            newLevel.pieces = new List<LevelData.PieceData>();
+            foreach (var p in currentLevel.pieces)
+            {
+                newLevel.pieces.Add(new LevelData.PieceData
+                {
+                    gridPosition = p.gridPosition,
+                    faceIndex = p.faceIndex,
+                    liquidColor = p.liquidColor,
+                    currentSlices = p.currentSlices,
+                    rotationZ = p.rotationZ,
+                    linkId = p.linkId,
+                    canRotate = p.canRotate
+                });
+            }
+
+            newLevel.frozenCells = new List<LevelData.FrozenCellData>();
+            foreach (var fc in currentLevel.frozenCells)
+            {
+                newLevel.frozenCells.Add(new LevelData.FrozenCellData
+                {
+                    gridPosition = fc.gridPosition,
+                    faceIndex = fc.faceIndex,
+                    requiredMatches = fc.requiredMatches
+                });
+            }
         }
-        for (int i = 4; i < 6; i++)
+        else if (currentLevel != null)
         {
-            newLevel.pieces.Add(new LevelData.PieceData
+            // Mevcut level varsa mod ve grid ayarlarını şablon olarak taşı (parçalar temiz kalsın)
+            newLevel.levelType = currentLevel.levelType;
+            newLevel.timeLimit = currentLevel.timeLimit;
+            newLevel.boardMode = currentLevel.boardMode;
+            newLevel.gridX = currentLevel.gridX;
+            newLevel.gridY = currentLevel.gridY;
+            newLevel.shapePrefab = currentLevel.shapePrefab;
+            if (currentLevel.boardMode == LevelData.BoardMode.Shape3D)
             {
-                gridPosition = new Vector2Int(i, 0),
-                liquidColor = Color.white,
-                currentSlices = 0,
-                sliceColors = new List<Color>(),
-                rotationZ = 0f,
-                canRotate = false
-            });
+                newLevel.SyncShapeFacesFromPrefab();
+            }
+        }
+        else
+        {
+            newLevel.gridX = gridX;
+            newLevel.gridY = gridY;
         }
 
         AssetDatabase.CreateAsset(newLevel, targetPath);
+
+        // Sequence'e otomatik ekleme
+        bool autoAdd = EditorPrefs.GetBool("LevelDesigner_AutoAddSequence", true);
+        if (autoAdd)
+        {
+            AddLevelToSequence(newLevel);
+        }
+
         AssetDatabase.SaveAssets();
 
         currentLevel = newLevel;
-        selectedBottleIndex = 0;
+        if (currentLevel.boardMode == LevelData.BoardMode.Flat2D)
+        {
+            gridX = currentLevel.gridX;
+            gridY = currentLevel.gridY;
+        }
 
-        // Seviyeyi otomatik akış listesine ekle ve numaraya göre sırala
-        LevelSequenceHelper.SyncAndSortSequence();
-        ShowNotification(new GUIContent($"✨ '{defaultName}' oluşturuldu ve sıraya eklendi!"));
-    }
-
-    private void SaveCurrentLevel()
-    {
-        if (currentLevel == null) return;
-        EditorUtility.SetDirty(currentLevel);
-        AssetDatabase.SaveAssets();
-        ShowNotification(new GUIContent($"💾 '{currentLevel.name}' Kaydedildi"));
-    }
-
-    private void DeleteCurrentLevel()
-    {
-        if (currentLevel == null) return;
-        string path = AssetDatabase.GetAssetPath(currentLevel);
-        LevelSequenceData seq = LevelSequenceHelper.GetOrCreateSequence();
-        LevelSequenceHelper.RemoveLevel(seq, currentLevel);
-        AssetDatabase.DeleteAsset(path);
-        AssetDatabase.SaveAssets();
-        currentLevel = null;
-        LoadFirstAvailableLevel();
+        EditorGUIUtility.PingObject(newLevel);
+        ShowNotification(new GUIContent($"✨ Yeni Level Hazır: {defaultName}"));
     }
 
     private void AddLevelToSequence(LevelData level)
     {
-        LevelSequenceData seq = LevelSequenceHelper.GetOrCreateSequence();
-        LevelSequenceHelper.AddLevel(seq, level);
+        string[] sequenceGuids = AssetDatabase.FindAssets("t:LevelSequenceData");
+        if (sequenceGuids.Length > 0)
+        {
+            string seqPath = AssetDatabase.GUIDToAssetPath(sequenceGuids[0]);
+            LevelSequenceData sequence = AssetDatabase.LoadAssetAtPath<LevelSequenceData>(seqPath);
+            if (sequence != null && sequence.levels != null)
+            {
+                if (!sequence.levels.Contains(level))
+                {
+                    Undo.RecordObject(sequence, "Hızlı Level Sequence'e Eklendi");
+                    sequence.levels.Add(level);
+                    EditorUtility.SetDirty(sequence);
+                    Debug.Log($"[LevelDesigner] '{level.name}' otomatik olarak '{sequence.name}' sequence'ine eklendi.");
+                }
+            }
+        }
     }
 
-    private void RemoveLevelFromSequence(LevelData level)
+    private string GetNextLevelDefaultName()
     {
-        LevelSequenceData seq = LevelSequenceHelper.GetOrCreateSequence();
-        LevelSequenceHelper.RemoveLevel(seq, level);
+        string folder = "Assets/Levels";
+        int maxNum = 0;
+        if (AssetDatabase.IsValidFolder(folder))
+        {
+            string[] guids = AssetDatabase.FindAssets("t:LevelData", new[] { folder });
+            foreach (var guid in guids)
+            {
+                string assetPath = AssetDatabase.GUIDToAssetPath(guid);
+                string filename = Path.GetFileNameWithoutExtension(assetPath);
+                if (filename.StartsWith("Level_"))
+                {
+                    string numStr = filename.Substring(6);
+                    if (int.TryParse(numStr, out int num))
+                    {
+                        if (num > maxNum) maxNum = num;
+                    }
+                }
+            }
+        }
+        return $"Level_{(maxNum + 1):D2}";
+    }
+
+    private void NavigateLevel(int direction)
+    {
+        List<LevelData> levelList = new List<LevelData>();
+        string[] sequenceGuids = AssetDatabase.FindAssets("t:LevelSequenceData");
+        if (sequenceGuids.Length > 0)
+        {
+            string seqPath = AssetDatabase.GUIDToAssetPath(sequenceGuids[0]);
+            LevelSequenceData sequence = AssetDatabase.LoadAssetAtPath<LevelSequenceData>(seqPath);
+            if (sequence != null && sequence.levels != null && sequence.levels.Count > 0)
+            {
+                foreach (var l in sequence.levels)
+                {
+                    if (l != null && !levelList.Contains(l)) levelList.Add(l);
+                }
+            }
+        }
+
+        if (levelList.Count == 0)
+        {
+            string folder = "Assets/Levels";
+            string[] guids = AssetDatabase.FindAssets("t:LevelData", AssetDatabase.IsValidFolder(folder) ? new[] { folder } : null);
+            foreach (var guid in guids)
+            {
+                string path = AssetDatabase.GUIDToAssetPath(guid);
+                LevelData ld = AssetDatabase.LoadAssetAtPath<LevelData>(path);
+                if (ld != null && !levelList.Contains(ld)) levelList.Add(ld);
+            }
+        }
+
+        if (levelList.Count == 0)
+        {
+            ShowNotification(new GUIContent("Hiç level bulunamadı."));
+            return;
+        }
+
+        int currentIndex = currentLevel != null ? levelList.IndexOf(currentLevel) : -1;
+        int targetIndex = currentIndex + direction;
+
+        if (targetIndex < 0) targetIndex = 0;
+        if (targetIndex >= levelList.Count) targetIndex = levelList.Count - 1;
+
+        if (targetIndex != currentIndex && targetIndex >= 0 && targetIndex < levelList.Count)
+        {
+            currentLevel = levelList[targetIndex];
+            if (currentLevel.boardMode == LevelData.BoardMode.Flat2D)
+            {
+                gridX = currentLevel.gridX;
+                gridY = currentLevel.gridY;
+            }
+            EditorGUIUtility.PingObject(currentLevel);
+            ShowNotification(new GUIContent($"Loaded: {currentLevel.name} ({targetIndex + 1}/{levelList.Count})"));
+        }
+    }
+
+    private void SaveCurrentLevel()
+    {
+        if (currentLevel != null)
+        {
+            EditorUtility.SetDirty(currentLevel);
+            AssetDatabase.SaveAssets();
+            Debug.Log($"[LevelDesigner] '{currentLevel.levelDisplayName}' kaydedildi.");
+            ShowNotification(new GUIContent($"Kaydedildi: {currentLevel.name}"));
+        }
+    }
+
+    // ─── Yardımcılar ─────────────────────────────────────────────
+
+    void DrawSectionHeader(string title)
+    {
+        GUILayout.Space(4);
+        Rect rect = EditorGUILayout.GetControlRect(false, 2);
+        EditorGUI.DrawRect(rect, new Color(0.4f, 0.4f, 0.4f));
+        GUILayout.Space(2);
+        GUILayout.Label(title, EditorStyles.boldLabel);
+    }
+
+    void DrawGrid()
+    {
+        var targetCustomGrid = currentLevel.boardMode == LevelData.BoardMode.Shape3D 
+            ? (currentLevel.shapeFaces.Count > currentFaceIndex ? currentLevel.shapeFaces[currentFaceIndex].customGridPositions : new System.Collections.Generic.List<Vector2Int>()) 
+            : currentLevel.customGridPositions;
+
+        for (int y = gridY - 1; y >= 0; y--)
+        {
+            EditorGUILayout.BeginHorizontal();
+            GUILayout.FlexibleSpace();
+
+            for (int x = 0; x < gridX; x++)
+            {
+                Vector2Int pos = new Vector2Int(x, y);
+                
+                // --- PRO TRIANGLE UI LAYOUT (Centered Pyramid) ---
+                bool isVisualCellDisabled = false;
+
+                if (currentLevel.boardMode == LevelData.BoardMode.Shape3D && currentLevel.shapeFaces.Count > currentFaceIndex)
+                {
+                    var face = currentLevel.shapeFaces[currentFaceIndex];
+                    if (face.surfaceType == ShapeFaceMarker.FaceSurfaceType.Triangle)
+                    {
+                        int cellsInThisRow = gridX - y; // Y=2 -> 1, Y=1 -> 2, Y=0 -> 3
+                        if (x >= cellsInThisRow) isVisualCellDisabled = true;
+                    }
+                }
+
+                if (isVisualCellDisabled)
+                {
+                    continue; // Gizli hücreleri tamamen atla
+                }
+
+                bool isCellActive = targetCustomGrid.Count == 0 || targetCustomGrid.Contains(pos);
+                LevelData.PieceData piece = GetPieceAt(x, y);
+
+                int targetFaceIdx = currentLevel.boardMode == LevelData.BoardMode.Shape3D ? currentFaceIndex : 0;
+                LevelData.FrozenCellData frozenData = currentLevel.GetFrozenCell(pos, targetFaceIdx);
+                bool isCellFrozen = frozenData != null;
+
+                string buttonText = "";
+                Color bgColor = isCellActive ? new Color(0.3f, 0.3f, 0.3f) : new Color(0.15f, 0.15f, 0.15f);
+
+                if (isFrozenEditMode)
+                {
+                    if (isCellFrozen)
+                    {
+                        bgColor = new Color(0.25f, 0.75f, 1f);
+                        buttonText = $"❄️ {frozenData.requiredMatches}\nDONUK";
+                    }
+                    else if (isCellActive)
+                    {
+                        bgColor = new Color(0.28f, 0.28f, 0.28f);
+                        buttonText = "Normal\n(+)";
+                    }
+                    else
+                    {
+                        buttonText = "—";
+                    }
+                }
+                else if (isGridEditMode)
+                {
+                    buttonText = isCellActive ? "AÇIK" : "KAPALI";
+                }
+                else if (isCellActive)
+                {
+                    string freezeBadge = isCellFrozen ? $" [❄️{frozenData.requiredMatches}]" : "";
+                    if (piece != null)
+                    {
+                        bgColor = piece.liquidColor;
+                        string yon = piece.rotationZ switch
+                        {
+                            180   => "↑",
+                            90    => "→",
+                            0     => "↓",
+                            -90   => "←",
+                            _     => "↓"
+                        };
+                        string sliceLabel = piece.currentSlices switch {
+                            1 => "1/4",
+                            2 => "2/4",
+                            4 => "4/4",
+                            _ => piece.currentSlices.ToString() + "/4"
+                        };
+                        string linkTxt = piece.linkId > 0 ? $"[L{piece.linkId}]" : "";
+                        string rotateTxt = (currentLevel.levelType.HasFlag(LevelData.LevelType.Rotation) && piece.canRotate) ? "[R]" : "";
+
+                        buttonText = $"{sliceLabel}{freezeBadge}\n{yon} {linkTxt} {rotateTxt}";
+                    }
+                    else if (isCellFrozen)
+                    {
+                        bgColor = new Color(0.2f, 0.65f, 0.95f);
+                        buttonText = $"Boş\n❄️ {frozenData.requiredMatches}";
+                    }
+                    else
+                    {
+                        buttonText = "Boş\n(+)";
+                    }
+                }
+                else
+                {
+                    buttonText = "—";
+                }
+
+                GUI.backgroundColor = bgColor;
+                Rect bRect = GUILayoutUtility.GetRect(new GUIContent(buttonText), GUI.skin.button,
+                    GUILayout.Width(65), GUILayout.Height(65));
+
+                Event e = Event.current;
+                
+                // Sağ tık: Silme - GUI.Button'dan önce yakalamalıyız
+                if (e.type == EventType.MouseDown && e.button == 1 && bRect.Contains(e.mousePosition))
+                {
+                    if (isFrozenEditMode)
+                    {
+                        if (isCellFrozen)
+                        {
+                            Undo.RecordObject(currentLevel, "Donukluk Sil");
+                            currentLevel.RemoveFrozenCell(pos, targetFaceIdx);
+                            EditorUtility.SetDirty(currentLevel);
+                            e.Use();
+                        }
+                    }
+                    else if (!isGridEditMode)
+                    {
+                        if (piece != null)
+                        {
+                            Undo.RecordObject(currentLevel, "Parça Sil");
+                            currentLevel.pieces.Remove(piece);
+                            EditorUtility.SetDirty(currentLevel);
+                            e.Use();
+                        }
+                        else if (isCellFrozen)
+                        {
+                            Undo.RecordObject(currentLevel, "Donukluk Sil");
+                            currentLevel.RemoveFrozenCell(pos, targetFaceIdx);
+                            EditorUtility.SetDirty(currentLevel);
+                            e.Use();
+                        }
+                    }
+                }
+
+                if (GUI.Button(bRect, buttonText))
+                {
+                    if (isFrozenEditMode && isCellActive)
+                    {
+                        Undo.RecordObject(currentLevel, "Donukluk Ayarla");
+                        currentLevel.SetFrozenCell(pos, targetFaceIdx, frozenRequiredMatches);
+                        EditorUtility.SetDirty(currentLevel);
+                    }
+                    else if (isGridEditMode)
+                    {
+                        Undo.RecordObject(currentLevel, "Grid Hücresi Tıkla");
+                        
+                        if (targetCustomGrid.Count == 0)
+                        {
+                            for (int gx = 0; gx < gridX; gx++)
+                                for (int gy = 0; gy < gridY; gy++)
+                                    targetCustomGrid.Add(new Vector2Int(gx, gy));
+                        }
+
+                        if (targetCustomGrid.Contains(pos))
+                        {
+                            targetCustomGrid.Remove(pos);
+                            if (piece != null) currentLevel.pieces.Remove(piece);
+                            currentLevel.RemoveFrozenCell(pos, targetFaceIdx);
+                        }
+                        else
+                        {
+                            targetCustomGrid.Add(pos);
+                        }
+                        EditorUtility.SetDirty(currentLevel);
+                    }
+                    else if (isCellActive)
+                    {
+                        if (e.button == 0) // Left click
+                        {
+                            Undo.RecordObject(currentLevel, "Parça Ekle/Güncelle");
+                            if (piece == null)
+                            {
+                                piece = new LevelData.PieceData { gridPosition = new Vector2Int(x, y) };
+                                if (currentLevel.boardMode == LevelData.BoardMode.Shape3D) piece.faceIndex = currentFaceIndex;
+                                currentLevel.pieces.Add(piece);
+                            }
+
+                            piece.liquidColor = brushColor;
+                            piece.currentSlices = brushSlices;
+                            piece.rotationZ = brushRotationZ;
+                            piece.linkId = brushLinkId;
+                            piece.canRotate = brushCanRotate;
+                            if (currentLevel.boardMode == LevelData.BoardMode.Shape3D) piece.faceIndex = currentFaceIndex;
+
+                            if (brushIsFrozen)
+                            {
+                                currentLevel.SetFrozenCell(pos, targetFaceIdx, brushFrozenCount);
+                            }
+
+                            EditorUtility.SetDirty(currentLevel);
+                        }
+                    }
+                    GUI.FocusControl(null);
+                }
+
+                GUI.backgroundColor = Color.white;
+            }
+
+            GUILayout.FlexibleSpace();
+            EditorGUILayout.EndHorizontal();
+        }
+    }
+
+    void DrawFrozenCellsList()
+    {
+        if (currentLevel == null || currentLevel.frozenCells == null || currentLevel.frozenCells.Count == 0) return;
+
+        GUILayout.Space(4);
+        EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+        EditorGUILayout.LabelField($"❄️ Seviyedeki Donuk Gridler ({currentLevel.frozenCells.Count} Adet)", EditorStyles.boldLabel);
+        
+        for (int i = 0; i < currentLevel.frozenCells.Count; i++)
+        {
+            var fc = currentLevel.frozenCells[i];
+            EditorGUILayout.BeginHorizontal();
+            string faceInfo = currentLevel.boardMode == LevelData.BoardMode.Shape3D ? $" [Yüzey {fc.faceIndex}]" : "";
+            EditorGUILayout.LabelField($"📍 ({fc.gridPosition.x}, {fc.gridPosition.y}){faceInfo}", GUILayout.Width(110));
+            
+            EditorGUI.BeginChangeCheck();
+            int newMatches = EditorGUILayout.IntSlider(fc.requiredMatches, 1, 20);
+            if (EditorGUI.EndChangeCheck())
+            {
+                Undo.RecordObject(currentLevel, "Donukluk Sayacı Değiştir");
+                fc.requiredMatches = newMatches;
+                EditorUtility.SetDirty(currentLevel);
+            }
+            
+            if (GUILayout.Button("🗑️ Sil", GUILayout.Width(45)))
+            {
+                Undo.RecordObject(currentLevel, "Donukluk Sil");
+                currentLevel.frozenCells.RemoveAt(i);
+                EditorUtility.SetDirty(currentLevel);
+                break;
+            }
+            EditorGUILayout.EndHorizontal();
+        }
+        EditorGUILayout.EndVertical();
+    }
+
+    LevelData.PieceData GetPieceAt(int x, int y) 
+    {
+        if (currentLevel.boardMode == LevelData.BoardMode.Shape3D)
+            return currentLevel.pieces.Find(p => p.faceIndex == currentFaceIndex && p.gridPosition.x == x && p.gridPosition.y == y);
+        else
+            return currentLevel.pieces.Find(p => p.gridPosition.x == x && p.gridPosition.y == y);
+    }
+
+    void DrawColorPreset(string label, Color color)
+    {
+        Color prev = GUI.backgroundColor;
+        GUI.backgroundColor = color;
+        if (GUILayout.Button(label, GUILayout.Height(22)))
+            brushColor = color;
+        GUI.backgroundColor = prev;
+    }
+
+    void CreateNewLevel()
+    {
+        string path = EditorUtility.SaveFilePanelInProject(
+            "Yeni Level Kaydet", GetNextLevelDefaultName(), "asset",
+            "Level dosyasını nereye kaydetmek istersiniz?");
+
+        if (!string.IsNullOrEmpty(path))
+        {
+            LevelData newLevel = ScriptableObject.CreateInstance<LevelData>();
+            newLevel.gridX = gridX;
+            newLevel.gridY = gridY;
+
+            if (currentLevel != null)
+            {
+                newLevel.levelType = currentLevel.levelType;
+                newLevel.timeLimit = currentLevel.timeLimit;
+                newLevel.boardMode = currentLevel.boardMode;
+                newLevel.shapePrefab = currentLevel.shapePrefab;
+            }
+
+            AssetDatabase.CreateAsset(newLevel, path);
+            newLevel.levelDisplayName = newLevel.name;
+
+            bool autoAdd = EditorPrefs.GetBool("LevelDesigner_AutoAddSequence", true);
+            if (autoAdd)
+            {
+                AddLevelToSequence(newLevel);
+            }
+
+            AssetDatabase.SaveAssets();
+            currentLevel = newLevel;
+            EditorGUIUtility.PingObject(newLevel);
+        }
+    }
+
+    private int[] GetAvailableSlices(LevelData.LevelType type)
+    {
+        return new int[] { 2, 4 };
     }
 }
+

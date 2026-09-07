@@ -36,19 +36,12 @@ public partial class GridSpawner : MonoBehaviour
     public float cameraPadding = 0.2f;
     public float cameraZoomFactor = 0.65f;
     public float cameraVerticalOffset = 0.1f;
-    [Tooltip("2D ve 3D sahnelerde kameranın şişelere bakış eğiklik açısı (ör: 20 derece).")]
-    public float cameraPitchAngle = 20f;
     [Tooltip("Ekranın üst kısmında UI (buton, level yazısı vb.) tarafından kullanılan yükseklik oranı (0–1). " +
              "Örn: 0.12 → ekranın %12'si UI'a ayrılmış. Kamera hesaplamaları bu alanı dışarıda tutar.")]
     [Range(0f, 0.4f)]
     public float uiTopMarginNormalized = 0.12f;
     [Tooltip("3D şekil spawn Z offseti — negatif değer şekli kameraya yaklaştırır.")]
     public float shapeZOffset = -1f;
-
-    [Header("2D Şişe Görünümü & Boyutu")]
-    [Tooltip("2D düzlem modunda şişelerin genel boyut çarpanı (Önerilen: 1.6f - 1.8f)")]
-    [Range(0.8f, 2.5f)]
-    public float bottleScale2D = 1.65f;
 
     [Header("UI Referansları")]
     public TextMeshProUGUI levelText;
@@ -71,23 +64,13 @@ public partial class GridSpawner : MonoBehaviour
 
     public List<LevelData> levels => sequence != null ? sequence.levels : null;
 
-    public LevelData CurrentLevelData
-    {
-        get
-        {
-            if (levels != null && currentLevelIndex >= 0 && currentLevelIndex < levels.Count)
-                return levels[currentLevelIndex];
-            return null;
-        }
-    }
-
     public LevelData.LevelType CurrentLevelType
     {
         get
         {
-            if (CurrentLevelData == null)
+            if (levels == null || currentLevelIndex >= levels.Count || levels[currentLevelIndex] == null)
                 return LevelData.LevelType.Classic;
-            return CurrentLevelData.levelType;
+            return levels[currentLevelIndex].levelType;
         }
     }
 
@@ -99,11 +82,8 @@ public partial class GridSpawner : MonoBehaviour
     {
         currentLevelIndex = PlayerPrefs.GetInt("CurrentLevelIndex", 0);
 
-        if (levels != null && (currentLevelIndex >= levels.Count || currentLevelIndex < 0))
-        {
-            currentLevelIndex = 0;
-            PlayerPrefs.SetInt("CurrentLevelIndex", 0);
-        }
+        if (levels != null && currentLevelIndex >= levels.Count)
+            currentLevelIndex = levels.Count - 1;
 
         // İlk açılışta mevcut level başlangıcını logla
         GameManager.Instance?.ResetLevelState();
@@ -188,6 +168,7 @@ public partial class GridSpawner : MonoBehaviour
     /// <summary>Board moduna göre 2D veya 3D spawn'ı başlatır.</summary>
     void SpawnLevel(LevelData level)
     {
+
         if (levelText != null)
         {
             levelText.text = "LEVEL " + (currentLevelIndex + 1);
@@ -209,196 +190,6 @@ public partial class GridSpawner : MonoBehaviour
             SpawnShapeLevel(level, gridSize);
         else
             SpawnFlat2DLevel(level, gridSize);
-    }
-
-    // ──────────────────────────────────────────────────────────────
-    // MAGIC SORT ŞİŞE DİZİLİMİ (ÇAKIŞMASIZ KAVİSLİ & ŞAŞIRTMANI DİZİLİM)
-    // ──────────────────────────────────────────────────────────────
-
-    /// <summary>
-    /// Klasik Düz 2D Dizilim (Satır Başına Maksimum 4 Şişe):
-    /// Şişe sayısına göre dengeli satırlara böler (ör. 4=2+2, 5=3+2, 6=3+3, 7=4+3, 8=4+4).
-    /// </summary>
-    public static Vector3 GetBottlePosition(int index, int totalBottles, float spacingX = 1.85f, float spacingY = 2.6f)
-    {
-        if (totalBottles <= 0) return Vector3.zero;
-        if (totalBottles == 1) return Vector3.zero;
-
-        int rowCount;
-        if (totalBottles <= 3) rowCount = 1;
-        else if (totalBottles <= 8) rowCount = 2;
-        else if (totalBottles <= 12) rowCount = 3;
-        else rowCount = Mathf.CeilToInt(totalBottles / 4.0f);
-
-        int baseCount = totalBottles / rowCount;
-        int remainder = totalBottles % rowCount;
-
-        int[] rowCapacities = new int[rowCount];
-        for (int r = 0; r < rowCount; r++)
-        {
-            rowCapacities[r] = baseCount + (r < remainder ? 1 : 0);
-        }
-
-        int targetRow = 0;
-        int indexInRow = index;
-        for (int r = 0; r < rowCount; r++)
-        {
-            if (indexInRow < rowCapacities[r])
-            {
-                targetRow = r;
-                break;
-            }
-            indexInRow -= rowCapacities[r];
-        }
-
-        int countInRow = rowCapacities[targetRow];
-        float posX = (indexInRow - (countInRow - 1) * 0.5f) * spacingX;
-
-        float middleRowIdx = (rowCount - 1) * 0.5f;
-        float posY = (middleRowIdx - targetRow) * spacingY;
-
-        return new Vector3(posX, posY, 0f);
-    }
-
-    // 25 Şişeli Kademeli V/Chevron Düzeni (Görseldeki 7 Sütun: 4-4-3-3-3-4-4)
-    public static readonly (int col, float yVal)[] STAGGERED_V_SLOTS = new (int col, float yVal)[]
-    {
-        (0, 3.0f), (0, 2.0f), (0, 1.0f), (0, 0.0f), // Sütun 0 (4 şişe)
-        (1, 3.0f), (1, 2.0f), (1, 1.0f), (1, 0.0f), // Sütun 1 (4 şişe)
-        (2, 2.5f), (2, 1.5f), (2, 0.5f),            // Sütun 2 (3 şişe - kademeli -0.5)
-        (3, 2.0f), (3, 1.0f), (3, 0.0f),            // Sütun 3 (3 şişe - tepe kademeli, tabanı düz)
-        (4, 2.5f), (4, 1.5f), (4, 0.5f),            // Sütun 4 (3 şişe - kademeli -0.5)
-        (5, 3.0f), (5, 2.0f), (5, 1.0f), (5, 0.0f), // Sütun 5 (4 şişe)
-        (6, 3.0f), (6, 2.0f), (6, 1.0f), (6, 0.0f), // Sütun 6 (4 şişe)
-    };
-
-    public static Vector3 GetStaggeredVPosition(int index, int totalBottles, float spacingX = 1.22f, float spacingY = 1.95f)
-    {
-        if (index < 0) return Vector3.zero;
-
-        int slotIdx = index % STAGGERED_V_SLOTS.Length;
-        int wrapCount = index / STAGGERED_V_SLOTS.Length;
-        var slot = STAGGERED_V_SLOTS[slotIdx];
-
-        // 7 Sütun: merkez sütun 3 (0..6 arası, orta nokta = 3)
-        float posX = (slot.col - 3f) * spacingX;
-
-        // Y: 0..3 arası, orta nokta = 1.5f
-        float posY = (slot.yVal - 1.5f) * spacingY - (wrapCount * 4.0f * spacingY);
-
-        return new Vector3(posX, posY, 0f);
-    }
-
-    /// <summary>
-    /// Esnek, serbest ve raflara uyumlu 2D şişe pozisyonunu hesaplar.
-    /// Özel satır dağılımı (customRowDistribution), kademeli ofset (rowStaggerX) ve raf yüksekliklerini (customRowY) destekler.
-    /// </summary>
-    public static Vector3 GetFlexibleBottlePosition(LevelData level, int index, int totalBottles, float spacingX, float spacingY)
-    {
-        if (totalBottles <= 0) return Vector3.zero;
-        if (totalBottles == 1) return Vector3.zero;
-
-        int[] rowCapacities;
-        if (level != null && level.customRowDistribution != null && level.customRowDistribution.Count > 0)
-        {
-            rowCapacities = level.customRowDistribution.ToArray();
-        }
-        else
-        {
-            int rowCount;
-            if (totalBottles <= 3) rowCount = 1;
-            else if (totalBottles <= 8) rowCount = 2;
-            else if (totalBottles <= 12) rowCount = 3;
-            else rowCount = Mathf.CeilToInt(totalBottles / 4.0f);
-
-            int baseCount = totalBottles / rowCount;
-            int remainder = totalBottles % rowCount;
-
-            rowCapacities = new int[rowCount];
-            for (int r = 0; r < rowCount; r++)
-            {
-                rowCapacities[r] = baseCount + (r < remainder ? 1 : 0);
-            }
-        }
-
-        int rowCountActual = rowCapacities.Length;
-        int targetRow = 0;
-        int indexInRow = index;
-
-        for (int r = 0; r < rowCountActual; r++)
-        {
-            if (indexInRow < rowCapacities[r])
-            {
-                targetRow = r;
-                break;
-            }
-            indexInRow -= rowCapacities[r];
-        }
-
-        int countInRow = targetRow < rowCountActual ? rowCapacities[targetRow] : 1;
-        float posX = (indexInRow - (countInRow - 1) * 0.5f) * spacingX;
-
-        // Kademeli/Şaşırtmalı (Stagger) X ofseti (örn. 2. satırda hafif kaydırma)
-        if (level != null && level.rowStaggerX != 0f && (targetRow % 2 == 1))
-        {
-            posX += level.rowStaggerX;
-        }
-
-        // Y pozisyonu: ya customRowY ya da spacingY üzerinden
-        float posY;
-        if (level != null && level.customRowY != null && targetRow < level.customRowY.Count)
-        {
-            posY = level.customRowY[targetRow];
-        }
-        else
-        {
-            float middleRowIdx = (rowCountActual - 1) * 0.5f;
-            posY = (middleRowIdx - targetRow) * spacingY;
-        }
-
-        return new Vector3(posX, posY, 0f);
-    }
-
-    /// <summary>
-    /// Verilen seviyenin dizilim moduna göre (AutoFlow, Grid, StaggeredV, CustomPositions) şişe pozisyonunu hesaplar.
-    /// </summary>
-    public static Vector3 GetBottlePositionForLevel(LevelData level, int index, int totalBottles)
-    {
-        if (level == null) return GetBottlePosition(index, totalBottles);
-
-        float spacingX = level.customSpacingX > 0.1f ? level.customSpacingX : 1.85f;
-        float spacingY = level.customSpacingY > 0.1f ? level.customSpacingY : 2.6f;
-
-        switch (level.flatLayoutMode)
-        {
-            case LevelData.FlatLayoutMode.StaggeredV:
-                return GetStaggeredVPosition(index, totalBottles, spacingX, spacingY);
-
-            case LevelData.FlatLayoutMode.Grid:
-                if (level.pieces != null && index < level.pieces.Count)
-                {
-                    Vector2Int gp = level.pieces[index].gridPosition;
-                    float gx = (gp.x - (level.gridX - 1) * 0.5f) * spacingX;
-                    float gy = ((level.gridY - 1) * 0.5f - gp.y) * spacingY;
-                    return new Vector3(gx, gy, 0f);
-                }
-                return GetFlexibleBottlePosition(level, index, totalBottles, spacingX, spacingY);
-
-            case LevelData.FlatLayoutMode.CustomPositions:
-                if (level.pieces != null && index < level.pieces.Count)
-                {
-                    Vector2 cp = level.pieces[index].customPosition;
-                    if (cp.sqrMagnitude > 0.0001f || index == 0)
-                    {
-                        return new Vector3(cp.x, cp.y, 0f);
-                    }
-                }
-                return GetFlexibleBottlePosition(level, index, totalBottles, spacingX, spacingY);
-
-            case LevelData.FlatLayoutMode.AutoFlow:
-            default:
-                return GetFlexibleBottlePosition(level, index, totalBottles, spacingX, spacingY);
-        }
     }
 
     // ──────────────────────────────────────────────────────────────
@@ -561,35 +352,49 @@ public partial class GridSpawner : MonoBehaviour
                 return true;
             }
 
+            // Yok edilmekte / tamamlanmış / boşalmış parçaları sayma
+            if (lt.currentSlices <= 0 || lt.currentSlices >= lt.maxSlices)
+                continue;
+
+            // Parça yok olma (küçülme) animasyonundaysa sayma
+            if (lt.transform.parent != null && lt.transform.parent.localScale.x <= 0.05f)
+                continue;
+
             activePieces.Add(lt);
         }
 
-        if (activePieces.Count <= 0) return true;
-
-        // Bütün dolu şişeler tamamlanmış mı?
-        bool allComplete = true;
-        int withLiquid = 0;
-        foreach (var p in activePieces)
+        // Tahtada parça kalmadıysa fail değildir (LevelComplete tetiklenecektir)
+        if (activePieces.Count <= 0)
         {
-            if (p.currentSlices > 0)
-            {
-                withLiquid++;
-                if (p.currentSlices < p.maxSlices) allComplete = false;
-            }
+            return true;
         }
-        if (allComplete && withLiquid > 0) return true;
 
-        // Herhangi bir şişe A'dan başka bir şişe B'ye aktarım yapılabilir mi?
+        // Tek bir parça kaldıysa eşleşebileceği başka parça olamaz -> FAIL
+        if (activePieces.Count == 1)
+        {
+            return false;
+        }
+
+        // Donuk olmayan (serbestçe sürüklenebilen) parça sayısı
+        int unfrozenCount = 0;
+        foreach (var piece in activePieces)
+        {
+            DragObject dobj = piece.GetComponentInParent<DragObject>();
+            if (dobj == null || !dobj.isFrozen)
+                unfrozenCount++;
+        }
+
+        // Eğer tahtada kalan TÜM parçalar donuksa ve hiçbiri hareket edemiyorsa -> FAIL
+        if (unfrozenCount == 0)
+        {
+            return false;
+        }
+
         for (int i = 0; i < activePieces.Count; i++)
         {
-            LiquidTransfer a = activePieces[i];
-            if (a.currentSlices <= 0) continue;
-
-            for (int j = 0; j < activePieces.Count; j++)
+            for (int j = i + 1; j < activePieces.Count; j++)
             {
-                if (i == j) continue;
-                LiquidTransfer b = activePieces[j];
-                if (a.CanPourInto(b))
+                if (CanInteractionsExist(activePieces[i], activePieces[j], unfrozenCount))
                 {
                     return true;
                 }
@@ -602,6 +407,50 @@ public partial class GridSpawner : MonoBehaviour
     private bool CanInteractionsExist(LiquidTransfer a, LiquidTransfer b, int unfrozenCount = 2)
     {
         if (a == null || b == null) return false;
-        return a.CanPourInto(b) || b.CanPourInto(a);
+        if (a.currentSlices <= 0 || a.currentSlices >= a.maxSlices) return false;
+        if (b.currentSlices <= 0 || b.currentSlices >= b.maxSlices) return false;
+
+        // Aynı linked grubundaki objeler hiçbir zaman birbirini tamamlayamaz
+        DragObject dobjA = a.GetComponentInParent<DragObject>();
+        DragObject dobjB = b.GetComponentInParent<DragObject>();
+        if (dobjA != null && dobjB != null && dobjA.linkId > 0 && dobjA.linkId == dobjB.linkId)
+            return false;
+
+        // İki parça da donuksa ve kilitleri çözecek başka serbest eşleşme yoksa hareket edemezler
+        bool aFrozen = dobjA != null && dobjA.isFrozen;
+        bool bFrozen = dobjB != null && dobjB.isFrozen;
+        if (aFrozen && bFrozen && unfrozenCount < 2)
+            return false;
+
+        // Renk ve Dilim sayısı eşleşmesi
+        bool colorMatch = ColorMixData.ColorsMatch(a.liquidColor, b.liquidColor);
+        bool sliceMatch = a.currentSlices == b.currentSlices;
+
+        if (!colorMatch || !sliceMatch) return false;
+
+        // Rotasyon ve Yönlenebilirlik Kontrolü
+        bool levelHasRotation = CurrentLevelType.HasFlag(LevelData.LevelType.Rotation);
+        bool canRotA = levelHasRotation && (dobjA != null && dobjA.canRotate && dobjA.linkId == 0);
+        bool canRotB = levelHasRotation && (dobjB != null && dobjB.canRotate && dobjB.linkId == 0);
+
+        // En az biri döndürülebiliyorsa birbirine bakacak şekilde ayarlanabilir
+        if (canRotA || canRotB)
+            return true;
+
+        // Shape3D modunda parçalar farklı yüzeylere taşınarak 90° göreceli yön değiştirebilir
+        bool is3D = levels != null &&
+                    currentLevelIndex < levels.Count &&
+                    levels[currentLevelIndex] != null &&
+                    levels[currentLevelIndex].boardMode == LevelData.BoardMode.Shape3D;
+        if (is3D)
+            return true;
+
+        // 2D modunda ve hiçbiri dönemiyorsa, yönlerinin zıt (karşı karşıya) bakması zorunludur
+        Vector3 myFace = a.transform.up;
+        Vector3 otherFace = b.transform.up;
+        if (Vector3.Dot(myFace, -otherFace) < 0.8f)
+            return false;
+
+        return true;
     }
 }

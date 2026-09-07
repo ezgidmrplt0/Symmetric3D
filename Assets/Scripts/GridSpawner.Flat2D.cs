@@ -16,178 +16,261 @@ public partial class GridSpawner
 
     private void SpawnFlat2DLevel(LevelData level, float gridSize)
     {
-        groups.Clear(); // Yeni level için grupları temizle
-        int totalBottles = level.pieces != null ? level.pieces.Count : 0;
+        bool isCustom = level.customGridPositions != null && level.customGridPositions.Count > 0;
 
-        for (int i = 0; i < totalBottles; i++)
+        float minX = 0, maxX = level.gridX - 1;
+        float minY = 0, maxY = level.gridY - 1;
+
+        if (isCustom)
         {
-            var piece = level.pieces[i];
-            // Seviyenin layout moduna göre pozisyon (StaggeredV, Grid veya AutoFlow)
-            Vector3 piecePos = GetBottlePositionForLevel(level, i, totalBottles);
-
-            GameObject newObj = Instantiate(objectPrefab, transform.position + piecePos,
-                Quaternion.identity, transform);
-            newObj.transform.localRotation = Quaternion.identity;
-
-            // Şişe boyutunu uygula (Level bazlı veya global 2D boyutu)
-            float levelScale = (level != null && level.bottleScale > 0.1f) ? level.bottleScale : 1.0f;
-            float currentBottleScale = (bottleScale2D > 0.1f ? bottleScale2D : 1.65f) * levelScale;
-            newObj.transform.localScale = Vector3.one * currentBottleScale;
-
-            activeSpawnedObjects.Add(newObj);
-
-            DragObject dobj = newObj.GetComponent<DragObject>();
-            if (dobj != null)
+            minX = minY = float.MaxValue;
+            maxX = maxY = float.MinValue;
+            foreach (var pos in level.customGridPositions)
             {
-                dobj.linkId = piece.linkId;
-                dobj.canRotate = false;
-                dobj.SetFrozen(false);
-            }
-
-            LiquidTransfer lt = newObj.GetComponentInChildren<LiquidTransfer>();
-            if (lt != null)
-            {
-                lt.InitializeSlices(piece.sliceColors, piece.liquidColor, piece.currentSlices);
-                lt.initialGridPos  = new Vector2Int(i, 0);
-                lt.initialFaceIndex = piece.faceIndex;
-
-                if (lt.cork == null)
-                    lt.cork = newObj.GetComponentInChildren<BottleCork>(true);
-                if (lt.label == null)
-                    lt.label = newObj.GetComponentInChildren<BottleLabel>(true);
-            }
-
-            if (piece.isFrozen)
-            {
-                FrozenBottle fb = newObj.GetComponent<FrozenBottle>();
-                if (fb == null) fb = newObj.AddComponent<FrozenBottle>();
-                fb.Initialize(piece.requiredMatches);
-            }
-        }
-
-        foreach (var kvp in groups)
-            kvp.Value.InitGroup();
-
-        StartCoroutine(AdjustViewportCoroutine(level, totalBottles));
-    }
-
-    // ──────────────────────────────────────────────────────────────
-    // 3D MASA VE KAMERA PERSPESKTİFİ
-    // ──────────────────────────────────────────────────────────────
-
-    private IEnumerator AdjustViewportCoroutine(LevelData level, int totalBottles)
-    {
-        yield return new WaitForEndOfFrame();
-
-        foreach (var seg in activeFrameSegments) if (seg != null) Destroy(seg);
-        activeFrameSegments.Clear();
-
-        // 1. Şişelerin kapladığı 2D alanı hesapla
-        float minX = float.MaxValue, maxX = float.MinValue;
-        float minY = float.MaxValue, maxY = float.MinValue;
-        float levelScale = (level != null && level.bottleScale > 0.1f) ? level.bottleScale : 1.0f;
-        float currentBottleScale = (bottleScale2D > 0.1f ? bottleScale2D : 1.65f) * levelScale;
-        float bottleHeight = 1.0f * currentBottleScale;
-
-        if (totalBottles > 0)
-        {
-            for (int i = 0; i < totalBottles; i++)
-            {
-                Vector3 pos = GetBottlePositionForLevel(level, i, totalBottles);
                 if (pos.x < minX) minX = pos.x;
                 if (pos.x > maxX) maxX = pos.x;
                 if (pos.y < minY) minY = pos.y;
                 if (pos.y > maxY) maxY = pos.y;
             }
         }
+
+        float offsetX = (minX + maxX) * (gridSize + spacing) / 2f;
+        float offsetY = (minY + maxY) * (gridSize + spacing) / 2f;
+
+        // Grid zeminlerini çiz
+        if (isCustom)
+        {
+            foreach (var pos in level.customGridPositions)
+            {
+                Vector3 worldPos = new Vector3(
+                    pos.x * (gridSize + spacing) - offsetX,
+                    pos.y * (gridSize + spacing) - offsetY,
+                    0
+                );
+                GameObject gridObj = Instantiate(gridPrefab, transform.position + worldPos, Quaternion.identity, transform);
+                activeSpawnedObjects.Add(gridObj);
+
+                LevelData.FrozenCellData frozenData = level.GetFrozenCell(pos, 0);
+                if (frozenData != null)
+                {
+                    FrozenGridCell fgc = gridObj.AddComponent<FrozenGridCell>();
+                    fgc.Initialize(pos, 0, frozenData.requiredMatches);
+                }
+            }
+        }
         else
         {
-            minX = -1f; maxX = 1f;
-            minY = -1f; maxY = 1f;
-        }
-
-        Vector3 boundsCenter = transform.position + new Vector3((minX + maxX) * 0.5f, (minY + maxY) * 0.5f + bottleHeight * 0.5f, 0f);
-        Vector3 boundsSize = new Vector3(Mathf.Max(2.8f, (maxX - minX) + 1.6f), Mathf.Max(2.8f, (maxY - minY) + bottleHeight + 1.0f), 1f);
-        Bounds combinedBounds = new Bounds(boundsCenter, boundsSize);
-
-        // 2. Kamera Hizalaması (Klasik 2D Düz Bakış - Açı ve Masa Yok)
-        Camera cam = mainCamera != null ? mainCamera : Camera.main;
-        float targetOrthoSize = 8f;
-
-        if (cam != null)
-        {
-            cam.orthographic = true;
-            cam.transform.DORotate(Vector3.zero, 0.5f).SetEase(Ease.OutCubic);
-
-            float uiMargin = Mathf.Clamp01(uiTopMarginNormalized);
-            float playableHeightRatio = Mathf.Max(0.5f, 1f - uiMargin);
-
-            float h = combinedBounds.size.y + cameraPadding * 1.5f;
-            float w = combinedBounds.size.x + cameraPadding * 1.5f;
-
-            float sizeByHeight = (h / 2f) / playableHeightRatio;
-            float sizeByWidth  = (w / 2f) / cam.aspect;
-
-            // Geniş ızgaralarda (ör. 7 sütunlu 25 şişe) kameranın kenarları kesmemesi için güvenli zoom
-            bool isLargeLayout = totalBottles > 8 || (level != null && level.flatLayoutMode == LevelData.FlatLayoutMode.StaggeredV);
-            float zoom = isLargeLayout ? 1.05f : (cameraZoomFactor > 0 ? cameraZoomFactor : 0.82f) * 1.05f;
-
-            targetOrthoSize = Mathf.Max(sizeByHeight, sizeByWidth) * zoom;
-
-            cam.DOOrthoSize(targetOrthoSize, 0.5f).SetEase(Ease.OutCubic);
-
-            Vector3 targetCamPos = combinedBounds.center;
-            targetCamPos.z = -10f;
-            targetCamPos.y += cameraVerticalOffset;
-
-            cam.transform.DOMove(targetCamPos, 0.5f).SetEase(Ease.OutCubic);
-        }
-
-        // 3. Arkaplan "Zemin" objesini arkaplan resmi (arkaplan.jpeg) olarak hizala ve ESNEMEYİ (Stretching) ÖNLE
-        GameObject zeminObj = GameObject.Find("Zemin");
-        if (zeminObj != null)
-        {
-            float bgZ = 15f;
-            Renderer zeminRen = zeminObj.GetComponent<Renderer>();
-            float texAspect = 390f / 844f; // arkaplan.jpeg orijinal aspect ratio (Portrait 390x844)
-
-            if (zeminRen != null && zeminRen.material != null)
+            for (int x = 0; x < level.gridX; x++)
             {
-                if (zeminRen.material.mainTexture == null)
+                for (int y = 0; y < level.gridY; y++)
                 {
-                    Texture2D bgTex = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Images/arkaplan.jpeg");
-                    if (bgTex != null)
+                    Vector2Int pos = new Vector2Int(x, y);
+                    Vector3 worldPos = new Vector3(
+                        x * (gridSize + spacing) - offsetX,
+                        y * (gridSize + spacing) - offsetY,
+                        0
+                    );
+                    GameObject gridObj = Instantiate(gridPrefab, transform.position + worldPos, Quaternion.identity, transform);
+                    activeSpawnedObjects.Add(gridObj);
+
+                    LevelData.FrozenCellData frozenData = level.GetFrozenCell(pos, 0);
+                    if (frozenData != null)
                     {
-                        zeminRen.material.mainTexture = bgTex;
-                        texAspect = (float)bgTex.width / bgTex.height;
+                        FrozenGridCell fgc = gridObj.AddComponent<FrozenGridCell>();
+                        fgc.Initialize(pos, 0, frozenData.requiredMatches);
                     }
                 }
-                else if (zeminRen.material.mainTexture is Texture2D t2d && t2d.height > 0)
+            }
+        }
+
+        groups.Clear(); // Yeni level için grupları temizle
+        foreach (var piece in level.pieces)
+        {
+            Vector3 piecePos = new Vector3(
+                piece.gridPosition.x * (gridSize + spacing) - offsetX,
+                piece.gridPosition.y * (gridSize + spacing) - offsetY,
+                -objectOffset
+            );
+
+            GameObject newObj = Instantiate(objectPrefab, transform.position + piecePos,
+                Quaternion.Euler(0, 0, piece.rotationZ), transform);
+            activeSpawnedObjects.Add(newObj);
+
+            bool isPieceFrozen = level.IsCellFrozen(piece.gridPosition, piece.faceIndex);
+
+            DragObject dobj = newObj.GetComponent<DragObject>();
+            if (dobj != null)
+            {
+                dobj.linkId = piece.linkId;
+                dobj.canRotate = piece.canRotate;
+                dobj.SetFrozen(isPieceFrozen);
+
+                if (isPieceFrozen)
                 {
-                    texAspect = (float)t2d.width / t2d.height;
+                    foreach (var fgcObj in activeSpawnedObjects)
+                    {
+                        FrozenGridCell fgc = fgcObj.GetComponent<FrozenGridCell>();
+                        if (fgc != null && fgc.gridPosition == piece.gridPosition)
+                        {
+                            fgc.frozenPiece = dobj;
+                            break;
+                        }
+                    }
                 }
-                zeminRen.material.color = Color.white;
-                zeminRen.material.mainTextureScale = new Vector2(1f, -1f);
-                zeminRen.material.mainTextureOffset = new Vector2(0f, 1f);
             }
 
-            // Kameranın görüş alanını kaplayacak boyutu orijinal oranları koruyarak (Aspect Cover) hesapla
-            float camAspect = cam != null ? cam.aspect : 0.5625f;
-            float camOrthoHeight = targetOrthoSize * 2f;
-            float camOrthoWidth = camOrthoHeight * camAspect;
+            // Group ekleme
+            if (piece.linkId > 0)
+            {
+                if (!groups.ContainsKey(piece.linkId))
+                {
+                    GameObject grpObj = new GameObject("LinkedGroup_" + piece.linkId);
+                    grpObj.transform.parent = transform;
+                    grpObj.transform.position = transform.position;
+                    LinkedObjectGroup log = grpObj.AddComponent<LinkedObjectGroup>();
+                    groups[piece.linkId] = log;
+                    activeSpawnedObjects.Add(grpObj);
+                }
+                newObj.transform.SetParent(groups[piece.linkId].transform, true);
+            }
 
-            // Orijinal en/boy oranını bozmadan ekranı tamamen dolduracak boyut (Aspect Fill / Cover)
-            float bgHeight = Mathf.Max(camOrthoHeight * 1.5f, (camOrthoWidth / texAspect) * 1.5f);
-            float bgWidth = bgHeight * texAspect;
+            LiquidTransfer lt = newObj.GetComponentInChildren<LiquidTransfer>();
+            if (lt != null)
+            {
+                lt.liquidColor     = piece.liquidColor;
+                lt.currentSlices   = piece.currentSlices;
+                lt.initialGridPos = piece.gridPosition;
+                lt.initialFaceIndex = piece.faceIndex;
+            }
+        }
 
-            // Dynamic mesh bounds scaling (Cube = 1x1, Plane = 10x10)
-            MeshFilter mf = zeminObj.GetComponent<MeshFilter>();
-            float meshWidth = (mf != null && mf.sharedMesh != null && mf.sharedMesh.bounds.size.x > 0f) ? mf.sharedMesh.bounds.size.x : 1f;
-            float meshHeight = (mf != null && mf.sharedMesh != null && mf.sharedMesh.bounds.size.z > 0f) ? mf.sharedMesh.bounds.size.z : 1f;
+        foreach (var kvp in groups)
+            kvp.Value.InitGroup();
 
-            zeminObj.transform.position = new Vector3(combinedBounds.center.x, combinedBounds.center.y, bgZ);
-            zeminObj.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
-            zeminObj.transform.localScale = new Vector3(bgWidth / meshWidth, 1f, bgHeight / meshHeight);
+        StartCoroutine(AdjustViewportCoroutine(level, minX, maxX, minY, maxY, gridSize));
+    }
+
+    // ──────────────────────────────────────────────────────────────
+    // 2D KAMERA + ÇERÇEVE (coroutine — aspect ratio için 1 kare bekler)
+    // ──────────────────────────────────────────────────────────────
+
+    private IEnumerator AdjustViewportCoroutine(LevelData level, float minX, float maxX, float minY, float maxY, float gridSize)
+    {
+        yield return new WaitForEndOfFrame();
+
+        HashSet<Vector2Int> occupied = new HashSet<Vector2Int>();
+        if (level.customGridPositions != null && level.customGridPositions.Count > 0)
+        {
+            foreach (var p in level.customGridPositions) occupied.Add(p);
+        }
+        else
+        {
+            for (int x = 0; x < level.gridX; x++)
+                for (int y = 0; y < level.gridY; y++)
+                    occupied.Add(new Vector2Int(x, y));
+        }
+
+        foreach (var seg in activeFrameSegments) if (seg != null) Destroy(seg);
+        activeFrameSegments.Clear();
+
+        float step = gridSize + spacing;
+        float offsetX = (minX + maxX) * step / 2f;
+        float offsetY = (minY + maxY) * step / 2f;
+
+        bool boundsInit = false;
+        Bounds combinedBounds = new Bounds(Vector3.zero, Vector3.zero);
+
+        foreach (var pos in occupied)
+        {
+            Vector3 tileWorldPos = transform.position + new Vector3(
+                pos.x * step - offsetX,
+                pos.y * step - offsetY,
+                0
+            );
+
+            if (!boundsInit) { combinedBounds = new Bounds(tileWorldPos, Vector3.one * gridSize); boundsInit = true; }
+            else combinedBounds.Encapsulate(new Bounds(tileWorldPos, Vector3.one * gridSize));
+        }
+
+        SpawnFlat2DFrameSegments(occupied, step, gridSize, offsetX, offsetY);
+
+        // Arka zemin plakaları
+        float localPlateZ = 0.015f;
+        float plateSize = step;
+        foreach (var pos in occupied)
+        {
+            GameObject bgTile = null;
+            Vector3 localPos = new Vector3(pos.x * step - offsetX, pos.y * step - offsetY, localPlateZ);
+
+            if (backgroundPlatePrefab != null)
+            {
+                bgTile = Instantiate(backgroundPlatePrefab, transform);
+            }
+            else
+            {
+                bgTile = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                Destroy(bgTile.GetComponent<BoxCollider>());
+                bgTile.transform.SetParent(transform);
+                Renderer r = bgTile.GetComponent<Renderer>();
+                if (r != null) r.material.color = Color.white;
+            }
+
+            bgTile.name = $"GridBG_{pos.x}_{pos.y}";
+            bgTile.transform.localRotation = Quaternion.identity;
+            bgTile.transform.localPosition = localPos;
+            
+            // Eğer prefab varsa onun scale'ini koru, yoksa default ata
+            if (backgroundPlatePrefab == null)
+                bgTile.transform.localScale = new Vector3(plateSize, plateSize, 0.01f);
+            
+            activeSpawnedObjects.Add(bgTile);
+        }
+
+        // Kamera ayarla
+        Camera cam = mainCamera != null ? mainCamera : Camera.main;
+        if (cam != null)
+        {
+            float frameFullEdge = framePadding + frameThickness;
+            combinedBounds.Expand(frameFullEdge * 2f);
+
+            float h = combinedBounds.size.y + cameraPadding * 2f;
+            float w = combinedBounds.size.x + cameraPadding * 2f;
+
+            // uiTopMarginNormalized: ekranın üst kısmında UI'ın kapladığı oran (0–1).
+            // Oyun alanı yalnızca kalan (1 - margin) yüksekliğe sığdırılır ve
+            // kamera merkezi aşağı kaydırılarak üst UI'ın altında ortalanır.
+            float uiMargin = Mathf.Clamp01(uiTopMarginNormalized);
+
+            if (cam.orthographic)
+            {
+                float playableHeightRatio = 1f - uiMargin;
+                float sizeByHeight = (h / 2f) / playableHeightRatio;
+                float sizeByWidth = (w / 2f) / cam.aspect;
+                float targetSize = Mathf.Max(sizeByHeight, sizeByWidth) * cameraZoomFactor;
+
+                cam.DOOrthoSize(targetSize, 0.6f).SetEase(Ease.OutCubic);
+
+                Vector3 camTarget = combinedBounds.center;
+                // Kamera merkezini UI yüksekliğinin yarısı kadar aşağı kaydır
+                camTarget.y -= targetSize * uiMargin;
+                camTarget.y += cameraVerticalOffset;
+                camTarget.z = cam.transform.position.z;
+                cam.transform.DOMove(camTarget, 0.6f).SetEase(Ease.OutCubic);
+            }
+            else
+            {
+                float playableHeightRatio = 1f - uiMargin;
+                float halfFovRad = cam.fieldOfView * 0.5f * Mathf.Deg2Rad;
+                float distByHeight = (h / 2f) / (Mathf.Tan(halfFovRad) * playableHeightRatio);
+                float distByWidth  = (w / 2f) / (Mathf.Tan(halfFovRad) * cam.aspect);
+                float targetDistance = Mathf.Max(distByHeight, distByWidth) * cameraZoomFactor;
+
+                Vector3 baseTarget = combinedBounds.center;
+                // Perspektif kamerada da merkezi UI yüksekliğine orantılı kaydır
+                baseTarget.y -= (targetDistance * Mathf.Tan(halfFovRad)) * uiMargin;
+                baseTarget.y += cameraVerticalOffset;
+                cam.transform.DOMove(baseTarget - cam.transform.forward * targetDistance, 0.6f).SetEase(Ease.OutCubic);
+            }
         }
     }
 

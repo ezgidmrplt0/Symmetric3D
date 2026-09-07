@@ -7,13 +7,9 @@ public class LevelDataEditor : Editor
 {
     public override void OnInspectorGUI()
     {
-        LevelData level = (LevelData)target;
+        serializedObject.Update();
 
-        if (GUILayout.Button("🧪 Magic Sort Tasarımcısında Aç / Düzenle", GUILayout.Height(32)))
-        {
-            LevelDesignerWindow.ShowWindow();
-        }
-        GUILayout.Space(4);
+        LevelData level = (LevelData)target;
 
         DrawDefaultInspector();
 

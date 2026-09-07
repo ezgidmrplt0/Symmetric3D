@@ -138,6 +138,13 @@ public partial class GridSpawner
                 }
 
                 activeSpawnedObjects.Add(gridObj);
+
+                LevelData.FrozenCellData frozenData = level.GetFrozenCell(new Vector2Int(x, y), faceIndex);
+                if (frozenData != null)
+                {
+                    FrozenGridCell fgc = gridObj.AddComponent<FrozenGridCell>();
+                    fgc.Initialize(new Vector2Int(x, y), faceIndex, frozenData.requiredMatches);
+                }
             }
         }
     }
@@ -184,7 +191,7 @@ public partial class GridSpawner
 
             GameObject newObj = Instantiate(objectPrefab, marker.transform);
             newObj.transform.localPosition = localPos;
-            newObj.transform.localRotation = Quaternion.identity;
+            newObj.transform.localRotation = Quaternion.Euler(0, 0, piece.rotationZ);
 
             // Parça scale: marker'ın dünya boyutuna göre her eksen ayrı hesaplanır → yüzeyde kare görünür
             {
@@ -203,16 +210,29 @@ public partial class GridSpawner
 
             activeSpawnedObjects.Add(newObj);
 
+            bool isPieceFrozen = level.IsCellFrozen(piece.gridPosition, piece.faceIndex);
+
             DragObject dobj = newObj.GetComponent<DragObject>();
             if (dobj != null)
             {
                 dobj.linkId = piece.linkId;
                 dobj.canRotate = piece.canRotate;
-                dobj.SetFrozen(false);
+                dobj.SetFrozen(isPieceFrozen);
+
+                if (isPieceFrozen)
+                {
+                    foreach (var fgcObj in activeSpawnedObjects)
+                    {
+                        FrozenGridCell fgc = fgcObj.GetComponent<FrozenGridCell>();
+                        if (fgc != null && fgc.gridPosition == piece.gridPosition && fgc.faceIndex == piece.faceIndex)
+                        {
+                            fgc.frozenPiece = dobj;
+                            break;
+                        }
+                    }
+                }
             }
 
-            // Group ekleme — Magic Sort modunda linked grupları devre dışı, tüm parçalar bağımsız
-            /*
             if (piece.linkId > 0)
             {
                 if (!groups.ContainsKey(piece.linkId))
@@ -226,7 +246,6 @@ public partial class GridSpawner
                 }
                 newObj.transform.SetParent(groups[piece.linkId].transform, true);
             }
-            */
 
             LiquidTransfer lt = newObj.GetComponentInChildren<LiquidTransfer>();
             if (lt != null)
@@ -235,8 +254,6 @@ public partial class GridSpawner
                 lt.currentSlices   = piece.currentSlices;
                 lt.initialGridPos = piece.gridPosition;
                 lt.initialFaceIndex = piece.faceIndex;
-                if (lt.cork == null) lt.cork = newObj.GetComponentInChildren<BottleCork>(true);
-                if (lt.label == null) lt.label = newObj.GetComponentInChildren<BottleLabel>(true);
             }
         }
 
