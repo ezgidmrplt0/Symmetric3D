@@ -25,6 +25,9 @@ public class LiquidTransfer : MonoBehaviour
     [HideInInspector]
     public bool transferring = false;
 
+    [HideInInspector]
+    public float currentTiltX = 0f;
+
     // ── Magic Sort Seçim Durumu ──────────────────────────────────
     public static LiquidTransfer SelectedBottle { get; private set; }
     private Vector3 originalLocalPos;
@@ -165,10 +168,10 @@ public class LiquidTransfer : MonoBehaviour
 
     public void ApplyPropertyBlock()
     {
-        ApplyPropertyBlockWithSlices(this.slices, this.fillAmount);
+        ApplyPropertyBlockWithSlices(this.slices, this.fillAmount, this.currentTiltX);
     }
 
-    public void ApplyPropertyBlockWithSlices(List<Color> sliceList, float customFill)
+    public void ApplyPropertyBlockWithSlices(List<Color> sliceList, float customFill, float tiltX = 0f)
     {
         if (_renderers == null) _renderers = GetComponentsInChildren<Renderer>();
         if (_propBlock == null) _propBlock = new MaterialPropertyBlock();
@@ -188,6 +191,8 @@ public class LiquidTransfer : MonoBehaviour
             _propBlock.SetFloat("_FillAmount", customFill);
             _propBlock.SetFloat("_Mode", 0f); // 0 = Y ekseni
             _propBlock.SetFloat("_SliceCount", count);
+            _propBlock.SetFloat("_TiltX", tiltX);
+            _propBlock.SetFloat("_TiltZ", 0f);
 
             // 4 bağımsız katmanın rengi (aşağıdan yukarıya)
             _propBlock.SetColor("_Color0", c0);
@@ -242,6 +247,9 @@ public class LiquidTransfer : MonoBehaviour
     {
         isSelected = false;
         if (SelectedBottle == this) SelectedBottle = null;
+
+        this.currentTiltX = 0f;
+        ApplyPropertyBlock();
 
         Transform rootT = transform.parent != null ? transform.parent : transform;
         rootT.DOKill();
@@ -332,6 +340,10 @@ public class LiquidTransfer : MonoBehaviour
         float initialTilt = pourFromLeft ? -68f : 68f;
         float deepTilt = pourFromLeft ? -78f : 78f;
 
+        // Sıvının dökülen şişe içinde yerçekimine/ağza doğru çok hafif ve gerçekçi eğilmesi
+        float initialLiquidTilt = pourFromLeft ? -0.14f : 0.14f;
+        float deepLiquidTilt = pourFromLeft ? -0.17f : 0.17f;
+
         Quaternion initialPourRot = Quaternion.Euler(0, 0, initialTilt);
         Vector3 initialPourPos = mouthTargetWorld - (initialPourRot * (localSpout * scale));
 
@@ -363,6 +375,14 @@ public class LiquidTransfer : MonoBehaviour
         // 1. Şişe hedef şişenin ağzına uçar ve ilk dökülme açısına eğilir (0.30s)
         seq.Append(mover.DOMove(initialPourPos, 0.30f).SetEase(Ease.OutQuad));
         seq.Join(mover.DORotateQuaternion(initialPourRot, 0.30f).SetEase(Ease.OutQuad));
+        seq.Join(DOTween.To(() => this.currentTiltX, x =>
+        {
+            this.currentTiltX = x;
+            if (this != null)
+            {
+                this.ApplyPropertyBlockWithSlices(sourceActiveSlices, this.fillAmount, this.currentTiltX);
+            }
+        }, initialLiquidTilt, 0.30f).SetEase(Ease.OutQuad));
 
         // 2. Sıvı transferi ve akıntı animasyonu
         seq.AppendCallback(() =>
@@ -371,8 +391,8 @@ public class LiquidTransfer : MonoBehaviour
             VibrationManager.TryVibrate();
             GameManager.Instance?.RegisterMatch();
 
-            // Hedef şişeyi yeni renk katmanıyla hazırlar (fillAmount henüz altta)
-            target.ApplyPropertyBlockWithSlices(targetPreviewSlices, targetStartFill);
+            // Hedef şişeyi yeni renk katmanıyla hazırlar (dik durduğu için tilt = 0f)
+            target.ApplyPropertyBlockWithSlices(targetPreviewSlices, targetStartFill, 0f);
 
             // Akıntı efekti oluştur (şişe ağzından hedef sıvı yüzeyine)
             Vector3 initialTargetInside = new Vector3(0f, Mathf.Max(0.12f, targetStartFill), 0f);
@@ -412,19 +432,29 @@ public class LiquidTransfer : MonoBehaviour
                 }
             }, deepTilt, pourDuration).SetTarget(mover.gameObject).SetEase(Ease.InOutSine);
 
+            // Dökülen şişedeki sıvının eğiminin akış süresince hafifçe artması
+            DOTween.To(() => this.currentTiltX, x =>
+            {
+                this.currentTiltX = x;
+                if (this != null)
+                {
+                    this.ApplyPropertyBlockWithSlices(sourceActiveSlices, this.fillAmount, this.currentTiltX);
+                }
+            }, deepLiquidTilt, pourDuration).SetTarget(this.gameObject).SetEase(Ease.InOutSine);
+
             // Kaynak şişenin sıvısının boşalması
             DOTween.To(() => this.fillAmount, x =>
             {
                 this.fillAmount = x;
                 if (this != null)
                 {
-                    this.ApplyPropertyBlockWithSlices(sourceActiveSlices, this.fillAmount);
+                    this.ApplyPropertyBlockWithSlices(sourceActiveSlices, this.fillAmount, this.currentTiltX);
                 }
             }, sourceTargetFill, pourDuration)
             .SetTarget(this.gameObject)
             .SetEase(Ease.InOutSine);
 
-            // Hedef şişenin sıvısının yükselmesi (sıvının hedefe ulaşması için 0.08s gecikmeyle)
+            // Hedef şişenin sıvısının yükselmesi (dik durduğu için tilt 0f)
             float fillDelay = 0.08f;
             float fillRiseDuration = Mathf.Max(0.15f, pourDuration - fillDelay);
             DOTween.To(() => target.fillAmount, x =>
@@ -432,7 +462,7 @@ public class LiquidTransfer : MonoBehaviour
                 target.fillAmount = x;
                 if (target != null)
                 {
-                    target.ApplyPropertyBlockWithSlices(targetPreviewSlices, target.fillAmount);
+                    target.ApplyPropertyBlockWithSlices(targetPreviewSlices, target.fillAmount, 0f);
                 }
             }, targetTargetFill, fillRiseDuration)
             .SetTarget(target.gameObject)
@@ -445,11 +475,21 @@ public class LiquidTransfer : MonoBehaviour
         // 3. Şişe eski yerine döner ve doğrulur (0.28s)
         seq.Append(mover.DOMove(startPos, 0.28f).SetEase(Ease.InOutQuad));
         seq.Join(mover.DORotateQuaternion(startRot, 0.28f).SetEase(Ease.InOutQuad));
+        seq.Join(DOTween.To(() => this.currentTiltX, x =>
+        {
+            this.currentTiltX = x;
+            if (this != null)
+            {
+                this.ApplyPropertyBlockWithSlices(this.slices, this.fillAmount, this.currentTiltX);
+            }
+        }, 0f, 0.28f).SetEase(Ease.InOutQuad));
 
         seq.OnComplete(() =>
         {
             this.transferring = false;
             target.transferring = false;
+            this.currentTiltX = 0f;
+            target.currentTiltX = 0f;
 
             mover.localPosition = originalLocalPos;
             mover.localRotation = originalLocalRot;

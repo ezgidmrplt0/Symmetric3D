@@ -496,5 +496,6 @@ MonoBehaviour:
   transferDuration: 0.5
   maxAdjacencyDistance: 1
   transferring: 0
+  currentTiltX: 0
   initialGridPos: {x: 0, y: 0}
   initialFaceIndex: 0

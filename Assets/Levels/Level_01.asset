@@ -16,7 +16,7 @@ MonoBehaviour:
   levelType: 1
   timeLimit: 120
   boardMode: 0
-  flatLayoutMode: 2
+  flatLayoutMode: 0
   gridX: 3
   gridY: 3
   customSpacingX: 1.85

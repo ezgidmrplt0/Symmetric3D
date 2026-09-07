@@ -82,8 +82,9 @@ Shader "Custom/LiquidFullControl"
         {
             float3 objPos = mul(unity_WorldToObject, float4(IN.worldPos, 1)).xyz;
 
-            // Sıvı yüzeyi her zaman tamamen DÜZ ve YATAYDIR
-            float axis = lerp(objPos.y, objPos.x, _Mode);
+            // Sıvı yüzeyi eğim hesabı (Aktarım sırasında çok hafif ve gerçekçi eğim)
+            float tilt = objPos.x * _TiltX + objPos.z * _TiltZ;
+            float axis = lerp(objPos.y, objPos.x, _Mode) + tilt;
             float freezeFactor = saturate(_IsFrozen);
 
             if (axis < _FillAmount)
