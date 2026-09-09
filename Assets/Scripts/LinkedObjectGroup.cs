@@ -262,9 +262,6 @@ public class LinkedObjectGroup : MonoBehaviour
 
     void TryPick(Vector3 screenPos)
     {
-        if (TutorialManager.Instance != null)
-            TutorialManager.Instance.HideTutorial();
-
         Ray ray = cam.ScreenPointToRay(screenPos);
         if (Physics.Raycast(ray, out RaycastHit hit))
         {
@@ -280,6 +277,20 @@ public class LinkedObjectGroup : MonoBehaviour
 
             if (hitTarget != null)
             {
+                // TUTORIAL KONTROLÜ: Sadece tutorial başlangıç parçasını içeren grubun seçilmesine izin ver
+                if (TutorialManager.Instance != null && TutorialManager.Instance.IsRestrictingInput)
+                {
+                    if (!TutorialManager.Instance.IsAllowedGroup(this))
+                    {
+                        EffectsManager.Instance?.ShakeTransform(transform);
+                        VibrationManager.TryVibrate();
+                        return;
+                    }
+                }
+
+                if (TutorialManager.Instance != null)
+                    TutorialManager.Instance.OnDragStarted();
+
                 dragging = true;
                 hasPlayedPickupSound = false;
                 startPosition = transform.position;
@@ -321,6 +332,15 @@ public class LinkedObjectGroup : MonoBehaviour
 
         Vector3 worldPoint = ray.GetPoint(enter);
         Vector3 desiredPos = worldPoint + worldGrabOffset;
+
+        // TUTORIAL KONTROLÜ: Sadece rota üzerinde harekete izin ver
+        if (TutorialManager.Instance != null && TutorialManager.Instance.IsRestrictingInput)
+        {
+            if (TutorialManager.Instance.IsDragTutorialStep())
+            {
+                desiredPos = TutorialManager.Instance.ConstrainGroupDragPosition(desiredPos, startPosition);
+            }
+        }
 
         // Use cached objects instead of FindObjectsOfType every frame
         if (cachedAllObjects == null) cachedAllObjects = FindObjectsOfType<DragObject>(true);
@@ -490,12 +510,21 @@ public class LinkedObjectGroup : MonoBehaviour
         dragging = false;
         cachedAllObjects = null; // Clear cache
 
+        bool isTutRestricted = TutorialManager.Instance != null && TutorialManager.Instance.IsRestrictingInput;
+
         float screenDist = Vector2.Distance(Input.mousePosition, startScreenPos);
         float duration = Time.time - startTime;
 
         if (screenDist < 50f && duration < 0.5f)
         {
             transform.position = startPosition;
+
+            // Tutorial esnasında sadece dokunma/tap adımıysa döndürmeye izin ver
+            if (isTutRestricted && !TutorialManager.Instance.IsTapTutorialStep())
+            {
+                TutorialManager.Instance.ResumeTutorialHand();
+                return;
+            }
 
             GridSpawner spawner = FindObjectOfType<GridSpawner>();
             bool anyCanRotate = childDrags.Exists(c => c != null && c.canRotate);
@@ -517,6 +546,14 @@ public class LinkedObjectGroup : MonoBehaviour
                         });
                 }
             }
+            return;
+        }
+
+        // Tap adımıysa grid'e bırakılamaz
+        if (isTutRestricted && TutorialManager.Instance.IsTapTutorialStep())
+        {
+            transform.position = startPosition;
+            TutorialManager.Instance.ResumeTutorialHand();
             return;
         }
 
@@ -576,9 +613,26 @@ public class LinkedObjectGroup : MonoBehaviour
 
         if (allFit)
         {
+            // TUTORIAL HEDEF KONTROLÜ: Sadece belirtilen hedef pozisyona bırakılabilir
+            if (isTutRestricted && TutorialManager.Instance.IsDragTutorialStep())
+            {
+                if (!TutorialManager.Instance.IsValidGroupDropPosition(bestParentPosition, startPosition))
+                {
+                    transform.position = startPosition;
+                    TutorialManager.Instance.ResumeTutorialHand();
+                    return;
+                }
+            }
+
             AudioManager.PlayPlace();
             GameManager.Instance?.RegisterMove();
             transform.position = bestParentPosition;
+
+            if (isTutRestricted)
+            {
+                TutorialManager.Instance.OnTutorialActionCompleted();
+            }
+
             foreach (var c in childDrags)
             {
                 if (c == null) continue;
@@ -589,6 +643,7 @@ public class LinkedObjectGroup : MonoBehaviour
         else
         {
             transform.position = startPosition;
+            if (isTutRestricted) TutorialManager.Instance.ResumeTutorialHand();
         }
     }
 }

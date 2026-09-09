@@ -173,6 +173,17 @@ public partial class DragObject : MonoBehaviour
                 LiquidTransfer transfer = GetComponentInChildren<LiquidTransfer>();
                 if (transfer != null && transfer.transferring) return;
 
+                // TUTORIAL KONTROLÜ: Sadece izin verilen parçanın seçilmesine izin ver
+                if (TutorialManager.Instance != null && TutorialManager.Instance.IsRestrictingInput)
+                {
+                    if (!TutorialManager.Instance.IsAllowedPiece(this))
+                    {
+                        EffectsManager.Instance?.ShakeTransform(transform);
+                        VibrationManager.TryVibrate();
+                        return;
+                    }
+                }
+
                 activeTouchIndex = touchIndex;
                 DOTween.Kill(transform);
 
@@ -224,7 +235,7 @@ public partial class DragObject : MonoBehaviour
                 if (EffectsManager.Instance != null)
                     dragGlowInstance = EffectsManager.Instance.CreateDragGlow(transform);
 
-                if (TutorialManager.Instance != null) TutorialManager.Instance.HideTutorial();
+                if (TutorialManager.Instance != null) TutorialManager.Instance.OnDragStarted();
             }
         }
     }
@@ -251,6 +262,20 @@ public partial class DragObject : MonoBehaviour
             desiredPos.z = transform.position.z;
         }
 
+        // TUTORIAL KONTROLÜ: Sadece rota üzerinde harekete izin ver
+        if (TutorialManager.Instance != null && TutorialManager.Instance.IsRestrictingInput)
+        {
+            if (TutorialManager.Instance.IsTapTutorialStep())
+            {
+                // Dokunma (tap) adımıysa parçanın sürüklenmesine izin verme
+                return;
+            }
+            else if (TutorialManager.Instance.IsDragTutorialStep())
+            {
+                desiredPos = TutorialManager.Instance.ConstrainDragPosition(desiredPos, startPosition);
+            }
+        }
+
         // Use cached array instead of FindObjectsOfType
         DragObject[] allObjects = cachedDragObjects ?? FindObjectsOfType<DragObject>();
 
@@ -274,6 +299,7 @@ public partial class DragObject : MonoBehaviour
         dragGlowInstance = null;
 
         GridSpawner spawner = FindObjectOfType<GridSpawner>();
+        bool isTutRestricted = TutorialManager.Instance != null && TutorialManager.Instance.IsRestrictingInput;
 
         // TAP KONTROLÜ — Rotation modunda kısa dokunuş = 90° döndür
         float screenDist = Vector2.Distance(finalScreenPos, startScreenPos);
@@ -281,6 +307,14 @@ public partial class DragObject : MonoBehaviour
         if (screenDist < 50f && tapDuration < 0.5f && !IsShape3DMode() && canRotate && linkId == 0 &&
             spawner != null && spawner.CurrentLevelType.HasFlag(LevelData.LevelType.Rotation))
         {
+            // Eğer tutorial aktifse ve bu adım dokunma/tap adımı DEĞİLSE, döndürme yapma
+            if (isTutRestricted && !TutorialManager.Instance.IsTapTutorialStep())
+            {
+                ReturnToStart();
+                TutorialManager.Instance.ResumeTutorialHand();
+                return;
+            }
+
             if (startParent != null) transform.SetParent(startParent, true);
             transform.localPosition = startLocalPos;
             targetRotZ = cachedLocalRotZ + 90f;
@@ -295,6 +329,14 @@ public partial class DragObject : MonoBehaviour
                     LiquidTransfer lt = GetComponentInChildren<LiquidTransfer>();
                     if (lt != null) lt.CheckSymmetry();
                 });
+            return;
+        }
+
+        // Eğer tutorial aktifse ve bu adım dokunma/tap adımıysa, grid'e bırakılamaz
+        if (isTutRestricted && TutorialManager.Instance.IsTapTutorialStep())
+        {
+            ReturnToStart();
+            TutorialManager.Instance.ResumeTutorialHand();
             return;
         }
 
@@ -325,6 +367,7 @@ public partial class DragObject : MonoBehaviour
         if (targetGrid == null)
         {
             ReturnToStart();
+            if (isTutRestricted) TutorialManager.Instance.ResumeTutorialHand();
             return;
         }
 
@@ -333,6 +376,7 @@ public partial class DragObject : MonoBehaviour
         if (targetGrid.name.Contains("Blocked"))
         {
             ReturnToStart();
+            if (isTutRestricted) TutorialManager.Instance.ResumeTutorialHand();
             return;
         }
 
@@ -340,6 +384,7 @@ public partial class DragObject : MonoBehaviour
         if (frozenCell != null && !frozenCell.isDefrosted)
         {
             ReturnToStart();
+            if (isTutRestricted) TutorialManager.Instance.ResumeTutorialHand();
             return;
         }
 
@@ -353,6 +398,18 @@ public partial class DragObject : MonoBehaviour
             if (d < fullThreshold)
             {
                 ReturnToStart();
+                if (isTutRestricted) TutorialManager.Instance.ResumeTutorialHand();
+                return;
+            }
+        }
+
+        // TUTORIAL HEDEF KONTROLÜ: Sadece belirtilen hedef grid hücresine bırakılabilir
+        if (isTutRestricted && TutorialManager.Instance.IsDragTutorialStep())
+        {
+            if (!TutorialManager.Instance.IsValidDropTarget(targetGrid))
+            {
+                ReturnToStart();
+                TutorialManager.Instance.ResumeTutorialHand();
                 return;
             }
         }
@@ -363,6 +420,11 @@ public partial class DragObject : MonoBehaviour
         cachedGridCellPositions = null;
 
         GameManager.Instance?.RegisterMove();
+
+        if (isTutRestricted)
+        {
+            TutorialManager.Instance.OnTutorialActionCompleted();
+        }
 
         if (IsShape3DMode())
         {

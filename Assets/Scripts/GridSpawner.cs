@@ -190,6 +190,8 @@ public partial class GridSpawner : MonoBehaviour
             SpawnShapeLevel(level, gridSize);
         else
             SpawnFlat2DLevel(level, gridSize);
+
+        TutorialManager.Instance?.OnLevelSpawned(currentLevelIndex);
     }
 
     // ──────────────────────────────────────────────────────────────

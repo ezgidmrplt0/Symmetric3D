@@ -64,6 +64,10 @@ public class CubeRotator : MonoBehaviour
 
     bool TryStartRotation(Vector2 screenPos)
     {
+        // Tutorial aktifken küpün döndürülmesini engelle
+        if (TutorialManager.Instance != null && TutorialManager.Instance.IsRestrictingInput)
+            return false;
+
         Ray ray = Camera.main.ScreenPointToRay(screenPos);
         bool hitDragObject = false;
 

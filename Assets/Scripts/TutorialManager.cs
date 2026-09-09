@@ -41,6 +41,7 @@ public class TutorialManager : MonoBehaviour
     private Vector2 lastTrackedOffset;
     private int lastTrackedLevelIndex = -1;
     private int _rotationTutorialStep = 0;
+    private bool isTutorialCompleted = false;
 
     private void Awake()
     {
@@ -55,6 +56,21 @@ public class TutorialManager : MonoBehaviour
 
     /// <summary>Bu levelde tutorial eli gösteriliyor mu (analitik için).</summary>
     public bool TutorialActiveForCurrentLevel { get; private set; }
+
+    /// <summary>
+    /// Tutorial kısıtlaması aktif mi: Sadece bu levelde tutorial varsa ve tutorial adımları henüz bitmediyse true döner.
+    /// </summary>
+    public bool IsRestrictingInput => TutorialActiveForCurrentLevel && !isTutorialCompleted && activeTutorial.path != null && activeTutorial.path.Length > 0;
+
+    public void OnLevelSpawned(int levelIndex)
+    {
+        lastTrackedLevelIndex = levelIndex;
+        _rotationTutorialStep = 0;
+        isTutorialCompleted = false;
+        HideTutorial();
+        CancelInvoke("StartTutorial");
+        Invoke("StartTutorial", 0.5f);
+    }
 
     private void Update()
     {
@@ -82,6 +98,7 @@ public class TutorialManager : MonoBehaviour
         {
             lastTrackedLevelIndex = spawner.currentLevelIndex;
             _rotationTutorialStep = 0;
+            isTutorialCompleted = false;
 
             if (hasTut) lastTrackedOffset = currentTut.handOffset;
 
@@ -288,5 +305,194 @@ public class TutorialManager : MonoBehaviour
                 StartTutorial();
             }
         }
+    }
+
+    // ──────────────────────────────────────────────────────────────
+    // TUTORIAL KISITLAMA VE DENETİM METODLARI
+    // ──────────────────────────────────────────────────────────────
+
+    /// <summary>Bu tutorial adımı sadece dokunma (rotate/tap) adımı mı?</summary>
+    public bool IsTapTutorialStep()
+    {
+        return IsRestrictingInput && activeTutorial.path != null && activeTutorial.path.Length == 1;
+    }
+
+    /// <summary>Bu tutorial adımı sürükleme (drag) adımı mı?</summary>
+    public bool IsDragTutorialStep()
+    {
+        return IsRestrictingInput && activeTutorial.path != null && activeTutorial.path.Length > 1;
+    }
+
+    /// <summary>
+    /// Bu parçanın hareket ettirilmesine / seçilmesine izin var mı?
+    /// Sadece tutorialın başlangıç hücresindeki parçaya izin verilir.
+    /// </summary>
+    public bool IsAllowedPiece(DragObject piece)
+    {
+        if (!IsRestrictingInput || piece == null) return true;
+        if (activeTutorial.path == null || activeTutorial.path.Length == 0) return true;
+
+        Vector2Int requiredStart = activeTutorial.path[0];
+        GridSpawner spawner = FindObjectOfType<GridSpawner>();
+        if (spawner == null) return true;
+
+        // 1. Spawner üzerinden başlangıç parçası eşleşmesi
+        DragObject expected = spawner.GetPieceAt(requiredStart);
+        if (expected != null && expected == piece) return true;
+
+        // 2. LiquidTransfer initialGridPos kontrolü
+        LiquidTransfer lt = piece.GetComponentInChildren<LiquidTransfer>();
+        if (lt != null && lt.initialGridPos == requiredStart) return true;
+
+        // 3. Dünya koordinatı mesafe kontrolü (hücre merkezine yakınlık)
+        Vector3 startWorld = spawner.GetWorldPosition(requiredStart);
+        if (Vector2.Distance(piece.transform.position, startWorld) < 0.45f) return true;
+
+        return false;
+    }
+
+    /// <summary>
+    /// Bağlı grubun (LinkedObjectGroup) hareket ettirilmesine izin var mı?
+    /// Sadece tutorial başlangıç parçasını içeren grup seçilebilir.
+    /// </summary>
+    public bool IsAllowedGroup(LinkedObjectGroup group)
+    {
+        if (!IsRestrictingInput || group == null) return true;
+        if (activeTutorial.path == null || activeTutorial.path.Length == 0) return true;
+
+        Vector2Int requiredStart = activeTutorial.path[0];
+        GridSpawner spawner = FindObjectOfType<GridSpawner>();
+        if (spawner == null) return true;
+
+        DragObject expected = spawner.GetPieceAt(requiredStart);
+        if (expected != null && group.childDrags != null && group.childDrags.Contains(expected)) return true;
+
+        if (group.childDrags != null)
+        {
+            foreach (var child in group.childDrags)
+            {
+                if (child == null) continue;
+                LiquidTransfer lt = child.GetComponentInChildren<LiquidTransfer>();
+                if (lt != null && lt.initialGridPos == requiredStart) return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Sürüklenen pozisyonu başlangıç ve hedef arasındaki doğruya (rota çizgisine) kısıtlar.
+    /// Parça başka bir yöne veya hücreye kayamaz.
+    /// </summary>
+    public Vector3 ConstrainDragPosition(Vector3 desiredPos, Vector3 startPos)
+    {
+        if (!IsDragTutorialStep()) return desiredPos;
+
+        GridSpawner spawner = FindObjectOfType<GridSpawner>();
+        if (spawner == null) return desiredPos;
+
+        Vector3 startWorld = spawner.GetWorldPosition(activeTutorial.path[0]);
+        Vector3 targetWorld = spawner.GetWorldPosition(activeTutorial.path[activeTutorial.path.Length - 1]);
+        Vector3 track = targetWorld - startWorld;
+        float trackLen = track.magnitude;
+
+        if (trackLen < 0.001f) return desiredPos;
+
+        Vector3 trackDir = track / trackLen;
+        Vector3 toDesired = desiredPos - startPos;
+        float proj = Vector3.Dot(toDesired, trackDir);
+        proj = Mathf.Clamp(proj, 0f, trackLen);
+
+        Vector3 constrained = startPos + trackDir * proj;
+        constrained.z = desiredPos.z;
+        return constrained;
+    }
+
+    /// <summary>
+    /// Bağlı grup için sürüklenen pozisyonu rota çizgisine kısıtlar.
+    /// </summary>
+    public Vector3 ConstrainGroupDragPosition(Vector3 desiredPos, Vector3 groupStartPos)
+    {
+        if (!IsDragTutorialStep()) return desiredPos;
+
+        GridSpawner spawner = FindObjectOfType<GridSpawner>();
+        if (spawner == null) return desiredPos;
+
+        Vector3 startWorld = spawner.GetWorldPosition(activeTutorial.path[0]);
+        Vector3 targetWorld = spawner.GetWorldPosition(activeTutorial.path[activeTutorial.path.Length - 1]);
+        Vector3 track = targetWorld - startWorld;
+        float trackLen = track.magnitude;
+
+        if (trackLen < 0.001f) return desiredPos;
+
+        Vector3 trackDir = track / trackLen;
+        Vector3 toDesired = desiredPos - groupStartPos;
+        float proj = Vector3.Dot(toDesired, trackDir);
+        proj = Mathf.Clamp(proj, 0f, trackLen);
+
+        Vector3 constrained = groupStartPos + trackDir * proj;
+        constrained.z = desiredPos.z;
+        return constrained;
+    }
+
+    /// <summary>
+    /// Bırakılan grid hücresinin tutorial hedef hücresi olup olmadığını kontrol eder.
+    /// </summary>
+    public bool IsValidDropTarget(Transform targetGrid)
+    {
+        if (!IsDragTutorialStep()) return true;
+        if (targetGrid == null) return false;
+
+        GridSpawner spawner = FindObjectOfType<GridSpawner>();
+        if (spawner == null) return true;
+
+        Vector2Int targetPos = activeTutorial.path[activeTutorial.path.Length - 1];
+        Vector3 targetWorld = spawner.GetWorldPosition(targetPos);
+        return Vector2.Distance(targetGrid.position, targetWorld) < 0.45f;
+    }
+
+    /// <summary>
+    /// Bağlı grubun bırakıldığı pozisyonun tutorial hedefiyle eşleşip eşleşmediğini kontrol eder.
+    /// </summary>
+    public bool IsValidGroupDropPosition(Vector3 proposedGroupPos, Vector3 groupStartPos)
+    {
+        if (!IsDragTutorialStep()) return true;
+
+        GridSpawner spawner = FindObjectOfType<GridSpawner>();
+        if (spawner == null) return true;
+
+        Vector3 startWorld = spawner.GetWorldPosition(activeTutorial.path[0]);
+        Vector3 targetWorld = spawner.GetWorldPosition(activeTutorial.path[activeTutorial.path.Length - 1]);
+        Vector3 expectedGroupPos = groupStartPos + (targetWorld - startWorld);
+
+        return Vector2.Distance(proposedGroupPos, expectedGroupPos) < 0.45f;
+    }
+
+    /// <summary>Sürükleme başladığında el görselini gizler.</summary>
+    public void OnDragStarted()
+    {
+        if (handImage != null)
+        {
+            handImage.DOKill();
+            handImage.gameObject.SetActive(false);
+        }
+        if (currentSeq != null) currentSeq.Pause();
+    }
+
+    /// <summary>Yanlış hamle yapıldığında veya yarıda bırakıldığında tutorial elini yeniden gösterir.</summary>
+    public void ResumeTutorialHand()
+    {
+        if (IsRestrictingInput)
+        {
+            CancelInvoke("StartTutorial");
+            Invoke("StartTutorial", 0.2f);
+        }
+    }
+
+    /// <summary>Tutorial adımı başarıyla gerçekleştirildiğinde çağrılır.</summary>
+    public void OnTutorialActionCompleted()
+    {
+        isTutorialCompleted = true;
+        HideTutorial();
     }
 }
