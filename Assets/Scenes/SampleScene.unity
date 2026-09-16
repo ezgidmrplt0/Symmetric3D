@@ -294,6 +294,10 @@ MonoBehaviour:
   lifetimeProgress: 0
   newMechanicUnlocked: 0
   hitProgressHundred: 0
+  movesMade: 0
+  rotationsUsed: 0
+  matchesMade: 0
+  attemptNumber: 1
 --- !u!4 &83771858
 Transform:
   m_ObjectHideFlags: 0
@@ -663,6 +667,80 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 115136870}
   m_CullTransparentMesh: 1
+--- !u!1 &122876291
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 122876293}
+  - component: {fileID: 122876292}
+  m_Layer: 0
+  m_Name: '[Visual Theme Controller]'
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &122876292
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 122876291}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7c92b8d5a1e44f3ba2189a8ef6471e9a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  glassMat: {fileID: 2100000, guid: b18d062098604f14caf2f540d7f9a1ee, type: 2}
+  liquidMat: {fileID: 2100000, guid: 2e7b1fb41ceb7d5498a28adeb7b4e01e, type: 2}
+  gridMat: {fileID: 2100000, guid: 8e3fc75171c1fb045ac200c251ed6b9b, type: 2}
+  frameMat: {fileID: 2100000, guid: fe0d3048897f79f4bb1ad8408799ef6a, type: 2}
+  planeMat: {fileID: 2100000, guid: 7f9c49d40c2dbee4eaee6545445f400e, type: 2}
+  frameShadowMat: {fileID: 2100000, guid: f19384756201abcdef9876543210fedc, type: 2}
+  glassTint: {r: 0.9, g: 0.95, b: 1, a: 0.02}
+  glassSpecularColor: {r: 1, g: 1, b: 1, a: 0.85}
+  glassSpecularSize: 0.03
+  glassSpecularSharpness: 0.01
+  glassRimColor: {r: 0, g: 0, b: 0, a: 0.4}
+  glassRimPower: 3
+  glassEdgeDarkness: 0.35
+  glassEdgeOutlineColor: {r: 0, g: 0, b: 0, a: 1}
+  liquidRampThreshold: 0.5
+  liquidRampSmooth: 0.05
+  liquidColorBoost: 1
+  gridBaseColor: {r: 0.74, g: 0.8, b: 0.88, a: 1}
+  gridShadowColor: {r: 0.58, g: 0.65, b: 0.75, a: 1}
+  gridRimColor: {r: 0.9, g: 0.94, b: 1, a: 0.35}
+  gridUseSpecular: 0
+  frameBaseColor: {r: 0.17999986, g: 0.19999984, b: 0.3199998, a: 1}
+  frameShadowColor: {r: 0.09999985, g: 0.10999983, b: 0.17999986, a: 1}
+  frameRimColor: {r: 0.45, g: 0.52, b: 0.75, a: 0.8}
+  enableFrameFakeShadow: 1
+  frameFakeShadowColor: {r: 0.059999898, g: 0.08999991, b: 0.19999987, a: 0.45}
+  frameFakeShadowOffset: {x: 0.04, y: -0.06}
+  frameFakeShadowSoftness: 3.5
+  planeBaseColor: {r: 0.88, g: 0.91, b: 0.95, a: 1}
+  planeShadowColor: {r: 0.78, g: 0.82, b: 0.89, a: 1}
+--- !u!4 &122876293
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 122876291}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &154308444
 GameObject:
   m_ObjectHideFlags: 0
@@ -3672,6 +3750,10 @@ MonoBehaviour:
   mainCamera: {fileID: 963194227}
   frameThickness: 0.2
   framePadding: 0.1
+  enableFrameFakeShadow: 1
+  frameShadowMaterial: {fileID: 2100000, guid: f19384756201abcdef9876543210fedc, type: 2}
+  frameShadowOffset: {x: 0.04, y: -0.06}
+  frameShadowScaleMultiplier: 1.06
   cameraPadding: 1
   cameraZoomFactor: 0.75
   cameraVerticalOffset: 0.5
@@ -4490,3 +4572,4 @@ SceneRoots:
   - {fileID: 63022669}
   - {fileID: 265219488}
   - {fileID: 774086519}
+  - {fileID: 122876293}

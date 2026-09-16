@@ -33,6 +33,12 @@ public partial class GridSpawner : MonoBehaviour
     public Camera mainCamera;
     public float frameThickness = 0.15f;
     public float framePadding = 0.15f;
+
+    [Header("Çerçeve Sahte Gölge (Fake Shadow)")]
+    public bool enableFrameFakeShadow = true;
+    public Material frameShadowMaterial;
+    public Vector2 frameShadowOffset = new Vector2(0.04f, -0.06f);
+    public float frameShadowScaleMultiplier = 1.06f;
     public float cameraPadding = 0.2f;
     public float cameraZoomFactor = 0.65f;
     public float cameraVerticalOffset = 0.1f;
@@ -54,6 +60,7 @@ public partial class GridSpawner : MonoBehaviour
 
     private List<GameObject> activeSpawnedObjects = new List<GameObject>();
     private List<GameObject> activeFrameSegments = new List<GameObject>();
+    private List<GameObject> activeFrameShadowSegments = new List<GameObject>();
     private Dictionary<int, Transform> spawnedFaceRoots = new Dictionary<int, Transform>();
     private Dictionary<int, LinkedObjectGroup> groups = new Dictionary<int, LinkedObjectGroup>();
     public Dictionary<int, LinkedObjectGroup> GroupsDictionary => groups;
@@ -163,6 +170,10 @@ public partial class GridSpawner : MonoBehaviour
         foreach (GameObject seg in activeFrameSegments)
             if (seg != null) Destroy(seg);
         activeFrameSegments.Clear();
+
+        foreach (GameObject s in activeFrameShadowSegments)
+            if (s != null) Destroy(s);
+        activeFrameShadowSegments.Clear();
     }
 
     /// <summary>Board moduna göre 2D veya 3D spawn'ı başlatır.</summary>

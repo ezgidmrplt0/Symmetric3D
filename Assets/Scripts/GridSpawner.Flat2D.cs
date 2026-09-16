@@ -172,6 +172,8 @@ public partial class GridSpawner
 
         foreach (var seg in activeFrameSegments) if (seg != null) Destroy(seg);
         activeFrameSegments.Clear();
+        foreach (var s in activeFrameShadowSegments) if (s != null) Destroy(s);
+        activeFrameShadowSegments.Clear();
 
         float step = gridSize + spacing;
         float offsetX = (minX + maxX) * step / 2f;
@@ -355,6 +357,34 @@ public partial class GridSpawner
 
     private void Spawn2DSegment(Vector3 worldPos, Vector3 scale)
     {
+        // 1. Sahte Gölge (Fake Drop Shadow)
+        if (enableFrameFakeShadow)
+        {
+            Vector3 shadowPos = worldPos + new Vector3(frameShadowOffset.x, frameShadowOffset.y, 0.02f);
+            Vector3 shadowScale = new Vector3(scale.x * frameShadowScaleMultiplier, scale.y * frameShadowScaleMultiplier, scale.z);
+            GameObject shadowSeg = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            shadowSeg.name = "FrameFakeShadow";
+            Destroy(shadowSeg.GetComponent<BoxCollider>());
+            shadowSeg.transform.position = shadowPos;
+            shadowSeg.transform.localScale = shadowScale;
+            shadowSeg.transform.SetParent(transform);
+
+            Material sMat = frameShadowMaterial;
+            if (sMat == null)
+            {
+#if UNITY_EDITOR
+                sMat = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/FrameShadow.mat");
+#endif
+            }
+            if (sMat != null)
+            {
+                Renderer sr = shadowSeg.GetComponent<Renderer>();
+                if (sr != null) sr.sharedMaterial = sMat;
+            }
+            activeFrameShadowSegments.Add(shadowSeg);
+        }
+
+        // 2. Ana Çerçeve
         GameObject seg;
         if (frameSegmentPrefab != null)
             seg = Instantiate(frameSegmentPrefab, worldPos, Quaternion.identity, transform);

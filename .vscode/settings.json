@@ -51,5 +51,6 @@
         "temp/": true,
         "Temp/": true
     },
-    "dotnet.defaultSolution": "Symmetric3D.sln"
+    "dotnet.defaultSolution": "Symmetric3D.sln",
+    "dotnet.preferCSharpExtension": true
 }
