@@ -3,72 +3,108 @@ using UnityEngine;
 using UnityEditor;
 #endif
 
+/// <summary>
+/// Symmetric3D — Canlı Görsel Tema ve Materyal Kontrolcüsü.
+/// Sahnedeki cam, sıvı (cel-shading/menisküs), ızgara yuvaları, çerçeve, sahte gölge
+/// ve arka plan zemin materyallerini merkezi olarak yönetir.
+/// </summary>
 [ExecuteAlways]
 public class VisualThemeController : MonoBehaviour
 {
     public static VisualThemeController Instance { get; private set; }
 
     [Header("─── MATERYAL REFERANSLARI ───")]
+    [Tooltip("Cam küre materyali (Glass.mat)")]
     public Material glassMat;
+
+    [Tooltip("Sıvı materyali (Shader.mat)")]
     public Material liquidMat;
+
+    [Tooltip("Tahta hücre yuvaları materyali (Grid.mat)")]
     public Material gridMat;
+
+    [Tooltip("Tahtayı çevreleyen kenarlık materyali (Çerçeve.mat)")]
     public Material frameMat;
+
+    [Tooltip("En arkadaki zemin materyali (Plane.mat)")]
     public Material planeMat;
+
+    [Tooltip("Çerçeve altındaki derinlik sahte gölgesi materyali (FrameShadow.mat)")]
     public Material frameShadowMat;
 
-    [Header("─── 1. CAM AYARLARI (Glass) ───")]
+    [Header("─── 1. CAM KÜRE AYARLARI (Glass) ───")]
     [Tooltip("Camın gövde tonu ve saydamlığı (Alpha ne kadar düşükse o kadar berrak)")]
     public Color glassTint = new Color(0.9f, 0.95f, 1.0f, 0.02f);
-    
-    [Tooltip("Cam üzerindeki karikatür parıltı rengi")]
+
+    [Tooltip("Cam üzerindeki karikatür parıltı rengi (Specular Highlight)")]
     public Color glassSpecularColor = new Color(1.0f, 1.0f, 1.0f, 0.85f);
-    
+
     [Range(0.005f, 0.1f)]
     [Tooltip("Parıltı noktasının boyutu (Düşük = ince zarif nokta, Yüksek = büyük parlama)")]
     public float glassSpecularSize = 0.03f;
-    
+
     [Range(0.001f, 0.05f)]
-    [Tooltip("Parıltı noktasının kenar keskinliği")]
+    [Tooltip("Parıltı noktasının kenar keskinliği (Düşük = jilet gibi keskin çizgi)")]
     public float glassSpecularSharpness = 0.01f;
 
-    [Tooltip("Camın dış kenarındaki ince ışıma rengi")]
+    [Tooltip("Camın dış çeperindeki ince kenar ışıması (Rim Light) rengi")]
     public Color glassRimColor = new Color(0.9f, 0.95f, 1.0f, 0.4f);
-    
+
     [Range(0.5f, 8.0f)]
-    [Tooltip("Kenar ışımasının inceliği (Yüksek = sadece en dış sınır, Düşük = geniş rim)")]
+    [Tooltip("Kenar ışımasının inceliği / gücü (Yüksek = sadece en dış sınır, Düşük = geniş hale)")]
     public float glassRimPower = 3.0f;
 
     [Range(0.0f, 1.0f)]
-    [Tooltip("Cam kürenin sınırlarını belirginleştiren silüet kontur gücü")]
+    [Tooltip("Cam kürenin sınırlarını belirginleştiren silüet kontur gücü (Toon çizgisi)")]
     public float glassEdgeDarkness = 0.35f;
 
     [Tooltip("Cam sınır konturunun rengi")]
     public Color glassEdgeOutlineColor = new Color(0.35f, 0.45f, 0.6f, 1.0f);
 
-    [Header("─── 2. SIVI AYARLARI (Liquid) ───")]
+    [Header("─── 2. SIVI AYARLARI (Liquid & Cel-Shading) ───")]
     [Range(0.1f, 0.9f)]
-    [Tooltip("Toon cel-shading gölge geçiş eşiği")]
+    [Tooltip("Toon cel-shading gölge eşiği (Işık ve gölge sınırının konumu)")]
     public float liquidRampThreshold = 0.5f;
 
     [Range(0.001f, 0.2f)]
-    [Tooltip("Toon gölge geçişinin yumuşaklığı")]
+    [Tooltip("Toon gölge geçişinin yumuşaklığı (Düşük = net çizgi film geçişi)")]
     public float liquidRampSmooth = 0.05f;
 
-    [Range(0.8f, 1.5f)]
-    [Tooltip("Sıvı renginin canlılık çarpanı")]
+    [Range(0.8f, 2.0f)]
+    [Tooltip("Sıvı renginin canlılık / doygunluk çarpanı")]
     public float liquidColorBoost = 1.0f;
 
-    [Header("─── 3. IZGARA AYARLARI (Grid) ───")]
+    [Range(0.005f, 0.06f)]
+    [Tooltip("Sıvı üst yüzeyindeki kavis / menisküs çizgisi kalınlığı")]
+    public float liquidMeniscusWidth = 0.025f;
+
+    [Range(0.0f, 2.0f)]
+    [Tooltip("Sıvı yüzeyindeki menisküs kavis çizgisinin parlaklığı")]
+    public float liquidMeniscusIntensity = 1.0f;
+
+    [Range(0.0f, 3.0f)]
+    [Tooltip("Sıvı yüzeyindeki ışık parlama gücü")]
+    public float liquidHighlightIntensity = 1.2f;
+
+    [Range(0.1f, 8.0f)]
+    [Tooltip("Sıvı kenar ışığı (Rim) odağı")]
+    public float liquidRimPower = 2.0f;
+
+    [Range(0.0f, 5.0f)]
+    [Tooltip("Sıvı kenar ışığı (Rim) şiddeti")]
+    public float liquidRimIntensity = 1.4f;
+
+    [Header("─── 3. IZGARA YUVALARI (Grid) ───")]
     [Tooltip("Izgara hücrelerinin ana zemin rengi")]
     public Color gridBaseColor = new Color(0.74f, 0.80f, 0.88f, 1.0f);
 
-    [Tooltip("Izgara hücrelerinin gölgede kalan cel-shade tonu")]
+    [Tooltip("Izgara hücrelerinin derinlik hissi veren gölge rengi")]
     public Color gridShadowColor = new Color(0.58f, 0.65f, 0.75f, 1.0f);
 
     [Tooltip("Izgara hücre kenarlarının parıltı rengi")]
     public Color gridRimColor = new Color(0.82f, 0.88f, 0.95f, 0.20f);
 
-    [Tooltip("Izgara boş küresindeki beyaz parlama (İstenmediği için kapalı tutulur)")]
+    [Tooltip("Boş yuvalardaki beyaz parlama (İstenmediğinde kapalı tutulur)")]
     public bool gridUseSpecular = false;
 
     [Header("─── 4. ÇERÇEVE AYARLARI (Frame) ───")]
@@ -85,21 +121,21 @@ public class VisualThemeController : MonoBehaviour
     [Tooltip("Çerçevenin altına derinlik kazandıran sahte gölge açık olsun mu?")]
     public bool enableFrameFakeShadow = true;
 
-    [Tooltip("Sahte gölgenin rengi ve saydamlığı")]
+    [Tooltip("Sahte gölgenin rengi ve saydamlığı (Alpha)")]
     public Color frameFakeShadowColor = new Color(0.06f, 0.09f, 0.20f, 0.45f);
 
-    [Tooltip("Gölgenin ışık açısına göre X ve Y konumu")]
+    [Tooltip("Gölgenin ışık açısına göre X ve Y konumu (Offset)")]
     public Vector2 frameFakeShadowOffset = new Vector2(0.04f, -0.06f);
 
     [Range(1.0f, 10.0f)]
     [Tooltip("Gölge kenarlarının yumuşaklık / dağılma derecesi")]
     public float frameFakeShadowSoftness = 3.5f;
 
-    [Header("─── 5. ZEMİN ARKA PLAN (Plane) ───")]
+    [Header("─── 6. ZEMİN ARKA PLAN (Plane) ───")]
     [Tooltip("En arkadaki geniş zemin rengi")]
     public Color planeBaseColor = new Color(0.88f, 0.91f, 0.95f, 1.0f);
 
-    [Tooltip("Zeminin gölge rengi")]
+    [Tooltip("Zeminin gölge tonu")]
     public Color planeShadowColor = new Color(0.78f, 0.82f, 0.89f, 1.0f);
 
     void Awake()
@@ -134,10 +170,16 @@ public class VisualThemeController : MonoBehaviour
             gridMat = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Grid.mat");
         if (frameMat == null)
         {
-            var guids = AssetDatabase.FindAssets("Çerçeve t:Material");
-            if (guids.Length == 0) guids = AssetDatabase.FindAssets("er eve t:Material");
-            if (guids.Length > 0)
-                frameMat = AssetDatabase.LoadAssetAtPath<Material>(AssetDatabase.GUIDToAssetPath(guids[0]));
+            string p = AssetDatabase.GUIDToAssetPath("fe0d3048897f79f4bb1ad8408799ef6a");
+            if (!string.IsNullOrEmpty(p))
+                frameMat = AssetDatabase.LoadAssetAtPath<Material>(p);
+            if (frameMat == null)
+            {
+                var guids = AssetDatabase.FindAssets("Çerçeve t:Material");
+                if (guids.Length == 0) guids = AssetDatabase.FindAssets("er eve t:Material");
+                if (guids.Length > 0)
+                    frameMat = AssetDatabase.LoadAssetAtPath<Material>(AssetDatabase.GUIDToAssetPath(guids[0]));
+            }
         }
         if (planeMat == null)
             planeMat = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Plane.mat");
@@ -151,14 +193,14 @@ public class VisualThemeController : MonoBehaviour
     {
         if (glassMat != null)
         {
-            glassMat.SetColor("_Color", glassTint);
-            glassMat.SetColor("_SpecColor", glassSpecularColor);
-            glassMat.SetFloat("_SpecSize", glassSpecularSize);
-            glassMat.SetFloat("_SpecSmoothness", glassSpecularSharpness);
-            glassMat.SetColor("_RimColor", glassRimColor);
-            glassMat.SetFloat("_RimPower", glassRimPower);
-            glassMat.SetFloat("_EdgeDarkness", glassEdgeDarkness);
-            glassMat.SetColor("_EdgeOutlineColor", glassEdgeOutlineColor);
+            if (glassMat.HasProperty("_Color")) glassMat.SetColor("_Color", glassTint);
+            if (glassMat.HasProperty("_SpecColor")) glassMat.SetColor("_SpecColor", glassSpecularColor);
+            if (glassMat.HasProperty("_SpecSize")) glassMat.SetFloat("_SpecSize", glassSpecularSize);
+            if (glassMat.HasProperty("_SpecSmoothness")) glassMat.SetFloat("_SpecSmoothness", glassSpecularSharpness);
+            if (glassMat.HasProperty("_RimColor")) glassMat.SetColor("_RimColor", glassRimColor);
+            if (glassMat.HasProperty("_RimPower")) glassMat.SetFloat("_RimPower", glassRimPower);
+            if (glassMat.HasProperty("_EdgeDarkness")) glassMat.SetFloat("_EdgeDarkness", glassEdgeDarkness);
+            if (glassMat.HasProperty("_EdgeOutlineColor")) glassMat.SetColor("_EdgeOutlineColor", glassEdgeOutlineColor);
 #if UNITY_EDITOR
             EditorUtility.SetDirty(glassMat);
 #endif
@@ -166,9 +208,14 @@ public class VisualThemeController : MonoBehaviour
 
         if (liquidMat != null)
         {
-            liquidMat.SetFloat("_RampThreshold", liquidRampThreshold);
-            liquidMat.SetFloat("_RampSmooth", liquidRampSmooth);
-            liquidMat.SetFloat("_ColorBoost", liquidColorBoost);
+            if (liquidMat.HasProperty("_RampThreshold")) liquidMat.SetFloat("_RampThreshold", liquidRampThreshold);
+            if (liquidMat.HasProperty("_RampSmooth")) liquidMat.SetFloat("_RampSmooth", liquidRampSmooth);
+            if (liquidMat.HasProperty("_ColorBoost")) liquidMat.SetFloat("_ColorBoost", liquidColorBoost);
+            if (liquidMat.HasProperty("_MeniscusWidth")) liquidMat.SetFloat("_MeniscusWidth", liquidMeniscusWidth);
+            if (liquidMat.HasProperty("_MeniscusIntensity")) liquidMat.SetFloat("_MeniscusIntensity", liquidMeniscusIntensity);
+            if (liquidMat.HasProperty("_HighlightIntensity")) liquidMat.SetFloat("_HighlightIntensity", liquidHighlightIntensity);
+            if (liquidMat.HasProperty("_RimPower")) liquidMat.SetFloat("_RimPower", liquidRimPower);
+            if (liquidMat.HasProperty("_RimIntensity")) liquidMat.SetFloat("_RimIntensity", liquidRimIntensity);
 #if UNITY_EDITOR
             EditorUtility.SetDirty(liquidMat);
 #endif
@@ -176,12 +223,12 @@ public class VisualThemeController : MonoBehaviour
 
         if (gridMat != null)
         {
-            gridMat.SetColor("_BaseColor", gridBaseColor);
-            gridMat.SetColor("_Color", gridBaseColor);
-            gridMat.SetColor("_SColor", gridShadowColor);
-            gridMat.SetColor("_RimColor", gridRimColor);
-            gridMat.SetFloat("_UseSpecular", gridUseSpecular ? 1f : 0f);
-            gridMat.SetColor("_SpecularColor", gridUseSpecular ? new Color(1,1,1,0.5f) : Color.clear);
+            if (gridMat.HasProperty("_BaseColor")) gridMat.SetColor("_BaseColor", gridBaseColor);
+            if (gridMat.HasProperty("_Color")) gridMat.SetColor("_Color", gridBaseColor);
+            if (gridMat.HasProperty("_SColor")) gridMat.SetColor("_SColor", gridShadowColor);
+            if (gridMat.HasProperty("_RimColor")) gridMat.SetColor("_RimColor", gridRimColor);
+            if (gridMat.HasProperty("_UseSpecular")) gridMat.SetFloat("_UseSpecular", gridUseSpecular ? 1f : 0f);
+            if (gridMat.HasProperty("_SpecularColor")) gridMat.SetColor("_SpecularColor", gridUseSpecular ? new Color(1f, 1f, 1f, 0.5f) : Color.clear);
 #if UNITY_EDITOR
             EditorUtility.SetDirty(gridMat);
 #endif
@@ -189,10 +236,10 @@ public class VisualThemeController : MonoBehaviour
 
         if (frameMat != null)
         {
-            frameMat.SetColor("_BaseColor", frameBaseColor);
-            frameMat.SetColor("_Color", frameBaseColor);
-            frameMat.SetColor("_SColor", frameShadowColor);
-            frameMat.SetColor("_RimColor", frameRimColor);
+            if (frameMat.HasProperty("_BaseColor")) frameMat.SetColor("_BaseColor", frameBaseColor);
+            if (frameMat.HasProperty("_Color")) frameMat.SetColor("_Color", frameBaseColor);
+            if (frameMat.HasProperty("_SColor")) frameMat.SetColor("_SColor", frameShadowColor);
+            if (frameMat.HasProperty("_RimColor")) frameMat.SetColor("_RimColor", frameRimColor);
 #if UNITY_EDITOR
             EditorUtility.SetDirty(frameMat);
 #endif
@@ -200,8 +247,8 @@ public class VisualThemeController : MonoBehaviour
 
         if (frameShadowMat != null)
         {
-            frameShadowMat.SetColor("_Color", frameFakeShadowColor);
-            frameShadowMat.SetFloat("_Softness", frameFakeShadowSoftness);
+            if (frameShadowMat.HasProperty("_Color")) frameShadowMat.SetColor("_Color", frameFakeShadowColor);
+            if (frameShadowMat.HasProperty("_Softness")) frameShadowMat.SetFloat("_Softness", frameFakeShadowSoftness);
 #if UNITY_EDITOR
             EditorUtility.SetDirty(frameShadowMat);
 #endif
@@ -218,9 +265,9 @@ public class VisualThemeController : MonoBehaviour
 
         if (planeMat != null)
         {
-            planeMat.SetColor("_BaseColor", planeBaseColor);
-            planeMat.SetColor("_Color", planeBaseColor);
-            planeMat.SetColor("_SColor", planeShadowColor);
+            if (planeMat.HasProperty("_BaseColor")) planeMat.SetColor("_BaseColor", planeBaseColor);
+            if (planeMat.HasProperty("_Color")) planeMat.SetColor("_Color", planeBaseColor);
+            if (planeMat.HasProperty("_SColor")) planeMat.SetColor("_SColor", planeShadowColor);
 #if UNITY_EDITOR
             EditorUtility.SetDirty(planeMat);
 #endif
@@ -253,6 +300,11 @@ public class VisualThemeController : MonoBehaviour
             if (liquidMat.HasProperty("_RampThreshold")) liquidRampThreshold = liquidMat.GetFloat("_RampThreshold");
             if (liquidMat.HasProperty("_RampSmooth")) liquidRampSmooth = liquidMat.GetFloat("_RampSmooth");
             if (liquidMat.HasProperty("_ColorBoost")) liquidColorBoost = liquidMat.GetFloat("_ColorBoost");
+            if (liquidMat.HasProperty("_MeniscusWidth")) liquidMeniscusWidth = liquidMat.GetFloat("_MeniscusWidth");
+            if (liquidMat.HasProperty("_MeniscusIntensity")) liquidMeniscusIntensity = liquidMat.GetFloat("_MeniscusIntensity");
+            if (liquidMat.HasProperty("_HighlightIntensity")) liquidHighlightIntensity = liquidMat.GetFloat("_HighlightIntensity");
+            if (liquidMat.HasProperty("_RimPower")) liquidRimPower = liquidMat.GetFloat("_RimPower");
+            if (liquidMat.HasProperty("_RimIntensity")) liquidRimIntensity = liquidMat.GetFloat("_RimIntensity");
         }
 
         if (gridMat != null)
@@ -283,7 +335,7 @@ public class VisualThemeController : MonoBehaviour
         }
     }
 
-    // ── Hızlı Önayarlar ──────────────────────────────
+    // ── Hızlı Hazır Önayarlar (Presets) ──────────────────────────────
     public void Preset_CrystalGlass()
     {
         glassTint = new Color(0.9f, 0.95f, 1.0f, 0.02f);
@@ -295,8 +347,24 @@ public class VisualThemeController : MonoBehaviour
         glassEdgeDarkness = 0.45f;
         glassEdgeOutlineColor = new Color(0.25f, 0.35f, 0.5f, 1.0f);
 
+        liquidRampThreshold = 0.5f;
+        liquidRampSmooth = 0.05f;
+        liquidColorBoost = 1.05f;
+        liquidMeniscusWidth = 0.025f;
+        liquidMeniscusIntensity = 1.0f;
+        liquidHighlightIntensity = 1.2f;
+
         gridBaseColor = new Color(0.74f, 0.80f, 0.88f, 1.0f);
         gridShadowColor = new Color(0.58f, 0.65f, 0.75f, 1.0f);
+        gridRimColor = new Color(0.82f, 0.88f, 0.95f, 0.20f);
+        gridUseSpecular = false;
+
+        frameBaseColor = new Color(0.18f, 0.20f, 0.32f, 1.0f);
+        frameShadowColor = new Color(0.10f, 0.11f, 0.18f, 1.0f);
+        frameRimColor = new Color(0.45f, 0.52f, 0.75f, 0.8f);
+
+        planeBaseColor = new Color(0.88f, 0.91f, 0.95f, 1.0f);
+        planeShadowColor = new Color(0.78f, 0.82f, 0.89f, 1.0f);
 
         ApplyToMaterials();
     }
@@ -304,16 +372,32 @@ public class VisualThemeController : MonoBehaviour
     public void Preset_VisibleToonGlass()
     {
         glassTint = new Color(0.82f, 0.92f, 1.0f, 0.08f);
-        glassSpecularColor = new Color(1.0f, 1.0f, 1.0f, 0.85f);
-        glassSpecularSize = 0.035f;
+        glassSpecularColor = new Color(1.0f, 1.0f, 1.0f, 0.95f);
+        glassSpecularSize = 0.038f;
         glassSpecularSharpness = 0.012f;
         glassRimColor = new Color(0.75f, 0.88f, 1.0f, 0.65f);
         glassRimPower = 2.4f;
         glassEdgeDarkness = 0.55f;
         glassEdgeOutlineColor = new Color(0.2f, 0.32f, 0.48f, 1.0f);
 
+        liquidRampThreshold = 0.52f;
+        liquidRampSmooth = 0.03f;
+        liquidColorBoost = 1.2f;
+        liquidMeniscusWidth = 0.03f;
+        liquidMeniscusIntensity = 1.3f;
+        liquidHighlightIntensity = 1.5f;
+
         gridBaseColor = new Color(0.72f, 0.78f, 0.86f, 1.0f);
         gridShadowColor = new Color(0.55f, 0.62f, 0.72f, 1.0f);
+        gridRimColor = new Color(0.85f, 0.90f, 0.98f, 0.35f);
+        gridUseSpecular = false;
+
+        frameBaseColor = new Color(0.15f, 0.18f, 0.28f, 1.0f);
+        frameShadowColor = new Color(0.08f, 0.09f, 0.15f, 1.0f);
+        frameRimColor = new Color(0.50f, 0.60f, 0.85f, 0.9f);
+
+        planeBaseColor = new Color(0.85f, 0.89f, 0.94f, 1.0f);
+        planeShadowColor = new Color(0.75f, 0.80f, 0.88f, 1.0f);
 
         ApplyToMaterials();
     }
@@ -329,8 +413,57 @@ public class VisualThemeController : MonoBehaviour
         glassEdgeDarkness = 0.3f;
         glassEdgeOutlineColor = new Color(0.4f, 0.45f, 0.55f, 1.0f);
 
+        liquidRampThreshold = 0.45f;
+        liquidRampSmooth = 0.08f;
+        liquidColorBoost = 0.95f;
+        liquidMeniscusWidth = 0.02f;
+        liquidMeniscusIntensity = 0.8f;
+        liquidHighlightIntensity = 1.0f;
+
         gridBaseColor = new Color(0.80f, 0.84f, 0.90f, 1.0f);
         gridShadowColor = new Color(0.68f, 0.72f, 0.80f, 1.0f);
+        gridRimColor = new Color(0.88f, 0.92f, 0.96f, 0.15f);
+        gridUseSpecular = false;
+
+        frameBaseColor = new Color(0.24f, 0.26f, 0.36f, 1.0f);
+        frameShadowColor = new Color(0.14f, 0.15f, 0.22f, 1.0f);
+        frameRimColor = new Color(0.55f, 0.60f, 0.78f, 0.7f);
+
+        planeBaseColor = new Color(0.92f, 0.94f, 0.97f, 1.0f);
+        planeShadowColor = new Color(0.82f, 0.85f, 0.90f, 1.0f);
+
+        ApplyToMaterials();
+    }
+
+    public void Preset_CandyGloss()
+    {
+        glassTint = new Color(0.88f, 0.96f, 1.0f, 0.06f);
+        glassSpecularColor = new Color(1.0f, 1.0f, 1.0f, 1.0f);
+        glassSpecularSize = 0.045f;
+        glassSpecularSharpness = 0.005f;
+        glassRimColor = new Color(0.85f, 0.95f, 1.0f, 0.7f);
+        glassRimPower = 2.0f;
+        glassEdgeDarkness = 0.40f;
+        glassEdgeOutlineColor = new Color(0.3f, 0.4f, 0.6f, 1.0f);
+
+        liquidRampThreshold = 0.55f;
+        liquidRampSmooth = 0.02f;
+        liquidColorBoost = 1.35f;
+        liquidMeniscusWidth = 0.035f;
+        liquidMeniscusIntensity = 1.6f;
+        liquidHighlightIntensity = 1.8f;
+
+        gridBaseColor = new Color(0.70f, 0.76f, 0.88f, 1.0f);
+        gridShadowColor = new Color(0.50f, 0.58f, 0.72f, 1.0f);
+        gridRimColor = new Color(0.88f, 0.94f, 1.0f, 0.4f);
+        gridUseSpecular = false;
+
+        frameBaseColor = new Color(0.12f, 0.15f, 0.25f, 1.0f);
+        frameShadowColor = new Color(0.06f, 0.08f, 0.14f, 1.0f);
+        frameRimColor = new Color(0.60f, 0.70f, 0.95f, 1.0f);
+
+        planeBaseColor = new Color(0.86f, 0.90f, 0.96f, 1.0f);
+        planeShadowColor = new Color(0.74f, 0.80f, 0.90f, 1.0f);
 
         ApplyToMaterials();
     }

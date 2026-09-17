@@ -2,69 +2,144 @@ using UnityEngine;
 using UnityEditor;
 using System.Collections.Generic;
 
+/// <summary>
+/// VisualThemeController için özel, tamamen Türkçeleştirilmiş, açıklamalı ve estetik Inspector arayüzü.
+/// </summary>
 [CustomEditor(typeof(VisualThemeController))]
 public class VisualThemeControllerEditor : Editor
 {
+    private static bool foldGlass = true;
+    private static bool foldLiquid = true;
+    private static bool foldGrid = true;
+    private static bool foldFrame = true;
+    private static bool foldShadow = true;
+    private static bool foldPlane = true;
+    private static bool foldMaterials = false;
+
+    // Önizleme ayarları
+    public enum PreviewTargetMode
+    {
+        Level1_Sabit,
+        TestPaleti_9Renk,
+        OzelSeviye
+    }
+
+    public static PreviewTargetMode previewMode = PreviewTargetMode.Level1_Sabit;
+    public static LevelData customPreviewLevel = null;
+
     public override void OnInspectorGUI()
     {
         VisualThemeController controller = (VisualThemeController)target;
 
-        GUIStyle headerStyle = new GUIStyle(EditorStyles.boldLabel)
+        GUIStyle titleStyle = new GUIStyle(EditorStyles.boldLabel)
         {
-            fontSize = 12,
-            normal = { textColor = new Color(0.2f, 0.7f, 1f) }
+            fontSize = 13,
+            normal = { textColor = new Color(0.25f, 0.75f, 1f) }
         };
 
-        GUIStyle subHeaderStyle = new GUIStyle(EditorStyles.boldLabel)
+        GUIStyle subTitleStyle = new GUIStyle(EditorStyles.boldLabel)
         {
             fontSize = 11,
-            normal = { textColor = new Color(1f, 0.75f, 0.2f) }
+            normal = { textColor = new Color(1f, 0.78f, 0.28f) }
+        };
+
+        GUIStyle noteStyle = new GUIStyle(EditorStyles.miniLabel)
+        {
+            wordWrap = true,
+            normal = { textColor = new Color(0.7f, 0.7f, 0.7f) }
         };
 
         EditorGUILayout.Space(6);
-        EditorGUILayout.LabelField("🎨 GÖRSEL TEMA VE MATERYAL KONTROLCÜSÜ", headerStyle);
-        EditorGUILayout.HelpBox("Değerleri değiştirdiğiniz anda sahnedeki cam, sıvı, ızgara ve zemin anında güncellenir.", MessageType.Info);
+        EditorGUILayout.LabelField("🎨 GÖRSEL TEMA VE MATERYAL KONTROLCÜSÜ", titleStyle);
+        EditorGUILayout.HelpBox("Değerleri değiştirdiğiniz anda sahnedeki cam küreler, sıvı cel-shading, ızgara yuvaları, çerçeve ve zemin anında canlı olarak güncellenir.", MessageType.Info);
 
-        // ── Canlı Sahne Önizlemesi (Oyunu Başlatmadan Görme) ──
+        // ──────────────────────────────────────────────────────────────
+        // 📌 1. SEVİYE SABİTLİ CANLI SAHNE ÖNİZLEMESİ
+        // ──────────────────────────────────────────────────────────────
         EditorGUILayout.Space(6);
-        EditorGUILayout.LabelField("👁️ CANLI SAHNE ÖNİZLEMESİ (Editör Modu)", subHeaderStyle);
+        EditorGUILayout.LabelField("👁️ CANLI SAHNE ÖNİZLEMESİ (Editör Modu)", subTitleStyle);
         EditorGUILayout.BeginVertical(EditorStyles.helpBox);
-        
+
         bool isPreviewing = VisualThemePreviewManager.IsPreviewActive;
-        EditorGUILayout.LabelField(isPreviewing 
-            ? "● Durum: Canlı Önizleme Aktif (Sahnede örnek tahta gösteriliyor)" 
-            : "○ Durum: Önizleme Kapalı", 
-            isPreviewing ? EditorStyles.boldLabel : EditorStyles.miniLabel);
+
+        // Önizleme Seviye Seçimi
+        EditorGUILayout.BeginHorizontal();
+        EditorGUILayout.LabelField("🎯 Önizleme Hedefi:", EditorStyles.boldLabel, GUILayout.Width(125));
+        
+        string[] modeLabels = new string[] { "📌 1. Seviye (Sabit)", "🎨 9 Renkli Test Tahtası", "📂 Başka Seviye" };
+        previewMode = (PreviewTargetMode)GUILayout.Toolbar((int)previewMode, modeLabels, GUILayout.Height(24));
+        EditorGUILayout.EndHorizontal();
+
+        if (previewMode == PreviewTargetMode.Level1_Sabit)
+        {
+            EditorGUILayout.HelpBox("📌 1. Seviye Sabitlendi: Kamera otomatik olarak oyun alanına hizalanır. 2x2 grid yuvaları, beyaz alt plakalar, 2 adet kırmızı cam parça ve çerçeve tam olarak oyundaki yerinde gösterilir.", MessageType.None);
+        }
+        else if (previewMode == PreviewTargetMode.TestPaleti_9Renk)
+        {
+            EditorGUILayout.HelpBox("🎨 9 Renkli Test Tahtası: Mavi, kırmızı, sarı, yeşil, mor, turuncu gibi tüm renklerin cam ve cel-shading uyumunu tek seferde test edin.", MessageType.None);
+        }
+        else
+        {
+            customPreviewLevel = (LevelData)EditorGUILayout.ObjectField("Seviye Asseti:", customPreviewLevel, typeof(LevelData), false);
+            if (customPreviewLevel == null)
+            {
+                EditorGUILayout.HelpBox("Lütfen test etmek istediğiniz Level Data dosyasını buraya sürükleyin.", MessageType.Warning);
+            }
+        }
+
+        GUILayout.Space(4);
+
+        // Durum Göstergesi
+        string statusText = isPreviewing
+            ? "● Durum: Canlı Sahne Önizlemesi AÇIK (Kamera ve Tahta Odaklandı)"
+            : "○ Durum: Önizleme Kapalı";
+        EditorGUILayout.LabelField(statusText, isPreviewing ? EditorStyles.boldLabel : EditorStyles.miniLabel);
 
         EditorGUILayout.BeginHorizontal();
         if (!isPreviewing)
         {
-            GUI.backgroundColor = new Color(0.2f, 0.85f, 0.4f);
-            if (GUILayout.Button("▶ Sahne Önizlemesini Aç (Örnek Tahta)", GUILayout.Height(32)))
+            GUI.backgroundColor = new Color(0.2f, 0.85f, 0.35f);
+            string btnText = previewMode == PreviewTargetMode.Level1_Sabit 
+                ? "▶ 1. Seviye Önizlemesini Aç (Hem Game Hem Scene)" 
+                : "▶ Sahne Önizlemesini Aç";
+
+            if (GUILayout.Button(btnText, GUILayout.Height(36)))
             {
-                VisualThemePreviewManager.SpawnPreview(controller);
+                LevelData targetLvl = GetSelectedPreviewLevel();
+                VisualThemePreviewManager.SpawnPreview(controller, targetLvl, previewMode == PreviewTargetMode.TestPaleti_9Renk);
             }
             GUI.backgroundColor = Color.white;
         }
         else
         {
             GUI.backgroundColor = new Color(1f, 0.35f, 0.35f);
-            if (GUILayout.Button("⏹ Önizlemeyi Kapat", GUILayout.Height(32)))
+            if (GUILayout.Button("⏹ Önizlemeyi Kapat", GUILayout.Height(36)))
             {
                 VisualThemePreviewManager.DestroyPreview();
             }
             GUI.backgroundColor = Color.white;
 
-            if (GUILayout.Button("🎯 Kamerayı Odakla", GUILayout.Height(32), GUILayout.Width(130)))
+            GUI.backgroundColor = new Color(0.3f, 0.7f, 1f);
+            if (GUILayout.Button("🎯 Kamerayı Odakla", GUILayout.Height(36), GUILayout.Width(130)))
             {
                 VisualThemePreviewManager.FocusCamera();
+            }
+            GUI.backgroundColor = Color.white;
+
+            if (GUILayout.Button("🔄 Yenile", GUILayout.Height(36), GUILayout.Width(75)))
+            {
+                LevelData targetLvl = GetSelectedPreviewLevel();
+                VisualThemePreviewManager.SpawnPreview(controller, targetLvl, previewMode == PreviewTargetMode.TestPaleti_9Renk);
             }
         }
         EditorGUILayout.EndHorizontal();
         EditorGUILayout.EndVertical();
 
+        // ──────────────────────────────────────────────────────────────
+        // ⚡ HAZIR ÖNAYARLAR (PRESETS)
+        // ──────────────────────────────────────────────────────────────
         EditorGUILayout.Space(6);
-        EditorGUILayout.LabelField("⚡ Hızlı Hazır Önayarlar (Presets)", subHeaderStyle);
+        EditorGUILayout.LabelField("⚡ Hızlı Hazır Önayarlar (Presets)", subTitleStyle);
         EditorGUILayout.BeginHorizontal();
         if (GUILayout.Button("✨ Belirgin Toon Cam", GUILayout.Height(28)))
         {
@@ -81,27 +156,270 @@ public class VisualThemeControllerEditor : Editor
             Undo.RecordObject(controller, "Preset Soft Pastel");
             controller.Preset_SoftPastel();
         }
+        if (GUILayout.Button("🍬 Tatlı Jelibon", GUILayout.Height(28)))
+        {
+            Undo.RecordObject(controller, "Preset Candy Gloss");
+            controller.Preset_CandyGloss();
+        }
         EditorGUILayout.EndHorizontal();
 
         EditorGUILayout.Space(8);
-        DrawDefaultInspector();
 
-        EditorGUILayout.Space(10);
+        // ──────────────────────────────────────────────────────────────
+        // 🛠️ TÜRKÇELEŞTİRİLMİŞ VE AÇIKLAMALI DETAYLI AYARLAR
+        // ──────────────────────────────────────────────────────────────
+        EditorGUI.BeginChangeCheck();
+
+        // ── 1. CAM KÜRE AYARLARI ──
+        foldGlass = DrawCategoryHeader("💎 1. CAM KÜRE AYARLARI (Glass Shader)", foldGlass, new Color(0.4f, 0.85f, 1f));
+        if (foldGlass)
+        {
+            EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+            
+            controller.glassTint = EditorGUILayout.ColorField("Cam Renk Tonu ve Saydamlık (Tint)", controller.glassTint);
+            EditorGUILayout.LabelField("   └ İpucu: Alpha (A) değerini düşürdükçe cam kristal gibi berraklaşır, yükselttikçe gövde rengi koyulaşır.", noteStyle);
+            GUILayout.Space(3);
+
+            controller.glassSpecularColor = EditorGUILayout.ColorField("Karikatür Parlama Rengi", controller.glassSpecularColor);
+            EditorGUILayout.LabelField("   └ İpucu: Camın ışık vuran yerindeki karikatür yansıma rengi (genelde saf beyaz veya açık mavi).", noteStyle);
+            GUILayout.Space(3);
+
+            controller.glassSpecularSize = EditorGUILayout.Slider("Parlama Noktası Boyutu", controller.glassSpecularSize, 0.005f, 0.1f);
+            EditorGUILayout.LabelField("   └ İpucu: Düşük = ince zarif nokta | Yüksek = büyük ve geniş parlama lekesi.", noteStyle);
+            GUILayout.Space(3);
+
+            controller.glassSpecularSharpness = EditorGUILayout.Slider("Parlama Kenar Keskinliği", controller.glassSpecularSharpness, 0.001f, 0.05f);
+            EditorGUILayout.LabelField("   └ İpucu: Düşük = jilet gibi keskin karikatür parıltısı | Yüksek = yumuşak kenarlı parıltı.", noteStyle);
+            GUILayout.Space(3);
+
+            controller.glassRimColor = EditorGUILayout.ColorField("Kenar Işıması Rengi (Rim Light)", controller.glassRimColor);
+            EditorGUILayout.LabelField("   └ İpucu: Cam kürenin dış çeperini aydınlatan hale ışığı rengi.", noteStyle);
+            GUILayout.Space(3);
+
+            controller.glassRimPower = EditorGUILayout.Slider("Kenar Işıması Gücü / İnceliği", controller.glassRimPower, 0.5f, 8.0f);
+            EditorGUILayout.LabelField("   └ İpucu: Yüksek = sadece en dış sınırda ince hat | Düşük = kürenin içine doğru yayılan geniş ışık.", noteStyle);
+            GUILayout.Space(3);
+
+            controller.glassEdgeDarkness = EditorGUILayout.Slider("Dış Kontur / Silüet Çizgisi Gücü", controller.glassEdgeDarkness, 0.0f, 1.0f);
+            EditorGUILayout.LabelField("   └ İpucu: Cam kürenin sınırlarını belirginleştiren ve arka plandan ayıran dış çizgi kuvveti.", noteStyle);
+            GUILayout.Space(3);
+
+            controller.glassEdgeOutlineColor = EditorGUILayout.ColorField("Dış Kontur Rengi", controller.glassEdgeOutlineColor);
+
+            EditorGUILayout.EndVertical();
+        }
+
+        EditorGUILayout.Space(4);
+
+        // ── 2. SIVI VE CEL-SHADING AYARLARI ──
+        foldLiquid = DrawCategoryHeader("🧪 2. SIVI VE CEL-SHADING AYARLARI (Liquid Shader)", foldLiquid, new Color(1f, 0.55f, 0.45f));
+        if (foldLiquid)
+        {
+            EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+
+            controller.liquidRampThreshold = EditorGUILayout.Slider("Çizgi Film Gölge Sınır Eşiği", controller.liquidRampThreshold, 0.1f, 0.9f);
+            EditorGUILayout.LabelField("   └ İpucu: Sıvı üzerindeki aydınlık ve gölge alanın sınır çizgisi. Düşük = geniş aydınlık | Yüksek = geniş gölge.", noteStyle);
+            GUILayout.Space(3);
+
+            controller.liquidRampSmooth = EditorGUILayout.Slider("Gölge Geçiş Yumuşaklığı", controller.liquidRampSmooth, 0.001f, 0.2f);
+            EditorGUILayout.LabelField("   └ İpucu: Düşük = sert ve keskin çizgi film Toon geçişi | Yüksek = yumuşak gradyan.", noteStyle);
+            GUILayout.Space(3);
+
+            controller.liquidColorBoost = EditorGUILayout.Slider("Sıvı Renk Canlılığı (Boost)", controller.liquidColorBoost, 0.8f, 2.0f);
+            EditorGUILayout.LabelField("   └ İpucu: Sıvı renklerinin canlılığını, doygunluğunu ve patlama parlaklığını artırır.", noteStyle);
+            GUILayout.Space(3);
+
+            controller.liquidMeniscusWidth = EditorGUILayout.Slider("Yüzey Kavis Çizgisi Kalınlığı (Menisküs)", controller.liquidMeniscusWidth, 0.005f, 0.06f);
+            EditorGUILayout.LabelField("   └ İpucu: Sıvının üst kavisli yüzeyindeki ince ışık çizgisi kalınlığı.", noteStyle);
+            GUILayout.Space(3);
+
+            controller.liquidMeniscusIntensity = EditorGUILayout.Slider("Yüzey Kavis Parlaklığı", controller.liquidMeniscusIntensity, 0.0f, 2.0f);
+            EditorGUILayout.LabelField("   └ İpucu: Sıvı menisküs kavis çizgisinin parlaklık şiddeti.", noteStyle);
+            GUILayout.Space(3);
+
+            controller.liquidHighlightIntensity = EditorGUILayout.Slider("Sıvı Üzeri Parlama Işığı", controller.liquidHighlightIntensity, 0.0f, 3.0f);
+            EditorGUILayout.LabelField("   └ İpucu: Sıvının gövdesindeki ışık yansıması gücü.", noteStyle);
+            GUILayout.Space(3);
+
+            controller.liquidRimIntensity = EditorGUILayout.Slider("Sıvı Kenar Işık Şiddeti (Rim)", controller.liquidRimIntensity, 0.0f, 5.0f);
+            controller.liquidRimPower = EditorGUILayout.Slider("Sıvı Kenar Işık Odağı (Power)", controller.liquidRimPower, 0.1f, 8.0f);
+
+            EditorGUILayout.EndVertical();
+        }
+
+        EditorGUILayout.Space(4);
+
+        // ── 3. IZGARA YUVALARI AYARLARI ──
+        foldGrid = DrawCategoryHeader("🔲 3. IZGARA VE TAHTA YUVALARI (Grid Shader)", foldGrid, new Color(0.7f, 0.85f, 0.95f));
+        if (foldGrid)
+        {
+            EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+
+            controller.gridBaseColor = EditorGUILayout.ColorField("Izgara Ana Zemin Rengi", controller.gridBaseColor);
+            EditorGUILayout.LabelField("   └ İpucu: Hücre yuvalarının aydınlık üst yüzey rengi.", noteStyle);
+            GUILayout.Space(3);
+
+            controller.gridShadowColor = EditorGUILayout.ColorField("Izgara Derinlik Gölge Rengi", controller.gridShadowColor);
+            EditorGUILayout.LabelField("   └ İpucu: Yuvaların çukur ve iç kısımlarına derinlik veren gölge tonu.", noteStyle);
+            GUILayout.Space(3);
+
+            controller.gridRimColor = EditorGUILayout.ColorField("Izgara Kenar Parıltısı", controller.gridRimColor);
+            EditorGUILayout.LabelField("   └ İpucu: Yuva kenarlarındaki zarif ışık çerçevesi.", noteStyle);
+            GUILayout.Space(3);
+
+            controller.gridUseSpecular = EditorGUILayout.Toggle("Boş Yuvalarda Beyaz Parlama Olsun", controller.gridUseSpecular);
+            EditorGUILayout.LabelField("   └ İpucu: Topsuz boş hücrelerde göz alan beyaz noktayı engellemek için kapalı tutulması önerilir.", noteStyle);
+
+            EditorGUILayout.EndVertical();
+        }
+
+        EditorGUILayout.Space(4);
+
+        // ── 4. OYUN ÇERÇEVESİ AYARLARI ──
+        foldFrame = DrawCategoryHeader("🖼️ 4. OYUN ALANI ÇERÇEVESİ (Frame Shader)", foldFrame, new Color(0.6f, 0.7f, 0.95f));
+        if (foldFrame)
+        {
+            EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+
+            controller.frameBaseColor = EditorGUILayout.ColorField("Çerçeve Ana Rengi", controller.frameBaseColor);
+            EditorGUILayout.LabelField("   └ İpucu: Tahtayı saran şık dış çerçevenin rengi.", noteStyle);
+            GUILayout.Space(3);
+
+            controller.frameShadowColor = EditorGUILayout.ColorField("Çerçeve Gölge Tonu", controller.frameShadowColor);
+            EditorGUILayout.LabelField("   └ İpucu: Çerçevenin alt ve iç kenar gölgesi.", noteStyle);
+            GUILayout.Space(3);
+
+            controller.frameRimColor = EditorGUILayout.ColorField("Çerçeve Kenar Işıması", controller.frameRimColor);
+            EditorGUILayout.LabelField("   └ İpucu: Çerçevenin üst kenarındaki parlama çizgisi.", noteStyle);
+
+            EditorGUILayout.EndVertical();
+        }
+
+        EditorGUILayout.Space(4);
+
+        // ── 5. ÇERÇEVE SAHTE GÖLGESİ ──
+        foldShadow = DrawCategoryHeader("🌑 5. ÇERÇEVE SAHTE GÖLGESİ (Fake Drop Shadow)", foldShadow, new Color(0.65f, 0.65f, 0.8f));
+        if (foldShadow)
+        {
+            EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+
+            controller.enableFrameFakeShadow = EditorGUILayout.Toggle("Sahte Gölgeyi Aktif Et", controller.enableFrameFakeShadow);
+            EditorGUILayout.LabelField("   └ İpucu: Çerçevenin arkasına derinlik kazandıran sahte gölge katmanı.", noteStyle);
+            GUILayout.Space(3);
+
+            if (controller.enableFrameFakeShadow)
+            {
+                controller.frameFakeShadowColor = EditorGUILayout.ColorField("Gölge Rengi ve Saydamlığı (Alpha)", controller.frameFakeShadowColor);
+                controller.frameFakeShadowOffset = EditorGUILayout.Vector2Field("Gölge Düşüş Açısı (X / Y Offset)", controller.frameFakeShadowOffset);
+                EditorGUILayout.LabelField("   └ İpucu: Gölgenin ışık geliş açısına göre sağa/sola ve aşağı/yukarı kayma mesafesi.", noteStyle);
+                GUILayout.Space(3);
+
+                controller.frameFakeShadowSoftness = EditorGUILayout.Slider("Gölge Kenar Yumuşaklığı", controller.frameFakeShadowSoftness, 1.0f, 10.0f);
+                EditorGUILayout.LabelField("   └ İpucu: Düşük = keskin hatlı gölge | Yüksek = yumuşak dağılan atmosferik gölge.", noteStyle);
+            }
+
+            EditorGUILayout.EndVertical();
+        }
+
+        EditorGUILayout.Space(4);
+
+        // ── 6. ARKA PLAN ZEMİN AYARLARI ──
+        foldPlane = DrawCategoryHeader("⚪ 6. ARKA PLAN ZEMİN AYARLARI (Plane Shader)", foldPlane, new Color(0.85f, 0.9f, 0.95f));
+        if (foldPlane)
+        {
+            EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+
+            controller.planeBaseColor = EditorGUILayout.ColorField("Zemin Ana Rengi", controller.planeBaseColor);
+            EditorGUILayout.LabelField("   └ İpucu: Oyunun en arkasındaki geniş zemin düzlüğünün rengi.", noteStyle);
+            GUILayout.Space(3);
+
+            controller.planeShadowColor = EditorGUILayout.ColorField("Zemin Gölge Tonu", controller.planeShadowColor);
+            EditorGUILayout.LabelField("   └ İpucu: Zemin üzerindeki atmosferik ışık/gölge derinliği.", noteStyle);
+
+            EditorGUILayout.EndVertical();
+        }
+
+        EditorGUILayout.Space(4);
+
+        // ── 7. MATERYAL REFERANSLARI (GELİŞMİŞ) ──
+        foldMaterials = DrawCategoryHeader("📁 MATERYAL DOSYA REFERANSLARI (Gelişmiş)", foldMaterials, new Color(0.75f, 0.75f, 0.75f));
+        if (foldMaterials)
+        {
+            EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+            controller.glassMat = (Material)EditorGUILayout.ObjectField("💎 Cam Materyali (Glass.mat)", controller.glassMat, typeof(Material), false);
+            controller.liquidMat = (Material)EditorGUILayout.ObjectField("🧪 Sıvı Materyali (Shader.mat)", controller.liquidMat, typeof(Material), false);
+            controller.gridMat = (Material)EditorGUILayout.ObjectField("🔲 Izgara Materyali (Grid.mat)", controller.gridMat, typeof(Material), false);
+            controller.frameMat = (Material)EditorGUILayout.ObjectField("🖼️ Çerçeve Materyali (Çerçeve.mat)", controller.frameMat, typeof(Material), false);
+            controller.planeMat = (Material)EditorGUILayout.ObjectField("⚪ Zemin Materyali (Plane.mat)", controller.planeMat, typeof(Material), false);
+            controller.frameShadowMat = (Material)EditorGUILayout.ObjectField("🌑 Çerçeve Gölgesi (FrameShadow.mat)", controller.frameShadowMat, typeof(Material), false);
+            EditorGUILayout.EndVertical();
+        }
+
+        if (EditorGUI.EndChangeCheck())
+        {
+            Undo.RecordObject(controller, "Görsel Tema Ayarı Değiştirildi");
+            controller.ApplyToMaterials();
+            EditorUtility.SetDirty(controller);
+
+            // Önizleme aktifse sahte gölge veya çerçeve değişikliklerini hemen yansıtmak için
+            if (isPreviewing)
+            {
+                VisualThemePreviewManager.SyncMaterials(controller);
+            }
+        }
+
+        // ──────────────────────────────────────────────────────────────
+        // 💾 KAYDET VE YÖNET BUTONLARI
+        // ──────────────────────────────────────────────────────────────
+        EditorGUILayout.Space(12);
         EditorGUILayout.BeginHorizontal();
-        if (GUILayout.Button("💾 Materyal Değişikliklerini Diske Kaydet", GUILayout.Height(32)))
+
+        GUI.backgroundColor = new Color(0.25f, 0.85f, 0.45f);
+        if (GUILayout.Button("💾 Materyal Değişikliklerini Diske Kaydet", GUILayout.Height(36)))
         {
             controller.ApplyToMaterials();
             AssetDatabase.SaveAssets();
-            EditorUtility.DisplayDialog("Kaydedildi", "Tüm materyal ayarları başarıyla proje dosyalarına kaydedildi.", "Tamam");
+            EditorUtility.DisplayDialog("Kaydedildi", "Tüm görsel tema ve materyal ayarları başarıyla proje dosyalarına kaydedildi.", "Tamam");
         }
-        if (GUILayout.Button("🔄 Materyallerden Oku", GUILayout.Height(32)))
+        GUI.backgroundColor = Color.white;
+
+        if (GUILayout.Button("🔄 Materyallerden Geri Oku", GUILayout.Height(36), GUILayout.Width(170)))
         {
             controller.ReadFromMaterials();
         }
         EditorGUILayout.EndHorizontal();
+
+        EditorGUILayout.Space(4);
+    }
+
+    private bool DrawCategoryHeader(string label, bool foldState, Color color)
+    {
+        GUIStyle foldStyle = new GUIStyle(EditorStyles.foldoutHeader)
+        {
+            fontSize = 11,
+            fontStyle = FontStyle.Bold,
+            normal = { textColor = color }
+        };
+        return EditorGUILayout.Foldout(foldState, label, true, foldStyle);
+    }
+
+    private LevelData GetSelectedPreviewLevel()
+    {
+        if (previewMode == PreviewTargetMode.Level1_Sabit)
+        {
+            return AssetDatabase.LoadAssetAtPath<LevelData>("Assets/Levels/Level_01.asset");
+        }
+        else if (previewMode == PreviewTargetMode.OzelSeviye && customPreviewLevel != null)
+        {
+            return customPreviewLevel;
+        }
+        return null;
     }
 }
 
+/// <summary>
+/// Görsel Tema Stüdyosu Penceresi (Menüden açılan ana stüdyo paneli)
+/// </summary>
 public class VisualThemeStudioWindow : EditorWindow
 {
     private VisualThemeController controller;
@@ -111,7 +429,7 @@ public class VisualThemeStudioWindow : EditorWindow
     public static void ShowWindow()
     {
         VisualThemeStudioWindow window = GetWindow<VisualThemeStudioWindow>("Tema Stüdyosu");
-        window.minSize = new Vector2(380, 560);
+        window.minSize = new Vector2(400, 600);
         window.Show();
     }
 
@@ -124,7 +442,7 @@ public class VisualThemeStudioWindow : EditorWindow
     void OnDisable()
     {
         EditorApplication.playModeStateChanged -= OnPlayModeChanged;
-        // Pencere kapandığında geçici önizlemeyi sahneden temizle
+        // Pencere kapandığında sahnede kalan geçici önizlemeyi temizle
         VisualThemePreviewManager.DestroyPreview();
     }
 
@@ -182,8 +500,9 @@ public class VisualThemeStudioWindow : EditorWindow
 }
 
 /// <summary>
-/// Oyunu başlatmadan (Editör modunda) sahnede canlı 3x3 örnek tahta, çerçeve, sahte gölge,
-/// parlaklığı kaldırılmış boş hücre ve renkli cam küreleri gösteren önizleme yöneticisi.
+/// 1. Seviye (veya seçili seviye) canlı sahne önizleme motoru.
+/// GridSpawner ile tam aynı dünya koordinatlarını, aynı prefabları (Çerçeve.prefab, Plaka.prefab, Grid.prefab)
+/// kullanır ve hem SceneView hem de Game/Simulator kamerasını tam tahtanın üzerine hizalar.
 /// </summary>
 public static class VisualThemePreviewManager
 {
@@ -191,89 +510,456 @@ public static class VisualThemePreviewManager
 
     public static bool IsPreviewActive => GameObject.Find(PREVIEW_ROOT_NAME) != null;
 
+    private static Vector3 originalCamPos;
+    private static Quaternion originalCamRot;
+    private static float originalCamOrthoSize;
+    private static Color originalCamBgColor;
+    private static bool hasSavedCam = false;
+
+    private static GameObject cachedTutRoot = null;
+    private static bool cachedTutActive = false;
+
     public static void DestroyPreview()
     {
         GameObject root = GameObject.Find(PREVIEW_ROOT_NAME);
         if (root != null)
         {
             Object.DestroyImmediate(root);
-            SceneView.RepaintAll();
         }
+
+        // Kamerayı eski konumuna geri döndür
+        Camera cam = Camera.main;
+        if (cam != null && hasSavedCam)
+        {
+            cam.transform.position = originalCamPos;
+            cam.transform.rotation = originalCamRot;
+            cam.orthographicSize = originalCamOrthoSize;
+            cam.backgroundColor = originalCamBgColor;
+            hasSavedCam = false;
+        }
+
+        // Tutorial elini eski durumuna getir
+        if (cachedTutRoot != null)
+        {
+            cachedTutRoot.SetActive(cachedTutActive);
+            cachedTutRoot = null;
+        }
+
+        SceneView.RepaintAll();
+    }
+
+    public static void SyncMaterials(VisualThemeController controller)
+    {
+        controller.ApplyToMaterials();
+
+        // Kamera arka plan rengini zemin rengiyle eşle
+        Camera cam = Camera.main;
+        if (cam != null)
+        {
+            cam.backgroundColor = controller.planeBaseColor;
+        }
+
+        SceneView.RepaintAll();
     }
 
     public static void FocusCamera()
     {
         GameObject root = GameObject.Find(PREVIEW_ROOT_NAME);
-        if (root != null && SceneView.lastActiveSceneView != null)
+        if (root == null) return;
+
+        Bounds b = CalculatePreviewBounds(root);
+
+        // 1. SceneView Kamerasını Odakla
+        if (SceneView.lastActiveSceneView != null)
         {
-            SceneView.lastActiveSceneView.Frame(new Bounds(root.transform.position, new Vector3(4.5f, 4.5f, 2f)), false);
+            Bounds sceneBounds = b;
+            sceneBounds.Expand(1.5f);
+            SceneView.lastActiveSceneView.Frame(sceneBounds, false);
+        }
+
+        // 2. Game / Simulator Kamerasını Odakla
+        Camera cam = Camera.main;
+        if (cam != null)
+        {
+            AlignMainCameraToBoard(cam, b);
         }
     }
 
-    public static void SpawnPreview(VisualThemeController controller)
+    private static Bounds CalculatePreviewBounds(GameObject root)
+    {
+        Renderer[] rends = root.GetComponentsInChildren<Renderer>();
+        if (rends.Length == 0) return new Bounds(root.transform.position, new Vector3(3f, 3f, 2f));
+
+        Bounds b = new Bounds(root.transform.position, Vector3.zero);
+        bool inited = false;
+        foreach (var r in rends)
+        {
+            if (r.name.Contains("BackgroundPlane") || r.name.Contains("Shadow")) continue;
+            if (!inited) { b = r.bounds; inited = true; }
+            else b.Encapsulate(r.bounds);
+        }
+        return inited ? b : new Bounds(root.transform.position, new Vector3(3f, 3f, 2f));
+    }
+
+    /// <summary>
+    /// Seviye 1 veya belirtilen seviyeyi Editör Sahnesinde canlı olarak oluşturur.
+    /// </summary>
+    public static void SpawnPreview(VisualThemeController controller, LevelData level = null, bool useColorPaletteMode = false)
     {
         DestroyPreview();
 
+        // Sahnede TutorialHand varsa geçici gizle (ekranı kapatmasın)
+        cachedTutRoot = GameObject.Find("TransferTutorialRoot");
+        if (cachedTutRoot != null)
+        {
+            cachedTutActive = cachedTutRoot.activeSelf;
+            cachedTutRoot.SetActive(false);
+        }
+
+        // Ana kameranın orijinal durumunu sakla
+        Camera cam = Camera.main;
+        if (cam != null && !hasSavedCam)
+        {
+            originalCamPos = cam.transform.position;
+            originalCamRot = cam.transform.rotation;
+            originalCamOrthoSize = cam.orthographicSize;
+            originalCamBgColor = cam.backgroundColor;
+            hasSavedCam = true;
+        }
+
+        // Sahnede GridManager var mı? Varsa onun tam dünya pozisyonunu ve ayarlarını kullan
+        GridSpawner spawner = Object.FindObjectOfType<GridSpawner>();
+        Vector3 rootWorldPos = spawner != null ? spawner.transform.position : new Vector3(0.014f, 1.6395396f, -0.114f);
+
         GameObject previewRoot = new GameObject(PREVIEW_ROOT_NAME);
         previewRoot.hideFlags = HideFlags.DontSave;
-        previewRoot.transform.position = Vector3.zero;
+        previewRoot.transform.position = rootWorldPos;
 
-        // 1. Zemin Arka Plan Plakası (Plane.mat)
+        // Prefab referansları (GUID ile garanti yükleme)
+        GameObject gridPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Grid.prefab");
+        GameObject piecePrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/MainObject.prefab");
+        
+        // Çerçeve prefabı (Çerçeve.prefab)
+        GameObject framePrefab = AssetDatabase.LoadAssetAtPath<GameObject>(AssetDatabase.GUIDToAssetPath("27a9482575df76f6095aaf58024fda5b"));
+        if (framePrefab == null) framePrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Çerçeve.prefab");
+
+        // Plaka prefabı (Plaka.prefab)
+        GameObject platePrefab = AssetDatabase.LoadAssetAtPath<GameObject>(AssetDatabase.GUIDToAssetPath("c3e229a9c7edd294c840d7268bc203de"));
+        if (platePrefab == null) platePrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Plaka.prefab");
+
+        // GridSpawner parametreleri (GridManager'daki ile birebir aynı değerler)
+        float gridSize = gridPrefab != null ? gridPrefab.transform.localScale.x : 0.5f;
+        float spacing = spawner != null ? spawner.spacing : 0.2f;
+        float objectOffset = spawner != null ? spawner.objectOffset : 0.3f;
+        float frameThickness = spawner != null ? spawner.frameThickness : 0.2f;
+        float framePadding = spawner != null ? spawner.framePadding : 0.1f;
+        float step = gridSize + spacing; // 0.5 + 0.2 = 0.7f
+
+        // 9 Renkli Test Paleti Modu
+        if (useColorPaletteMode)
+        {
+            SpawnColorPaletteMode(controller, previewRoot, gridPrefab, piecePrefab, framePrefab, platePrefab, step, gridSize, frameThickness, framePadding, objectOffset);
+            controller.ApplyToMaterials();
+            SyncMaterials(controller);
+            FocusCamera();
+            return;
+        }
+
+        // Seviye belirtilmemişse 1. Seviyeyi (Level_01) sabit yükle
+        if (level == null)
+        {
+            level = AssetDatabase.LoadAssetAtPath<LevelData>("Assets/Levels/Level_01.asset");
+        }
+
+        if (level == null)
+        {
+            SpawnColorPaletteMode(controller, previewRoot, gridPrefab, piecePrefab, framePrefab, platePrefab, step, gridSize, frameThickness, framePadding, objectOffset);
+            controller.ApplyToMaterials();
+            SyncMaterials(controller);
+            FocusCamera();
+            return;
+        }
+
+        // ──────────────────────────────────────────────────────────────
+        // 1. GERÇEK SEVİYE MATEMATİĞİ (Flat2D Grid)
+        // ──────────────────────────────────────────────────────────────
+        HashSet<Vector2Int> occupied = new HashSet<Vector2Int>();
+        if (level.customGridPositions != null && level.customGridPositions.Count > 0)
+        {
+            foreach (var p in level.customGridPositions) occupied.Add(p);
+        }
+        else
+        {
+            for (int x = 0; x < level.gridX; x++)
+                for (int y = 0; y < level.gridY; y++)
+                    occupied.Add(new Vector2Int(x, y));
+        }
+
+        float minX = float.MaxValue, maxX = float.MinValue;
+        float minY = float.MaxValue, maxY = float.MinValue;
+        foreach (var pos in occupied)
+        {
+            if (pos.x < minX) minX = pos.x;
+            if (pos.x > maxX) maxX = pos.x;
+            if (pos.y < minY) minY = pos.y;
+            if (pos.y > maxY) maxY = pos.y;
+        }
+
+        float offsetX = (minX + maxX) * step / 2f;
+        float offsetY = (minY + maxY) * step / 2f;
+
+        // 1.1 Zemin Arka Plan Plakası (Plane.mat)
+        float boardWidth = (maxX - minX + 1) * step + 4.0f;
+        float boardHeight = (maxY - minY + 1) * step + 4.0f;
         GameObject bgPlate = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        bgPlate.name = "Preview_Background";
+        bgPlate.name = "Preview_BackgroundPlane";
         Object.DestroyImmediate(bgPlate.GetComponent<BoxCollider>());
         bgPlate.transform.SetParent(previewRoot.transform);
-        bgPlate.transform.localPosition = new Vector3(0, 0, 0.1f);
-        bgPlate.transform.localScale = new Vector3(4.6f, 4.6f, 0.02f);
+        bgPlate.transform.localPosition = new Vector3(0, 0, 0.4f);
+        bgPlate.transform.localScale = new Vector3(Mathf.Max(boardWidth, 10f), Mathf.Max(boardHeight, 10f), 0.02f);
         if (controller.planeMat != null)
             bgPlate.GetComponent<Renderer>().sharedMaterial = controller.planeMat;
 
-        // 2. Çerçeve ve Sahte Gölge Segmentleri
-        float boardSize = 3.6f;
-        float frameThick = 0.22f;
-        float halfBoard = boardSize / 2f;
+        // 1.2 Grid Yuvaları ve Beyaz Zemin Altlıkları (Plaka.prefab)
+        float localPlateZ = 0.015f;
+        foreach (var pos in occupied)
+        {
+            Vector3 tileLocalPos = new Vector3(pos.x * step - offsetX, pos.y * step - offsetY, 0);
+
+            // Yuva arkası beyaz plaka (Plaka.prefab)
+            GameObject bgTile = null;
+            if (platePrefab != null)
+            {
+                bgTile = (GameObject)PrefabUtility.InstantiatePrefab(platePrefab, previewRoot.transform);
+                Object.DestroyImmediate(bgTile.GetComponent<Collider>());
+            }
+            else
+            {
+                bgTile = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                Object.DestroyImmediate(bgTile.GetComponent<BoxCollider>());
+                bgTile.transform.SetParent(previewRoot.transform);
+            }
+            bgTile.name = $"Preview_GridBG_{pos.x}_{pos.y}";
+            bgTile.transform.localPosition = new Vector3(tileLocalPos.x, tileLocalPos.y, localPlateZ);
+            bgTile.transform.localScale = new Vector3(step, step, 0.01f);
+
+            // Yuva (Grid.prefab)
+            if (gridPrefab != null)
+            {
+                GameObject gridObj = (GameObject)PrefabUtility.InstantiatePrefab(gridPrefab, previewRoot.transform);
+                gridObj.name = $"Preview_Grid_{pos.x}_{pos.y}";
+                gridObj.transform.localPosition = tileLocalPos;
+                Object.DestroyImmediate(gridObj.GetComponent<Collider>());
+
+                Renderer gr = gridObj.GetComponent<Renderer>();
+                if (gr != null && controller.gridMat != null)
+                {
+                    gr.sharedMaterial = controller.gridMat;
+                }
+            }
+        }
+
+        // 1.3 Seviyenin Gerçek Parçaları (Cam Küreler ve Sıvılar)
+        if (piecePrefab != null && level.pieces != null)
+        {
+            foreach (var piece in level.pieces)
+            {
+                Vector3 piecePos = new Vector3(
+                    piece.gridPosition.x * step - offsetX,
+                    piece.gridPosition.y * step - offsetY,
+                    -objectOffset
+                );
+
+                GameObject pieceObj = (GameObject)PrefabUtility.InstantiatePrefab(piecePrefab, previewRoot.transform);
+                pieceObj.name = $"Preview_Piece_{piece.gridPosition.x}_{piece.gridPosition.y}";
+                pieceObj.transform.localPosition = piecePos;
+                pieceObj.transform.localRotation = Quaternion.Euler(0, 0, piece.rotationZ);
+
+                // Editörde collider ve drag'ı temizle
+                var colliders = pieceObj.GetComponentsInChildren<Collider>();
+                foreach (var col in colliders) Object.DestroyImmediate(col);
+
+                var dragCode = pieceObj.GetComponent<DragObject>();
+                if (dragCode != null) Object.DestroyImmediate(dragCode);
+
+                // Cam materyalini doğrudan uygula
+                MeshRenderer mr = pieceObj.GetComponent<MeshRenderer>();
+                if (mr != null && controller.glassMat != null)
+                {
+                    mr.sharedMaterial = controller.glassMat;
+                }
+
+                // Sıvı özelliklerini (renk, dilim vb.) uygula
+                LiquidTransfer lt = pieceObj.GetComponentInChildren<LiquidTransfer>();
+                if (lt != null)
+                {
+                    lt.liquidColor = piece.liquidColor;
+                    lt.currentSlices = piece.currentSlices > 0 ? piece.currentSlices : 2;
+                    lt.UpdateVisuals();
+                }
+            }
+        }
+
+        // 1.4 Çerçeve Segmentleri ve Sahte Gölge (Çerçeve.prefab & FrameShadow.mat)
+        SpawnFrameSegments(controller, previewRoot.transform, framePrefab, occupied, step, gridSize, frameThickness, framePadding, offsetX, offsetY);
+
+        controller.ApplyToMaterials();
+        SyncMaterials(controller);
+        FocusCamera();
+    }
+
+    /// <summary>
+    /// Çerçeve segmentlerini ve sahte gölgelerini GridSpawner mantığı ile oluşturur.
+    /// </summary>
+    private static void SpawnFrameSegments(
+        VisualThemeController controller,
+        Transform parent,
+        GameObject framePrefab,
+        HashSet<Vector2Int> occupied,
+        float step,
+        float gridSize,
+        float t,
+        float framePadding,
+        float offsetX,
+        float offsetY)
+    {
+        float edge = gridSize / 2f + framePadding;
         Vector2 shadowOff = controller.frameFakeShadowOffset;
 
-        // Üst, Alt, Sol, Sağ çerçeve tanımları
-        var frameDefs = new (Vector3 pos, Vector3 scale)[]
+        void CreateSegment(Vector3 localPos, Vector3 scale, string name)
         {
-            (new Vector3(0, halfBoard + frameThick/2f, 0), new Vector3(boardSize + frameThick*2f, frameThick, frameThick)),
-            (new Vector3(0, -halfBoard - frameThick/2f, 0), new Vector3(boardSize + frameThick*2f, frameThick, frameThick)),
-            (new Vector3(-halfBoard - frameThick/2f, 0, 0), new Vector3(frameThick, boardSize, frameThick)),
-            (new Vector3(halfBoard + frameThick/2f, 0, 0), new Vector3(frameThick, boardSize, frameThick)),
-        };
-
-        foreach (var def in frameDefs)
-        {
-            // 2.1 Sahte Gölge (Fake Shadow)
+            // Sahte gölge
             if (controller.enableFrameFakeShadow)
             {
                 GameObject shadowObj = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                shadowObj.name = "Preview_FrameFakeShadow";
+                shadowObj.name = name + "_Shadow";
                 Object.DestroyImmediate(shadowObj.GetComponent<BoxCollider>());
-                shadowObj.transform.SetParent(previewRoot.transform);
-                shadowObj.transform.localPosition = def.pos + new Vector3(shadowOff.x, shadowOff.y, 0.04f);
-                shadowObj.transform.localScale = new Vector3(def.scale.x * 1.08f, def.scale.y * 1.08f, 0.02f);
+                shadowObj.transform.SetParent(parent);
+                shadowObj.transform.localPosition = localPos + new Vector3(shadowOff.x, shadowOff.y, 0.02f);
+                shadowObj.transform.localScale = new Vector3(scale.x * 1.06f, scale.y * 1.06f, scale.z);
                 if (controller.frameShadowMat != null)
                     shadowObj.GetComponent<Renderer>().sharedMaterial = controller.frameShadowMat;
             }
 
-            // 2.2 Ana Çerçeve Segmenti
-            GameObject frameObj = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            frameObj.name = "Preview_FrameSegment";
-            Object.DestroyImmediate(frameObj.GetComponent<BoxCollider>());
-            frameObj.transform.SetParent(previewRoot.transform);
-            frameObj.transform.localPosition = def.pos;
-            frameObj.transform.localScale = def.scale;
+            // Ana çerçeve (Çerçeve.prefab)
+            GameObject frameObj = null;
+            if (framePrefab != null)
+            {
+                frameObj = (GameObject)PrefabUtility.InstantiatePrefab(framePrefab, parent);
+                Object.DestroyImmediate(frameObj.GetComponent<Collider>());
+            }
+            else
+            {
+                frameObj = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                Object.DestroyImmediate(frameObj.GetComponent<BoxCollider>());
+                frameObj.transform.SetParent(parent);
+            }
+
+            frameObj.name = name;
+            frameObj.transform.localPosition = localPos;
+            frameObj.transform.localScale = scale;
             if (controller.frameMat != null)
-                frameObj.GetComponent<Renderer>().sharedMaterial = controller.frameMat;
+            {
+                Renderer fr = frameObj.GetComponent<Renderer>();
+                if (fr != null) fr.sharedMaterial = controller.frameMat;
+            }
         }
 
-        // 3. Hücreler ve Örnek Parçalar (3x3 Düzen)
-        // Merkez (0,0) boş hücredir (parlaklığı kaldırılmış Grid.mat sergilenir)
-        GameObject gridPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Grid.prefab");
-        GameObject piecePrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/MainObject.prefab");
+        foreach (var pos in occupied)
+        {
+            Vector3 center = new Vector3(pos.x * step - offsetX, pos.y * step - offsetY, 0);
 
+            bool left = occupied.Contains(pos + Vector2Int.left);
+            bool right = occupied.Contains(pos + Vector2Int.right);
+            bool up = occupied.Contains(pos + Vector2Int.up);
+            bool down = occupied.Contains(pos + Vector2Int.down);
+
+            // ÜST (TOP)
+            if (!up)
+            {
+                float len = step;
+                if (!left) len += t;
+                if (!right) len += t;
+                float xOff = 0;
+                if (!left && right) xOff = -t / 2f;
+                if (!right && left) xOff = t / 2f;
+                CreateSegment(center + new Vector3(xOff, edge + t / 2f, 0), new Vector3(len, t, t), $"Frame_Top_{pos.x}_{pos.y}");
+            }
+
+            // ALT (BOTTOM)
+            if (!down)
+            {
+                float len = step;
+                if (!left) len += t;
+                if (!right) len += t;
+                float xOff = 0;
+                if (!left && right) xOff = -t / 2f;
+                if (!right && left) xOff = t / 2f;
+                CreateSegment(center + new Vector3(xOff, -edge - t / 2f, 0), new Vector3(len, t, t), $"Frame_Bottom_{pos.x}_{pos.y}");
+            }
+
+            // SOL (LEFT)
+            if (!left)
+            {
+                float len = step;
+                if (!up) len += t;
+                if (!down) len += t;
+                float yOff = 0;
+                if (!down && up) yOff = -t / 2f;
+                if (!up && down) yOff = t / 2f;
+                CreateSegment(center + new Vector3(-edge - t / 2f, yOff, 0), new Vector3(t, len, t), $"Frame_Left_{pos.x}_{pos.y}");
+            }
+
+            // SAĞ (RIGHT)
+            if (!right)
+            {
+                float len = step;
+                if (!up) len += t;
+                if (!down) len += t;
+                float yOff = 0;
+                if (!down && up) yOff = -t / 2f;
+                if (!up && down) yOff = t / 2f;
+                CreateSegment(center + new Vector3(edge + t / 2f, yOff, 0), new Vector3(t, len, t), $"Frame_Right_{pos.x}_{pos.y}");
+            }
+
+            // İç köşe dolguları (Concave corners)
+            if (up && right && !occupied.Contains(pos + new Vector2Int(1, 1)))
+                CreateSegment(center + new Vector3(edge + t / 2f, edge + t / 2f, 0), new Vector3(t, t, t), $"Frame_Corner_TR_{pos.x}_{pos.y}");
+            if (up && left && !occupied.Contains(pos + new Vector2Int(-1, 1)))
+                CreateSegment(center + new Vector3(-edge - t / 2f, edge + t / 2f, 0), new Vector3(t, t, t), $"Frame_Corner_TL_{pos.x}_{pos.y}");
+            if (down && right && !occupied.Contains(pos + new Vector2Int(1, -1)))
+                CreateSegment(center + new Vector3(edge + t / 2f, -edge - t / 2f, 0), new Vector3(t, t, t), $"Frame_Corner_BR_{pos.x}_{pos.y}");
+            if (down && left && !occupied.Contains(pos + new Vector2Int(-1, -1)))
+                CreateSegment(center + new Vector3(-edge - t / 2f, -edge - t / 2f, 0), new Vector3(t, t, t), $"Frame_Corner_BL_{pos.x}_{pos.y}");
+        }
+    }
+
+    /// <summary>
+    /// 9 farklı rengi aynı anda gösteren test paleti tahtası.
+    /// </summary>
+    private static void SpawnColorPaletteMode(
+        VisualThemeController controller,
+        GameObject previewRoot,
+        GameObject gridPrefab,
+        GameObject piecePrefab,
+        GameObject framePrefab,
+        GameObject platePrefab,
+        float step,
+        float gridSize,
+        float frameThickness,
+        float framePadding,
+        float objectOffset)
+    {
+        HashSet<Vector2Int> occupied = new HashSet<Vector2Int>();
+        for (int x = -1; x <= 1; x++)
+            for (int y = -1; y <= 1; y++)
+                occupied.Add(new Vector2Int(x, y));
+
+        float offsetX = 0;
+        float offsetY = 0;
+
+        // Plaka ve Grid
+        float localPlateZ = 0.015f;
         Color[] sampleColors = new Color[]
         {
             ColorMixData.Kirmizi,  ColorMixData.Mavi,     ColorMixData.Sari,
@@ -281,57 +967,105 @@ public static class VisualThemePreviewManager
             ColorMixData.Turuncu,  ColorMixData.AcikMavi, ColorMixData.Pembe
         };
 
-        float spacing = 1.15f;
         int colorIdx = 0;
-
         for (int y = 1; y >= -1; y--)
         {
             for (int x = -1; x <= 1; x++)
             {
-                Vector3 cellPos = new Vector3(x * spacing, y * spacing, 0);
+                Vector3 tilePos = new Vector3(x * step, y * step, 0);
 
-                // Grid girintisi (Grid.prefab)
+                if (platePrefab != null)
+                {
+                    GameObject bgTile = (GameObject)PrefabUtility.InstantiatePrefab(platePrefab, previewRoot.transform);
+                    bgTile.name = $"Preview_GridBG_{x}_{y}";
+                    bgTile.transform.localPosition = new Vector3(tilePos.x, tilePos.y, localPlateZ);
+                    bgTile.transform.localScale = new Vector3(step, step, 0.01f);
+                    Object.DestroyImmediate(bgTile.GetComponent<Collider>());
+                }
+
                 if (gridPrefab != null)
                 {
-                    GameObject gridInstance = (GameObject)PrefabUtility.InstantiatePrefab(gridPrefab, previewRoot.transform);
-                    gridInstance.transform.localPosition = cellPos;
-                    Object.DestroyImmediate(gridInstance.GetComponent<Collider>());
+                    GameObject gridObj = (GameObject)PrefabUtility.InstantiatePrefab(gridPrefab, previewRoot.transform);
+                    gridObj.name = $"Preview_Grid_{x}_{y}";
+                    gridObj.transform.localPosition = tilePos;
+                    Object.DestroyImmediate(gridObj.GetComponent<Collider>());
+                    Renderer gr = gridObj.GetComponent<Renderer>();
+                    if (gr != null && controller.gridMat != null) gr.sharedMaterial = controller.gridMat;
                 }
 
                 Color c = sampleColors[colorIdx++];
-                // Merkez (0,0) boş hücre: üzerinde parça yok!
-                if (x == 0 && y == 0)
-                {
-                    continue;
-                }
+                if (x == 0 && y == 0) continue; // merkez boş
 
-                // Diğer hücrelerde renkli sıvı ve cam küreler
                 if (piecePrefab != null)
                 {
-                    GameObject pieceInstance = (GameObject)PrefabUtility.InstantiatePrefab(piecePrefab, previewRoot.transform);
-                    pieceInstance.transform.localPosition = cellPos;
+                    GameObject pieceObj = (GameObject)PrefabUtility.InstantiatePrefab(piecePrefab, previewRoot.transform);
+                    pieceObj.name = $"Preview_Piece_{x}_{y}";
+                    pieceObj.transform.localPosition = new Vector3(tilePos.x, tilePos.y, -objectOffset);
 
-                    // Editörde physics veya drag scriptlerinin tetiklenmemesi için
-                    var colliders = pieceInstance.GetComponentsInChildren<Collider>();
+                    var colliders = pieceObj.GetComponentsInChildren<Collider>();
                     foreach (var col in colliders) Object.DestroyImmediate(col);
+                    var drag = pieceObj.GetComponent<DragObject>();
+                    if (drag != null) Object.DestroyImmediate(drag);
 
-                    var dragCode = pieceInstance.GetComponent<DragObject>();
-                    if (dragCode != null) Object.DestroyImmediate(dragCode);
+                    MeshRenderer mr = pieceObj.GetComponent<MeshRenderer>();
+                    if (mr != null && controller.glassMat != null) mr.sharedMaterial = controller.glassMat;
 
-                    // Sıvı rengi ata
-                    LiquidTransfer lt = pieceInstance.GetComponent<LiquidTransfer>();
+                    LiquidTransfer lt = pieceObj.GetComponentInChildren<LiquidTransfer>();
                     if (lt != null)
                     {
                         lt.liquidColor = c;
                         lt.currentSlices = 2;
-                        lt.ApplyPropertyBlock();
+                        lt.UpdateVisuals();
                     }
                 }
             }
         }
 
-        controller.ApplyToMaterials();
-        FocusCamera();
-        SceneView.RepaintAll();
+        // Çerçeve
+        SpawnFrameSegments(controller, previewRoot.transform, framePrefab, occupied, step, gridSize, frameThickness, framePadding, offsetX, offsetY);
+    }
+
+    /// <summary>
+    /// Game/Simulator kamerasını ve açısını tahtaya mükemmel hizalar.
+    /// </summary>
+    private static void AlignMainCameraToBoard(Camera cam, Bounds combinedBounds)
+    {
+        GridSpawner spawner = Object.FindObjectOfType<GridSpawner>();
+
+        float cameraPadding = spawner != null ? spawner.cameraPadding : 1f;
+        float cameraZoomFactor = spawner != null ? spawner.cameraZoomFactor : 0.75f;
+        float cameraVerticalOffset = spawner != null ? spawner.cameraVerticalOffset : 0.5f;
+        float uiTopMarginNormalized = spawner != null ? spawner.uiTopMarginNormalized : 0.12f;
+
+        float h = combinedBounds.size.y + cameraPadding * 2f;
+        float w = combinedBounds.size.x + cameraPadding * 2f;
+        float uiMargin = Mathf.Clamp01(uiTopMarginNormalized);
+
+        if (cam.orthographic)
+        {
+            float playableHeightRatio = 1f - uiMargin;
+            float sizeByHeight = (h / 2f) / playableHeightRatio;
+            float sizeByWidth = (w / 2f) / cam.aspect;
+            cam.orthographicSize = Mathf.Max(sizeByHeight, sizeByWidth) * cameraZoomFactor;
+
+            Vector3 camTarget = combinedBounds.center;
+            camTarget.y -= cam.orthographicSize * uiMargin;
+            camTarget.y += cameraVerticalOffset;
+            camTarget.z = cam.transform.position.z;
+            cam.transform.position = camTarget;
+        }
+        else
+        {
+            float playableHeightRatio = 1f - uiMargin;
+            float halfFovRad = cam.fieldOfView * 0.5f * Mathf.Deg2Rad;
+            float distByHeight = (h / 2f) / (Mathf.Tan(halfFovRad) * playableHeightRatio);
+            float distByWidth = (w / 2f) / (Mathf.Tan(halfFovRad) * cam.aspect);
+            float targetDistance = Mathf.Max(distByHeight, distByWidth) * cameraZoomFactor;
+
+            Vector3 baseTarget = combinedBounds.center;
+            baseTarget.y -= (targetDistance * Mathf.Tan(halfFovRad)) * uiMargin;
+            baseTarget.y += cameraVerticalOffset;
+            cam.transform.position = baseTarget - cam.transform.forward * targetDistance;
+        }
     }
 }
