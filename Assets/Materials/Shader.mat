@@ -62,7 +62,7 @@ Material:
     m_Ints: []
     m_Floats:
     - _BumpScale: 1
-    - _ColorBoost: 1
+    - _ColorBoost: 1.35
     - _Cutoff: 0.5
     - _DetailNormalMapScale: 1
     - _Direction: 0
@@ -71,23 +71,25 @@ Material:
     - _GlossMapScale: 1
     - _Glossiness: 0.5
     - _GlossyReflections: 1
-    - _HighlightIntensity: 1.2
-    - _MeniscusIntensity: 1
-    - _MeniscusWidth: 0.025
+    - _HighlightIntensity: 0
+    - _InnerGlow: 0.38
+    - _MeniscusIntensity: 1.6
+    - _MeniscusWidth: 0.035
     - _Metallic: 0
     - _Mode: 0
     - _OcclusionStrength: 1
     - _Parallax: 0.02
-    - _RampSmooth: 0.05
-    - _RampThreshold: 0.5
-    - _RimIntensity: 1.4
-    - _RimPower: 2
+    - _RampSmooth: 0.02
+    - _RampThreshold: 0.55
+    - _RimIntensity: 2.078
+    - _RimPower: 2.9
     - _SmoothnessTextureChannel: 0
-    - _SpecularHighlights: 1
+    - _SpecularHighlights: 0
     - _SrcBlend: 1
     - _TiltX: 0
     - _TiltZ: 0
     - _UVSec: 0
+    - _VibranceNorm: 0.88
     - _Wobble: 0.02
     - _WobbleSpeed: 3
     - _WobbleStrength: 0.02

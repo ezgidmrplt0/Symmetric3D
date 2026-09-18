@@ -702,30 +702,46 @@ MonoBehaviour:
   frameMat: {fileID: 2100000, guid: fe0d3048897f79f4bb1ad8408799ef6a, type: 2}
   planeMat: {fileID: 2100000, guid: 7f9c49d40c2dbee4eaee6545445f400e, type: 2}
   frameShadowMat: {fileID: 2100000, guid: f19384756201abcdef9876543210fedc, type: 2}
-  glassTint: {r: 0.9, g: 0.95, b: 1, a: 0.02}
-  glassSpecularColor: {r: 1, g: 1, b: 1, a: 0.85}
-  glassSpecularSize: 0.03
-  glassSpecularSharpness: 0.01
-  glassRimColor: {r: 0, g: 0, b: 0, a: 0.4}
-  glassRimPower: 3
-  glassEdgeDarkness: 0.35
-  glassEdgeOutlineColor: {r: 0, g: 0, b: 0, a: 1}
-  liquidRampThreshold: 0.5
-  liquidRampSmooth: 0.05
-  liquidColorBoost: 1
-  gridBaseColor: {r: 0.74, g: 0.8, b: 0.88, a: 1}
-  gridShadowColor: {r: 0.58, g: 0.65, b: 0.75, a: 1}
-  gridRimColor: {r: 0.9, g: 0.94, b: 1, a: 0.35}
+  ballShadowMat: {fileID: 2100000, guid: b8a7d32e91124578b890f123456789aa, type: 2}
+  glassTint: {r: 0.82, g: 0.92, b: 1, a: 0.09}
+  glassUseSpecular: 1
+  glassSpecularColor: {r: 1, g: 1, b: 1, a: 1}
+  glassSpecularSize: 0.038
+  glassSpecularSharpness: 0.005
+  glassRimColor: {r: 0.9, g: 0.97, b: 1, a: 0.85}
+  glassRimPower: 2
+  glassEdgeDarkness: 0.42
+  glassEdgeOutlineColor: {r: 0.3, g: 0.45, b: 0.68, a: 0.9}
+  liquidRampThreshold: 0.55
+  liquidRampSmooth: 0.02
+  liquidColorBoost: 1.35
+  liquidVibranceNorm: 0.88
+  liquidInnerGlow: 0.38
+  liquidMeniscusWidth: 0.035
+  liquidMeniscusIntensity: 1.6
+  liquidHighlightIntensity: 0
+  liquidRimPower: 2.9
+  liquidRimIntensity: 2.078
+  gridBaseColor: {r: 0.7, g: 0.76, b: 0.88, a: 1}
+  gridShadowColor: {r: 0.5, g: 0.58, b: 0.72, a: 1}
+  gridRimColor: {r: 0.88, g: 0.94, b: 1, a: 0.4}
   gridUseSpecular: 0
-  frameBaseColor: {r: 0.17999986, g: 0.19999984, b: 0.3199998, a: 1}
-  frameShadowColor: {r: 0.09999985, g: 0.10999983, b: 0.17999986, a: 1}
-  frameRimColor: {r: 0.45, g: 0.52, b: 0.75, a: 0.8}
+  frameBaseColor: {r: 0.12, g: 0.15, b: 0.25, a: 1}
+  frameShadowColor: {r: 0.06, g: 0.08, b: 0.14, a: 1}
+  frameRimColor: {r: 0, g: 0, b: 0, a: 0}
+  frameUseSpecular: 0
   enableFrameFakeShadow: 1
-  frameFakeShadowColor: {r: 0.059999898, g: 0.08999991, b: 0.19999987, a: 0.45}
-  frameFakeShadowOffset: {x: 0.04, y: -0.06}
-  frameFakeShadowSoftness: 3.5
-  planeBaseColor: {r: 0.88, g: 0.91, b: 0.95, a: 1}
-  planeShadowColor: {r: 0.78, g: 0.82, b: 0.89, a: 1}
+  frameFakeShadowColor: {r: 0.05, g: 0.08, b: 0.2, a: 0.48}
+  frameFakeShadowOffset: {x: 0.06, y: -0.08}
+  frameFakeShadowSoftness: 2.8
+  frameShadowScaleMultiplier: 1.14
+  enableBallFakeShadow: 1
+  ballFakeShadowColor: {r: 0.08, g: 0.12, b: 0.22, a: 0.38}
+  ballFakeShadowOffset: {x: 0.025, y: -0.035}
+  ballFakeShadowSize: 0.55
+  ballFakeShadowSoftness: 2.2
+  planeBaseColor: {r: 0.740566, g: 0.85032654, b: 1, a: 1}
+  planeShadowColor: {r: 0.74, g: 0.8, b: 0.9, a: 1}
 --- !u!4 &122876293
 Transform:
   m_ObjectHideFlags: 0
@@ -925,7 +941,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_Color: {r: 0.13207549, g: 0.13207549, b: 0.25490198, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -3263,8 +3279,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
-  m_fontColor: {r: 1, g: 1, b: 1, a: 1}
+    rgba: 4282458658
+  m_fontColor: {r: 0.13333334, g: 0.13333334, b: 0.25490198, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -3381,7 +3397,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_Color: {r: 0.13333334, g: 0.13333334, b: 0.25490198, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -3752,8 +3768,8 @@ MonoBehaviour:
   framePadding: 0.1
   enableFrameFakeShadow: 1
   frameShadowMaterial: {fileID: 2100000, guid: f19384756201abcdef9876543210fedc, type: 2}
-  frameShadowOffset: {x: 0.04, y: -0.06}
-  frameShadowScaleMultiplier: 1.06
+  frameShadowOffset: {x: 0.06, y: -0.08}
+  frameShadowScaleMultiplier: 1.14
   cameraPadding: 1
   cameraZoomFactor: 0.75
   cameraVerticalOffset: 0.5
@@ -4344,7 +4360,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_Color: {r: 0.13333334, g: 0.13333334, b: 0.25490198, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1

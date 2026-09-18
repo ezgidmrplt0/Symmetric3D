@@ -63,6 +63,11 @@ public partial class DragObject : MonoBehaviour
         isFrozen = frozen;
     }
 
+    [Header("Top Sahte Gölge (Ball Fake Shadow)")]
+    public static Material sharedBallShadowMat;
+    private GameObject ballShadowObj;
+    private Transform ballShadowTransform;
+
     // ──────────────────────────────────────────────────────────────
     // BAŞLANGIÇ
     // ──────────────────────────────────────────────────────────────
@@ -77,6 +82,44 @@ public partial class DragObject : MonoBehaviour
             activeSpawner.CurrentLevelType.HasFlag(LevelData.LevelType.Rotation))
         {
             CreateRotateIcon();
+        }
+
+        CreateBallShadow();
+    }
+
+    void CreateBallShadow()
+    {
+        if (ballShadowObj != null) return;
+
+        bool is3D = activeSpawner != null && activeSpawner.levels != null &&
+                    activeSpawner.currentLevelIndex < activeSpawner.levels.Count &&
+                    activeSpawner.levels[activeSpawner.currentLevelIndex] != null &&
+                    activeSpawner.levels[activeSpawner.currentLevelIndex].boardMode == LevelData.BoardMode.Shape3D;
+        if (is3D) return;
+
+        ballShadowObj = GameObject.CreatePrimitive(PrimitiveType.Quad);
+        ballShadowObj.name = "BallFakeShadow";
+        Destroy(ballShadowObj.GetComponent<Collider>());
+
+        ballShadowTransform = ballShadowObj.transform;
+        ballShadowTransform.SetParent(transform, false);
+        ballShadowTransform.rotation = Quaternion.identity;
+        float baseSize = VisualThemeController.Instance != null ? VisualThemeController.Instance.ballFakeShadowSize : 0.55f;
+        ballShadowTransform.localScale = new Vector3(baseSize, baseSize, 0.005f);
+
+        if (sharedBallShadowMat == null)
+        {
+            sharedBallShadowMat = Resources.Load<Material>("BallShadow");
+#if UNITY_EDITOR
+            if (sharedBallShadowMat == null)
+                sharedBallShadowMat = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/BallShadow.mat");
+#endif
+        }
+
+        if (sharedBallShadowMat != null)
+        {
+            Renderer r = ballShadowObj.GetComponent<Renderer>();
+            if (r != null) r.sharedMaterial = sharedBallShadowMat;
         }
     }
 
@@ -109,6 +152,31 @@ public partial class DragObject : MonoBehaviour
             // İkonu merkeze al, parçanın biraz önünde durması için z değerini koru
             rotateIcon.transform.position = transform.position + new Vector3(0, 0, -0.3f);
             rotateIcon.transform.rotation = transform.rotation;
+        }
+
+        if (ballShadowTransform != null)
+        {
+            if (VisualThemeController.Instance != null && !VisualThemeController.Instance.enableBallFakeShadow)
+            {
+                if (ballShadowObj.activeSelf) ballShadowObj.SetActive(false);
+                return;
+            }
+            if (!ballShadowObj.activeSelf) ballShadowObj.SetActive(true);
+
+            // Gölgenin açısını kameraya dik sabit tut (top dönse bile gölge dönmez)
+            ballShadowTransform.rotation = Quaternion.identity;
+
+            // Sürüklenme durumuna göre gölge boyutunu yumuşakça ayarla (hypercasual dinamik derinlik)
+            float baseSize = VisualThemeController.Instance != null ? VisualThemeController.Instance.ballFakeShadowSize : 0.55f;
+            float targetMul = dragging ? 1.18f : 1.0f;
+            float currentMul = Mathf.Lerp(ballShadowTransform.localScale.x / Mathf.Max(0.01f, baseSize), targetMul, Time.deltaTime * 14f);
+            ballShadowTransform.localScale = new Vector3(baseSize * currentMul, baseSize * currentMul, 0.005f);
+
+            // Gölgeyi ışık açısına göre topun hemen altına ve zemin düzlemine yerleştir
+            Vector2 baseOffset = VisualThemeController.Instance != null ? VisualThemeController.Instance.ballFakeShadowOffset : new Vector2(0.025f, -0.035f);
+            Vector3 shadowOffset = new Vector3(baseOffset.x, baseOffset.y, 0.28f);
+            if (dragging) shadowOffset += new Vector3(0.012f, -0.018f, 0f);
+            ballShadowTransform.position = transform.position + shadowOffset;
         }
     }
 

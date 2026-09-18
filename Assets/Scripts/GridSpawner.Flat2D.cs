@@ -360,8 +360,8 @@ public partial class GridSpawner
         // 1. Sahte Gölge (Fake Drop Shadow)
         if (enableFrameFakeShadow)
         {
-            Vector3 shadowPos = worldPos + new Vector3(frameShadowOffset.x, frameShadowOffset.y, 0.02f);
-            Vector3 shadowScale = new Vector3(scale.x * frameShadowScaleMultiplier, scale.y * frameShadowScaleMultiplier, scale.z);
+            Vector3 shadowPos = worldPos + new Vector3(frameShadowOffset.x, frameShadowOffset.y, 0.015f);
+            Vector3 shadowScale = new Vector3(scale.x * frameShadowScaleMultiplier, scale.y * frameShadowScaleMultiplier, 0.005f);
             GameObject shadowSeg = GameObject.CreatePrimitive(PrimitiveType.Cube);
             shadowSeg.name = "FrameFakeShadow";
             Destroy(shadowSeg.GetComponent<BoxCollider>());

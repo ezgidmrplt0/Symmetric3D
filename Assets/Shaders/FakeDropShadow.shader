@@ -3,7 +3,8 @@ Shader "Custom/FakeDropShadow"
     Properties
     {
         _Color ("Shadow Color", Color) = (0.06, 0.09, 0.2, 0.4)
-        _Softness ("Edge Softness", Range(1.0, 10.0)) = 3.0
+        _Softness ("Edge Softness", Range(0.5, 10.0)) = 3.0
+        [Toggle] _IsCircle ("Is Circular", Float) = 0
     }
     SubShader
     {
@@ -35,6 +36,7 @@ Shader "Custom/FakeDropShadow"
 
             fixed4 _Color;
             float _Softness;
+            float _IsCircle;
 
             v2f vert (appdata_t v)
             {
@@ -46,9 +48,11 @@ Shader "Custom/FakeDropShadow"
 
             fixed4 frag (v2f i) : SV_Target
             {
-                // Soft edge falloff
-                float2 dist = abs(i.uv - 0.5) * 2.0;
-                float edge = max(dist.x, dist.y);
+                // Soft edge falloff - supports both rectangular box and circular shape
+                float2 centered = abs(i.uv - 0.5) * 2.0;
+                float boxEdge = max(centered.x, centered.y);
+                float circleEdge = length(i.uv - 0.5) * 2.0;
+                float edge = lerp(boxEdge, circleEdge, _IsCircle);
                 float falloff = saturate((1.0 - edge) * _Softness);
                 falloff = smoothstep(0.0, 1.0, falloff);
 

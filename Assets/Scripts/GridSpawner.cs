@@ -37,8 +37,8 @@ public partial class GridSpawner : MonoBehaviour
     [Header("Çerçeve Sahte Gölge (Fake Shadow)")]
     public bool enableFrameFakeShadow = true;
     public Material frameShadowMaterial;
-    public Vector2 frameShadowOffset = new Vector2(0.04f, -0.06f);
-    public float frameShadowScaleMultiplier = 1.06f;
+    public Vector2 frameShadowOffset = new Vector2(0.06f, -0.08f);
+    public float frameShadowScaleMultiplier = 1.14f;
     public float cameraPadding = 0.2f;
     public float cameraZoomFactor = 0.65f;
     public float cameraVerticalOffset = 0.1f;

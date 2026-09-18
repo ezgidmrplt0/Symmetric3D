@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEditor;
+using UnityEditor.SceneManagement;
 using System.Collections.Generic;
 
 /// <summary>
@@ -145,21 +146,33 @@ public class VisualThemeControllerEditor : Editor
         {
             Undo.RecordObject(controller, "Preset Visible Toon Glass");
             controller.Preset_VisibleToonGlass();
+            EditorUtility.SetDirty(controller);
+            if (!Application.isPlaying && controller.gameObject.scene.IsValid())
+                EditorSceneManager.MarkSceneDirty(controller.gameObject.scene);
         }
         if (GUILayout.Button("💎 Kristal Cam", GUILayout.Height(28)))
         {
             Undo.RecordObject(controller, "Preset Crystal Glass");
             controller.Preset_CrystalGlass();
+            EditorUtility.SetDirty(controller);
+            if (!Application.isPlaying && controller.gameObject.scene.IsValid())
+                EditorSceneManager.MarkSceneDirty(controller.gameObject.scene);
         }
         if (GUILayout.Button("🎨 Soft Pastel", GUILayout.Height(28)))
         {
             Undo.RecordObject(controller, "Preset Soft Pastel");
             controller.Preset_SoftPastel();
+            EditorUtility.SetDirty(controller);
+            if (!Application.isPlaying && controller.gameObject.scene.IsValid())
+                EditorSceneManager.MarkSceneDirty(controller.gameObject.scene);
         }
         if (GUILayout.Button("🍬 Tatlı Jelibon", GUILayout.Height(28)))
         {
             Undo.RecordObject(controller, "Preset Candy Gloss");
             controller.Preset_CandyGloss();
+            EditorUtility.SetDirty(controller);
+            if (!Application.isPlaying && controller.gameObject.scene.IsValid())
+                EditorSceneManager.MarkSceneDirty(controller.gameObject.scene);
         }
         EditorGUILayout.EndHorizontal();
 
@@ -180,17 +193,17 @@ public class VisualThemeControllerEditor : Editor
             EditorGUILayout.LabelField("   └ İpucu: Alpha (A) değerini düşürdükçe cam kristal gibi berraklaşır, yükselttikçe gövde rengi koyulaşır.", noteStyle);
             GUILayout.Space(3);
 
-            controller.glassSpecularColor = EditorGUILayout.ColorField("Karikatür Parlama Rengi", controller.glassSpecularColor);
-            EditorGUILayout.LabelField("   └ İpucu: Camın ışık vuran yerindeki karikatür yansıma rengi (genelde saf beyaz veya açık mavi).", noteStyle);
+            controller.glassUseSpecular = EditorGUILayout.Toggle("Cam Parlama Noktasını Aktif Et", controller.glassUseSpecular);
+            EditorGUILayout.LabelField("   └ İpucu: Cam kürenin üstündeki beyaz karikatür parlama noktasını açar/kapatır.", noteStyle);
             GUILayout.Space(3);
 
-            controller.glassSpecularSize = EditorGUILayout.Slider("Parlama Noktası Boyutu", controller.glassSpecularSize, 0.005f, 0.1f);
-            EditorGUILayout.LabelField("   └ İpucu: Düşük = ince zarif nokta | Yüksek = büyük ve geniş parlama lekesi.", noteStyle);
-            GUILayout.Space(3);
-
-            controller.glassSpecularSharpness = EditorGUILayout.Slider("Parlama Kenar Keskinliği", controller.glassSpecularSharpness, 0.001f, 0.05f);
-            EditorGUILayout.LabelField("   └ İpucu: Düşük = jilet gibi keskin karikatür parıltısı | Yüksek = yumuşak kenarlı parıltı.", noteStyle);
-            GUILayout.Space(3);
+            if (controller.glassUseSpecular)
+            {
+                controller.glassSpecularColor = EditorGUILayout.ColorField("Karikatür Parlama Rengi", controller.glassSpecularColor);
+                controller.glassSpecularSize = EditorGUILayout.Slider("Parlama Noktası Boyutu", controller.glassSpecularSize, 0.005f, 0.1f);
+                controller.glassSpecularSharpness = EditorGUILayout.Slider("Parlama Kenar Keskinliği", controller.glassSpecularSharpness, 0.001f, 0.05f);
+                GUILayout.Space(3);
+            }
 
             controller.glassRimColor = EditorGUILayout.ColorField("Kenar Işıması Rengi (Rim Light)", controller.glassRimColor);
             EditorGUILayout.LabelField("   └ İpucu: Cam kürenin dış çeperini aydınlatan hale ışığı rengi.", noteStyle);
@@ -227,6 +240,14 @@ public class VisualThemeControllerEditor : Editor
 
             controller.liquidColorBoost = EditorGUILayout.Slider("Sıvı Renk Canlılığı (Boost)", controller.liquidColorBoost, 0.8f, 2.0f);
             EditorGUILayout.LabelField("   └ İpucu: Sıvı renklerinin canlılığını, doygunluğunu ve patlama parlaklığını artırır.", noteStyle);
+            GUILayout.Space(3);
+
+            controller.liquidVibranceNorm = EditorGUILayout.Slider("Akıllı Renk Canlılığı (Vibrance)", controller.liquidVibranceNorm, 0.0f, 1.0f);
+            EditorGUILayout.LabelField("   └ İpucu: Koyu yeşil, mor gibi sönük kalan renkleri parlak şeker rengine yükseltir; siyahı bozmaz.", noteStyle);
+            GUILayout.Space(3);
+
+            controller.liquidInnerGlow = EditorGUILayout.Slider("Sıvı İç Işıması (Candy Glow)", controller.liquidInnerGlow, 0.0f, 1.0f);
+            EditorGUILayout.LabelField("   └ İpucu: Sıvının içten dışa kendi renginde ışımasını sağlar; çamurlu gölgeleri önler.", noteStyle);
             GUILayout.Space(3);
 
             controller.liquidMeniscusWidth = EditorGUILayout.Slider("Yüzey Kavis Çizgisi Kalınlığı (Menisküs)", controller.liquidMeniscusWidth, 0.005f, 0.06f);
@@ -289,33 +310,49 @@ public class VisualThemeControllerEditor : Editor
             EditorGUILayout.LabelField("   └ İpucu: Çerçevenin alt ve iç kenar gölgesi.", noteStyle);
             GUILayout.Space(3);
 
-            controller.frameRimColor = EditorGUILayout.ColorField("Çerçeve Kenar Işıması", controller.frameRimColor);
-            EditorGUILayout.LabelField("   └ İpucu: Çerçevenin üst kenarındaki parlama çizgisi.", noteStyle);
+            controller.frameUseSpecular = EditorGUILayout.Toggle("Çerçevede Beyaz Parlama Olsun", controller.frameUseSpecular);
+            EditorGUILayout.LabelField("   └ İpucu: Çerçevenin köşelerindeki göz alan beyaz parlamayı engellemek için kapalı tutulması önerilir.", noteStyle);
+            GUILayout.Space(3);
+
+            controller.frameRimColor = EditorGUILayout.ColorField("Çerçeve Kenar Işıması (Parlama)", controller.frameRimColor);
+            EditorGUILayout.LabelField("   └ İpucu: Çerçevenin üst kenarındaki parlama çizgisi (Mat çerçeve için siyah/saydam yapın).", noteStyle);
 
             EditorGUILayout.EndVertical();
         }
 
         EditorGUILayout.Space(4);
 
-        // ── 5. ÇERÇEVE SAHTE GÖLGESİ ──
-        foldShadow = DrawCategoryHeader("🌑 5. ÇERÇEVE SAHTE GÖLGESİ (Fake Drop Shadow)", foldShadow, new Color(0.65f, 0.65f, 0.8f));
+        // ── 5. SAHTE GÖLGELER ──
+        foldShadow = DrawCategoryHeader("🌑 5. SAHTE GÖLGELER (Fake Drop Shadows)", foldShadow, new Color(0.65f, 0.65f, 0.8f));
         if (foldShadow)
         {
             EditorGUILayout.BeginVertical(EditorStyles.helpBox);
 
-            controller.enableFrameFakeShadow = EditorGUILayout.Toggle("Sahte Gölgeyi Aktif Et", controller.enableFrameFakeShadow);
-            EditorGUILayout.LabelField("   └ İpucu: Çerçevenin arkasına derinlik kazandıran sahte gölge katmanı.", noteStyle);
-            GUILayout.Space(3);
+            // Çerçeve Sahte Gölgesi
+            EditorGUILayout.LabelField("─── ÇERÇEVE SAHTE GÖLGESİ ───", EditorStyles.boldLabel);
+            controller.enableFrameFakeShadow = EditorGUILayout.Toggle("Çerçeve Gölgesi Aktif", controller.enableFrameFakeShadow);
 
             if (controller.enableFrameFakeShadow)
             {
-                controller.frameFakeShadowColor = EditorGUILayout.ColorField("Gölge Rengi ve Saydamlığı (Alpha)", controller.frameFakeShadowColor);
+                controller.frameFakeShadowColor = EditorGUILayout.ColorField("Gölge Rengi ve Alpha", controller.frameFakeShadowColor);
                 controller.frameFakeShadowOffset = EditorGUILayout.Vector2Field("Gölge Düşüş Açısı (X / Y Offset)", controller.frameFakeShadowOffset);
-                EditorGUILayout.LabelField("   └ İpucu: Gölgenin ışık geliş açısına göre sağa/sola ve aşağı/yukarı kayma mesafesi.", noteStyle);
-                GUILayout.Space(3);
+                controller.frameFakeShadowSoftness = EditorGUILayout.Slider("Gölge Kenar Yumuşaklığı", controller.frameFakeShadowSoftness, 0.5f, 10.0f);
+                controller.frameShadowScaleMultiplier = EditorGUILayout.Slider("Gölge Boyut Çarpanı", controller.frameShadowScaleMultiplier, 1.0f, 1.35f);
+            }
 
-                controller.frameFakeShadowSoftness = EditorGUILayout.Slider("Gölge Kenar Yumuşaklığı", controller.frameFakeShadowSoftness, 1.0f, 10.0f);
-                EditorGUILayout.LabelField("   └ İpucu: Düşük = keskin hatlı gölge | Yüksek = yumuşak dağılan atmosferik gölge.", noteStyle);
+            EditorGUILayout.Space(6);
+
+            // Top Sahte Gölgesi
+            EditorGUILayout.LabelField("─── TOP / KÜRE SAHTE GÖLGELERİ ───", EditorStyles.boldLabel);
+            controller.enableBallFakeShadow = EditorGUILayout.Toggle("Top Gölgeleri Aktif", controller.enableBallFakeShadow);
+            EditorGUILayout.LabelField("   └ İpucu: Her kürenin altına tahtaya temas hissi veren dairesel yumuşak gölge ekler.", noteStyle);
+
+            if (controller.enableBallFakeShadow)
+            {
+                controller.ballFakeShadowColor = EditorGUILayout.ColorField("Top Gölge Rengi ve Alpha", controller.ballFakeShadowColor);
+                controller.ballFakeShadowOffset = EditorGUILayout.Vector2Field("Top Gölge Konumu (X / Y Offset)", controller.ballFakeShadowOffset);
+                controller.ballFakeShadowSize = EditorGUILayout.Slider("Top Gölge Boyutu", controller.ballFakeShadowSize, 0.2f, 1.0f);
+                controller.ballFakeShadowSoftness = EditorGUILayout.Slider("Top Gölge Yumuşaklığı", controller.ballFakeShadowSoftness, 0.5f, 10.0f);
             }
 
             EditorGUILayout.EndVertical();
@@ -352,6 +389,7 @@ public class VisualThemeControllerEditor : Editor
             controller.frameMat = (Material)EditorGUILayout.ObjectField("🖼️ Çerçeve Materyali (Çerçeve.mat)", controller.frameMat, typeof(Material), false);
             controller.planeMat = (Material)EditorGUILayout.ObjectField("⚪ Zemin Materyali (Plane.mat)", controller.planeMat, typeof(Material), false);
             controller.frameShadowMat = (Material)EditorGUILayout.ObjectField("🌑 Çerçeve Gölgesi (FrameShadow.mat)", controller.frameShadowMat, typeof(Material), false);
+            controller.ballShadowMat = (Material)EditorGUILayout.ObjectField("⚫ Top Gölgesi (BallShadow.mat)", controller.ballShadowMat, typeof(Material), false);
             EditorGUILayout.EndVertical();
         }
 
@@ -360,6 +398,10 @@ public class VisualThemeControllerEditor : Editor
             Undo.RecordObject(controller, "Görsel Tema Ayarı Değiştirildi");
             controller.ApplyToMaterials();
             EditorUtility.SetDirty(controller);
+            if (!Application.isPlaying && controller.gameObject.scene.IsValid())
+            {
+                EditorSceneManager.MarkSceneDirty(controller.gameObject.scene);
+            }
 
             // Önizleme aktifse sahte gölge veya çerçeve değişikliklerini hemen yansıtmak için
             if (isPreviewing)
@@ -375,17 +417,28 @@ public class VisualThemeControllerEditor : Editor
         EditorGUILayout.BeginHorizontal();
 
         GUI.backgroundColor = new Color(0.25f, 0.85f, 0.45f);
-        if (GUILayout.Button("💾 Materyal Değişikliklerini Diske Kaydet", GUILayout.Height(36)))
+        if (GUILayout.Button("💾 Ayarları ve Materyalleri Kaydet", GUILayout.Height(36)))
         {
             controller.ApplyToMaterials();
+            EditorUtility.SetDirty(controller);
+            if (!Application.isPlaying && controller.gameObject.scene.IsValid())
+            {
+                EditorSceneManager.MarkSceneDirty(controller.gameObject.scene);
+                EditorSceneManager.SaveScene(controller.gameObject.scene);
+            }
             AssetDatabase.SaveAssets();
-            EditorUtility.DisplayDialog("Kaydedildi", "Tüm görsel tema ve materyal ayarları başarıyla proje dosyalarına kaydedildi.", "Tamam");
+            EditorUtility.DisplayDialog("Kaydedildi", "Tüm görsel tema ayarları sahneye ve materyal dosyalarına başarıyla kaydedildi.", "Tamam");
         }
         GUI.backgroundColor = Color.white;
 
         if (GUILayout.Button("🔄 Materyallerden Geri Oku", GUILayout.Height(36), GUILayout.Width(170)))
         {
             controller.ReadFromMaterials();
+            EditorUtility.SetDirty(controller);
+            if (!Application.isPlaying && controller.gameObject.scene.IsValid())
+            {
+                EditorSceneManager.MarkSceneDirty(controller.gameObject.scene);
+            }
         }
         EditorGUILayout.EndHorizontal();
 
@@ -424,6 +477,7 @@ public class VisualThemeStudioWindow : EditorWindow
 {
     private VisualThemeController controller;
     private Vector2 scrollPos;
+    private Editor cachedEditor;
 
     [MenuItem("Tools/Görsel Tema Stüdyosu (Visual Theme Studio)")]
     public static void ShowWindow()
@@ -444,12 +498,27 @@ public class VisualThemeStudioWindow : EditorWindow
         EditorApplication.playModeStateChanged -= OnPlayModeChanged;
         // Pencere kapandığında sahnede kalan geçici önizlemeyi temizle
         VisualThemePreviewManager.DestroyPreview();
+        if (cachedEditor != null)
+        {
+            DestroyImmediate(cachedEditor);
+            cachedEditor = null;
+        }
     }
 
     private void OnPlayModeChanged(PlayModeStateChange state)
     {
         if (state == PlayModeStateChange.ExitingEditMode)
         {
+            if (controller != null)
+            {
+                controller.ApplyToMaterials();
+                EditorUtility.SetDirty(controller);
+                if (!Application.isPlaying && controller.gameObject.scene.IsValid())
+                {
+                    EditorSceneManager.MarkSceneDirty(controller.gameObject.scene);
+                }
+            }
+            AssetDatabase.SaveAssets();
             VisualThemePreviewManager.DestroyPreview();
         }
     }
@@ -470,9 +539,13 @@ public class VisualThemeStudioWindow : EditorWindow
             {
                 controller = Undo.AddComponent<VisualThemeController>(go);
             }
+            controller.EnsureMaterials();
+            controller.ReadFromMaterials();
         }
-        controller.EnsureMaterials();
-        controller.ReadFromMaterials();
+        else
+        {
+            controller.EnsureMaterials();
+        }
     }
 
     void OnGUI()
@@ -489,10 +562,15 @@ public class VisualThemeStudioWindow : EditorWindow
 
         scrollPos = EditorGUILayout.BeginScrollView(scrollPos);
 
-        Editor editor = Editor.CreateEditor(controller);
-        if (editor != null)
+        if (cachedEditor == null || cachedEditor.target != controller)
         {
-            editor.OnInspectorGUI();
+            if (cachedEditor != null) DestroyImmediate(cachedEditor);
+            cachedEditor = Editor.CreateEditor(controller);
+        }
+
+        if (cachedEditor != null)
+        {
+            cachedEditor.OnInspectorGUI();
         }
 
         EditorGUILayout.EndScrollView();
@@ -797,6 +875,19 @@ public static class VisualThemePreviewManager
                     lt.currentSlices = piece.currentSlices > 0 ? piece.currentSlices : 2;
                     lt.UpdateVisuals();
                 }
+
+                // Top Sahte Gölgesi (Preview)
+                if (controller.enableBallFakeShadow)
+                {
+                    GameObject bShadow = GameObject.CreatePrimitive(PrimitiveType.Quad);
+                    bShadow.name = $"Preview_BallShadow_{piece.gridPosition.x}_{piece.gridPosition.y}";
+                    Object.DestroyImmediate(bShadow.GetComponent<Collider>());
+                    bShadow.transform.SetParent(previewRoot.transform);
+                    bShadow.transform.localPosition = piecePos + new Vector3(controller.ballFakeShadowOffset.x, controller.ballFakeShadowOffset.y, 0.28f);
+                    bShadow.transform.localScale = new Vector3(controller.ballFakeShadowSize, controller.ballFakeShadowSize, 0.005f);
+                    if (controller.ballShadowMat != null)
+                        bShadow.GetComponent<Renderer>().sharedMaterial = controller.ballShadowMat;
+                }
             }
         }
 
@@ -835,8 +926,8 @@ public static class VisualThemePreviewManager
                 shadowObj.name = name + "_Shadow";
                 Object.DestroyImmediate(shadowObj.GetComponent<BoxCollider>());
                 shadowObj.transform.SetParent(parent);
-                shadowObj.transform.localPosition = localPos + new Vector3(shadowOff.x, shadowOff.y, 0.02f);
-                shadowObj.transform.localScale = new Vector3(scale.x * 1.06f, scale.y * 1.06f, scale.z);
+                shadowObj.transform.localPosition = localPos + new Vector3(shadowOff.x, shadowOff.y, 0.015f);
+                shadowObj.transform.localScale = new Vector3(scale.x * controller.frameShadowScaleMultiplier, scale.y * controller.frameShadowScaleMultiplier, 0.005f);
                 if (controller.frameShadowMat != null)
                     shadowObj.GetComponent<Renderer>().sharedMaterial = controller.frameShadowMat;
             }
@@ -1016,6 +1107,19 @@ public static class VisualThemePreviewManager
                         lt.liquidColor = c;
                         lt.currentSlices = 2;
                         lt.UpdateVisuals();
+                    }
+
+                    // Top Sahte Gölgesi (Preview)
+                    if (controller.enableBallFakeShadow)
+                    {
+                        GameObject bShadow = GameObject.CreatePrimitive(PrimitiveType.Quad);
+                        bShadow.name = $"Preview_BallShadow_{x}_{y}";
+                        Object.DestroyImmediate(bShadow.GetComponent<Collider>());
+                        bShadow.transform.SetParent(previewRoot.transform);
+                        bShadow.transform.localPosition = new Vector3(tilePos.x + controller.ballFakeShadowOffset.x, tilePos.y + controller.ballFakeShadowOffset.y, -objectOffset + 0.28f);
+                        bShadow.transform.localScale = new Vector3(controller.ballFakeShadowSize, controller.ballFakeShadowSize, 0.005f);
+                        if (controller.ballShadowMat != null)
+                            bShadow.GetComponent<Renderer>().sharedMaterial = controller.ballShadowMat;
                     }
                 }
             }
